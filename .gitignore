@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Backend
+backend/.env
+backend/node_modules/
+backend/logs/
+backend/uploads/
+backend/dist/
+
+# Mobile React Native
+mobile-dudu/DUDU/node_modules/
+mobile-dudu/DUDU/.expo/
+mobile-dudu/DUDU/.expo-shared/
+mobile-dudu/DUDU/dist/
+mobile-dudu/DUDU/web-build/
+
+# Flutter
+dudu_flutter/build/
+dudu_flutter/.dart_tool/
+dudu_flutter/.flutter-plugins
+dudu_flutter/.flutter-plugins-dependencies
+dudu_flutter/.packages
+dudu_flutter/pubspec.lock
+dudu_flutter/ios/Pods/
+dudu_flutter/ios/.symlinks/
+dudu_flutter/ios/Flutter/Flutter.framework
+dudu_flutter/ios/Flutter/Flutter.podspec
+dudu_flutter/android/.gradle/
+dudu_flutter/android/captures/
+dudu_flutter/android/gradlew
+dudu_flutter/android/gradlew.bat
+dudu_flutter/android/local.properties
+dudu_flutter/android/key.properties
+
+# Logs
+*.log
+logs/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Production
+build/
+dist/
+
+# Misc
+.cache/
+tmp/
+temp/
+
