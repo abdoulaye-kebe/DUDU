@@ -123,8 +123,43 @@ const rideSchema = new mongoose.Schema({
   // Type de course
   rideType: {
     type: String,
-    enum: ['standard', 'express', 'shared', 'premium', 'women_only'],
+    enum: ['standard', 'express', 'shared', 'premium', 'women_only', 'delivery'],
     default: 'standard'
+  },
+  
+  // Informations de livraison (si rideType = 'delivery')
+  delivery: {
+    packageType: {
+      type: String,
+      enum: ['document', 'small_package', 'medium_package', 'large_package', 'food', 'fragile']
+    },
+    weight: Number, // en kg
+    dimensions: {
+      length: Number, // cm
+      width: Number,  // cm
+      height: Number  // cm
+    },
+    description: String,
+    recipientName: String,
+    recipientPhone: String,
+    instructions: String,
+    pickupContact: String,
+    pickupContactPhone: String,
+    deliveryPhotos: {
+      beforePickup: String,  // URL photo avant récupération
+      afterPickup: String,   // URL photo après récupération
+      beforeDelivery: String, // URL photo avant livraison
+      afterDelivery: String   // URL photo après livraison
+    },
+    confirmationCode: String, // Code de confirmation pour la remise
+    isFragile: {
+      type: Boolean,
+      default: false
+    },
+    requiresSignature: {
+      type: Boolean,
+      default: false
+    }
   },
   
   // Horaires

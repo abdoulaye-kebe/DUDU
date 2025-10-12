@@ -18,6 +18,8 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   // État du chauffeur
   bool _isOnline = false;
   bool _isLoading = true;
+  bool _acceptDeliveries = false;
+  String _vehicleType = 'car'; // car, moto, both
   
   // Forfait
   String _currentPlanType = 'daily';
@@ -320,6 +322,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                 
                 const Spacer(),
                 
+                // Options de service
+                _buildServiceOptions(),
+                
                 // Statistiques du jour
                 _buildDailyStats(),
                 
@@ -421,6 +426,126 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                 style: TextStyle(fontSize: 12, color: Colors.white),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServiceOptions() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.settings, color: Color(0xFF00A651)),
+              SizedBox(width: 8),
+              Text(
+                'Mes services',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+          
+          // Livraison de colis
+          Row(
+            children: [
+              const Icon(Icons.local_shipping, color: Color(0xFFFF6B00)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Livraison de colis',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      'Accepter les livraisons par moto',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _acceptDeliveries,
+                activeColor: const Color(0xFFFF6B00),
+                onChanged: (value) {
+                  setState(() {
+                    _acceptDeliveries = value;
+                  });
+                  // TODO: Sauvegarder la préférence via API
+                },
+              ),
+            ],
+          ),
+          
+          if (_acceptDeliveries) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Type de véhicule pour livraison:',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('🏍️ Moto'),
+                  selected: _vehicleType == 'moto',
+                  selectedColor: const Color(0xFFFF6B00),
+                  labelStyle: TextStyle(
+                    color: _vehicleType == 'moto' ? Colors.white : Colors.black87,
+                  ),
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() => _vehicleType = 'moto');
+                    }
+                  },
+                ),
+                ChoiceChip(
+                  label: const Text('🚗 Voiture'),
+                  selected: _vehicleType == 'car',
+                  selectedColor: const Color(0xFFFF6B00),
+                  labelStyle: TextStyle(
+                    color: _vehicleType == 'car' ? Colors.white : Colors.black87,
+                  ),
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() => _vehicleType = 'car');
+                    }
+                  },
+                ),
+                ChoiceChip(
+                  label: const Text('🏍️🚗 Les deux'),
+                  selected: _vehicleType == 'both',
+                  selectedColor: const Color(0xFFFF6B00),
+                  labelStyle: TextStyle(
+                    color: _vehicleType == 'both' ? Colors.white : Colors.black87,
+                  ),
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() => _vehicleType = 'both');
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

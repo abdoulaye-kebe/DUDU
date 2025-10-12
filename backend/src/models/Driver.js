@@ -209,6 +209,15 @@ const driverSchema = new mongoose.Schema({
     acceptExpressRides: {
       type: Boolean,
       default: true
+    },
+    acceptDeliveries: {
+      type: Boolean,
+      default: false
+    },
+    vehicleForDelivery: {
+      type: String,
+      enum: ['car', 'moto', 'both'],
+      default: 'car'
     }
   },
   

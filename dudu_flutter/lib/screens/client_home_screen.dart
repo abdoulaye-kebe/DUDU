@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/places_service.dart';
+import 'ride_type_selection_screen.dart';
+import 'delivery_request_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({Key? key}) : super(key: key);
@@ -45,6 +47,17 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   
   // Suggestions d'adresses
   List<PlaceSuggestion> _placeSuggestions = [];
+  
+  // Type de course sélectionné
+  String _selectedRideType = 'standard';
+  Map<String, double> _rideTypeMultipliers = {
+    'standard': 1.0,
+    'express': 1.3,
+    'premium': 1.5,
+    'shared': 0.7,
+    'women_only': 1.0,
+    'delivery': 0.8,
+  };
 
   @override
   void initState() {
@@ -228,6 +241,42 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     }
   }
 
+  void _showRideTypeSelection() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => RideTypeSelectionScreen(
+        onTypeSelected: (type) {
+          setState(() {
+            _selectedRideType = type;
+          });
+          
+          // Si c'est une livraison, aller directement à l'écran de livraison
+          if (type == 'delivery') {
+            _showDeliveryScreen();
+          } else {
+            _showDestinationSearch();
+          }
+        },
+      ),
+    );
+  }
+  
+  void _showDeliveryScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DeliveryRequestScreen(
+          pickupLocation: _pickupLocation,
+          destinationLocation: _destinationLocation,
+          pickupAddress: _pickupAddress,
+          destinationAddress: _destinationAddress,
+        ),
+      ),
+    );
+  }
+  
   void _showDestinationSearch() {
     showModalBottomSheet(
       context: context,
@@ -578,6 +627,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     if (_suggestedPrice != null) {
       setState(() {
         _selectedPrice = _suggestedPrice!;
+        _selectedRideType = 'express'; // Course Express = type express
       });
       _showDestinationSearch();
     }
@@ -652,7 +702,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: _showDestinationSearch,
+          onTap: _showRideTypeSelection,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(16),
