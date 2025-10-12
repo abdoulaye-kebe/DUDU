@@ -79,6 +79,38 @@ class PlacesService {
       return 'Dakar, Sénégal';
     }
   }
+  
+  /// Géocodage (adresse → coordonnées GPS)
+  static Future<PlaceDetails?> geocodeAddress(String address) async {
+    final url = Uri.parse(
+      'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(address)}&key=$_apiKey&language=fr&components=country:sn',
+    );
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
+          final result = data['results'][0];
+          final location = result['geometry']['location'];
+          
+          return PlaceDetails(
+            latitude: location['lat'],
+            longitude: location['lng'],
+            formattedAddress: result['formatted_address'],
+            name: address,
+          );
+        }
+      }
+
+      return null;
+    } catch (e) {
+      print('Erreur géocodage adresse: $e');
+      return null;
+    }
+  }
 }
 
 class PlaceSuggestion {

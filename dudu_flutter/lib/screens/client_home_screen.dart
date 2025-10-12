@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/places_service.dart';
+import '../services/carpool_monitor_service.dart';
 import 'ride_type_selection_screen.dart';
 import 'delivery_request_screen.dart';
 
@@ -65,11 +66,37 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     _initializeScreen();
   }
 
+  @override
+  void dispose() {
+    // Arrêter la surveillance covoiturage
+    CarpoolMonitorService().stopMonitoring();
+    _destinationController.dispose();
+    super.dispose();
+  }
+
   Future<void> _initializeScreen() async {
-    await _getCurrentLocation();
-    await _loadRecentRides();
-    await _loadPriceSuggestions();
-    setState(() => _isLoading = false);
+    try {
+      // Timeout de 10 secondes pour la géolocalisation
+      await Future.wait([
+        _getCurrentLocation().timeout(const Duration(seconds: 10)),
+        _loadRecentRides(),
+        _loadPriceSuggestions(),
+      ]).timeout(const Duration(seconds: 15));
+    } catch (e) {
+      print('Erreur initialisation: $e');
+      // Utiliser position par défaut même en cas d'erreur
+      _setDefaultLocation();
+    } finally {
+      // S'assurer que le loading s'arrête toujours
+      if (mounted) {
+        setState(() => _isLoading = false);
+        
+        // Démarrer la surveillance des chauffeurs en covoiturage
+        if (_currentPosition != null) {
+          CarpoolMonitorService().startMonitoring(context, _currentPosition);
+        }
+      }
+    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -116,23 +143,38 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       });
     } catch (e) {
       print('Erreur localisation: $e');
-      // Position par défaut : Dakar centre
-      final defaultPos = Position(
-        latitude: 14.6937,
-        longitude: -17.4441,
-        timestamp: DateTime.now(),
-        accuracy: 0,
-        altitude: 0,
-        altitudeAccuracy: 0,
-        heading: 0,
-        headingAccuracy: 0,
-        speed: 0,
-        speedAccuracy: 0,
-      );
+      _setDefaultLocation();
+    }
+  }
+  
+  void _setDefaultLocation() {
+    // Position par défaut : DAKAR - CHIFFRES RONDS
+    final defaultPos = Position(
+      latitude: 14.70,
+      longitude: -17.45,
+      timestamp: DateTime.now(),
+      accuracy: 0,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+    );
+    
+    if (mounted) {
       setState(() {
         _currentPosition = defaultPos;
         _pickupLocation = defaultPos;
         _pickupAddress = 'Place de l\'Indépendance, Dakar';
+        _markers.add(
+          Marker(
+            markerId: const MarkerId('default_location'),
+            position: LatLng(defaultPos.latitude, defaultPos.longitude),
+            infoWindow: const InfoWindow(title: 'Dakar'),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          ),
+        );
       });
     }
   }
@@ -309,34 +351,86 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           // En-tête
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Text(
-              'Où allez-vous ?',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          
-          // Champ de recherche
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              controller: _destinationController,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'Rechercher une destination...',
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF00A651)),
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+            child: Column(
+              children: [
+                Text(
+                  'Votre trajet',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              onChanged: (value) {
-                // Autocomplétion en temps réel
-                _searchPlaces(value);
-              },
+                const SizedBox(height: 16),
+                
+                // Champ Point de départ (MODIFIABLE)
+                TextField(
+                  controller: TextEditingController(text: _pickupAddress),
+                  decoration: InputDecoration(
+                    labelText: 'Point de départ',
+                    prefixIcon: const Icon(Icons.location_on, color: Color(0xFF00A651)),
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _pickupAddress = value;
+                    });
+                  },
+                  onSubmitted: (value) {
+                    // Rechercher cette adresse
+                    _searchPlaces(value);
+                  },
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Champ Destination (SAISIE LIBRE)
+                TextField(
+                  controller: _destinationController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Destination',
+                    hintText: 'Tapez votre destination...',
+                    prefixIcon: const Icon(Icons.flag, color: Colors.red),
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    suffixIcon: _destinationController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.check_circle, color: Color(0xFF00A651)),
+                            onPressed: () {
+                              // Valider la destination tapée
+                              Navigator.pop(context);
+                              _selectDestination(_destinationController.text);
+                            },
+                          )
+                        : null,
+                  ),
+                  onChanged: (value) {
+                    // Autocomplétion en temps réel (optionnelle)
+                    _searchPlaces(value);
+                    setState(() {});
+                  },
+                  onSubmitted: (value) {
+                    if (value.isNotEmpty) {
+                      Navigator.pop(context);
+                      _selectDestination(value);
+                    }
+                  },
+                ),
+                
+                const SizedBox(height: 8),
+                Text(
+                  'Tapez librement ou choisissez une suggestion',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
             ),
           ),
           
@@ -383,10 +477,32 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     );
   }
 
-  void _selectDestination(String destination) {
+  Future<void> _selectDestination(String destination) async {
     setState(() {
       _destinationAddress = destination;
     });
+    
+    // Récupérer les coordonnées GPS de l'adresse tapée
+    final details = await PlacesService.geocodeAddress(destination);
+    
+    if (details != null) {
+      setState(() {
+        _destinationLocation = Position(
+          latitude: details.latitude,
+          longitude: details.longitude,
+          timestamp: DateTime.now(),
+          accuracy: 0,
+          altitude: 0,
+          altitudeAccuracy: 0,
+          heading: 0,
+          headingAccuracy: 0,
+          speed: 0,
+          speedAccuracy: 0,
+        );
+        _destinationAddress = details.formattedAddress;
+      });
+    }
+    
     _showPriceConfiguration();
   }
 
@@ -836,12 +952,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _destinationController.dispose();
-    super.dispose();
   }
 }
 

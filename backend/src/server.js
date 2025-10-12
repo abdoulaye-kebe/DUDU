@@ -68,6 +68,7 @@ app.use('/api/v1/rides', require('./routes/rides'));
 app.use('/api/v1/payments', require('./routes/payments'));
 app.use('/api/v1/subscriptions', require('./routes/subscriptions'));
 app.use('/api/v1/admin', require('./routes/admin'));
+app.use('/api/v1/carpool', require('./routes/carpool'));
 
 // Route de santé
 app.get('/api/health', (req, res) => {

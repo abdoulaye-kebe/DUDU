@@ -123,8 +123,41 @@ const rideSchema = new mongoose.Schema({
   // Type de course
   rideType: {
     type: String,
-    enum: ['standard', 'express', 'shared', 'premium', 'women_only', 'delivery'],
+    enum: [
+      'standard',        // Voiture standard (passagers)
+      'express',         // Voiture express (passagers)
+      'shared',          // Covoiturage (passagers)
+      'premium',         // Voiture premium (passagers)
+      'cargo',           // Voiture cargo (bagages)
+      'women_only',      // Réservé femmes
+      'delivery'         // Livraison moto uniquement
+    ],
     default: 'standard'
+  },
+  
+  // Catégorie de véhicule requise
+  vehicleCategory: {
+    type: String,
+    enum: ['car', 'moto'],
+    default: 'car'
+  },
+  
+  // Informations de covoiturage
+  carpoolInfo: {
+    isCarpool: {
+      type: Boolean,
+      default: false
+    },
+    requestedSeats: {
+      type: Number,
+      default: 1,
+      min: 1
+    },
+    availableSeats: Number, // Places restantes dans le véhicule
+    otherPassengers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }]
   },
   
   // Informations de livraison (si rideType = 'delivery')

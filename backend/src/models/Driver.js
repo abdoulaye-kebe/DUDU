@@ -55,10 +55,16 @@ const driverSchema = new mongoose.Schema({
       unique: true,
       uppercase: true
     },
+    category: {
+      type: String,
+      enum: ['car', 'moto'],
+      required: [true, 'La catégorie du véhicule est requise'],
+      default: 'car'
+    },
     type: {
       type: String,
-      enum: ['taxi', 'uber', 'private'],
-      default: 'taxi'
+      enum: ['standard', 'cargo', 'premium', 'moto_delivery'],
+      default: 'standard'
     },
     capacity: {
       type: Number,
@@ -68,7 +74,7 @@ const driverSchema = new mongoose.Schema({
     },
     features: [{
       type: String,
-      enum: ['ac', 'wifi', 'charging', 'child_seat', 'wheelchair_access']
+      enum: ['ac', 'wifi', 'charging', 'child_seat', 'wheelchair_access', 'large_cargo', 'refrigerated']
     }],
     photos: [String] // URLs des photos du véhicule
   },
@@ -206,18 +212,19 @@ const driverSchema = new mongoose.Schema({
       type: Boolean,
       default: true
     },
+    carpoolSeats: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max: 8 // Nombre de places disponibles pour covoiturage
+    },
     acceptExpressRides: {
       type: Boolean,
       default: true
     },
-    acceptDeliveries: {
+    acceptLuggage: {
       type: Boolean,
-      default: false
-    },
-    vehicleForDelivery: {
-      type: String,
-      enum: ['car', 'moto', 'both'],
-      default: 'car'
+      default: false // Pour voitures cargo uniquement
     }
   },
   
