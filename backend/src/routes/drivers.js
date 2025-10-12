@@ -593,4 +593,296 @@ router.get('/stats', auth, requireDriver, async (req, res) => {
   }
 });
 
+// @route   PUT /api/v1/drivers/preferences
+// @desc    Mettre à jour les préférences du chauffeur (incluant covoiturage)
+// @access  Private (chauffeur)
+router.put('/preferences', [
+  auth,
+  requireDriver,
+  body('acceptSharedRides').optional().isBoolean(),
+  body('acceptExpressRides').optional().isBoolean(),
+  body('maxDistance').optional().isFloat({ min: 1, max: 100 }),
+  body('minPrice').optional().isFloat({ min: 0 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const driver = await Driver.findById(req.driver._id);
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chauffeur non trouvé'
+      });
+    }
+
+    const { acceptSharedRides, acceptExpressRides, maxDistance, minPrice } = req.body;
+
+    if (acceptSharedRides !== undefined) {
+      driver.preferences.acceptSharedRides = acceptSharedRides;
+    }
+    if (acceptExpressRides !== undefined) {
+      driver.preferences.acceptExpressRides = acceptExpressRides;
+    }
+    if (maxDistance !== undefined) {
+      driver.preferences.maxDistance = maxDistance;
+    }
+    if (minPrice !== undefined) {
+      driver.preferences.minPrice = minPrice;
+    }
+
+    await driver.save();
+
+    res.json({
+      success: true,
+      message: 'Préférences mises à jour avec succès',
+      data: {
+        preferences: driver.preferences
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des préférences:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
+// @route   PUT /api/v1/drivers/carpool/toggle
+// @desc    Activer/Désactiver le mode covoiturage
+// @access  Private (chauffeur)
+router.put('/carpool/toggle', [
+  auth,
+  requireDriver,
+  body('enabled').isBoolean().withMessage('Le statut doit être un booléen')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const driver = await Driver.findById(req.driver._id);
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chauffeur non trouvé'
+      });
+    }
+
+    const { enabled } = req.body;
+    driver.preferences.acceptSharedRides = enabled;
+    await driver.save();
+
+    res.json({
+      success: true,
+      message: `Mode covoiturage ${enabled ? 'activé' : 'désactivé'}`,
+      data: {
+        carpoolEnabled: driver.preferences.acceptSharedRides
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors du toggle du mode covoiturage:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
+// @route   GET /api/v1/drivers/carpool/compatible-rides
+// @desc    Trouver des courses compatibles pour le covoiturage
+// @access  Private (chauffeur)
+router.get('/carpool/compatible-rides', [
+  auth,
+  requireDriver,
+  requireOnline
+], async (req, res) => {
+  try {
+    const driver = await Driver.findById(req.driver._id);
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chauffeur non trouvé'
+      });
+    }
+
+    if (!driver.preferences.acceptSharedRides) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le mode covoiturage n\'est pas activé'
+      });
+    }
+
+    const { currentRideId } = req.query;
+    
+    if (!currentRideId) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de la course actuelle requis'
+      });
+    }
+
+    const currentRide = await Ride.findById(currentRideId);
+    if (!currentRide) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course non trouvée'
+      });
+    }
+
+    // Trouver les courses compatibles (même trajet approximatif)
+    const compatibleRides = await Ride.find({
+      _id: { $ne: currentRideId },
+      status: { $in: ['requested', 'searching'] },
+      rideType: { $in: ['standard', 'shared'] },
+      'pickup.coordinates.latitude': {
+        $gte: currentRide.pickup.coordinates.latitude - 0.05,
+        $lte: currentRide.pickup.coordinates.latitude + 0.05
+      },
+      'pickup.coordinates.longitude': {
+        $gte: currentRide.pickup.coordinates.longitude - 0.05,
+        $lte: currentRide.pickup.coordinates.longitude + 0.05
+      }
+    })
+    .populate('passenger', 'firstName lastName phone')
+    .limit(10);
+
+    res.json({
+      success: true,
+      count: compatibleRides.length,
+      data: {
+        rides: compatibleRides.map(ride => ({
+          id: ride._id,
+          rideId: ride.rideId,
+          pickup: ride.pickup,
+          destination: ride.destination,
+          distance: ride.distance,
+          pricing: ride.pricing,
+          passenger: ride.passenger ? {
+            name: `${ride.passenger.firstName} ${ride.passenger.lastName}`,
+            phone: ride.passenger.phone
+          } : null,
+          requestedAt: ride.requestedAt
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la recherche de courses compatibles:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
+// @route   POST /api/v1/drivers/carpool/accept
+// @desc    Accepter une course partagée additionnelle
+// @access  Private (chauffeur)
+router.post('/carpool/accept', [
+  auth,
+  requireDriver,
+  body('currentRideId').notEmpty().withMessage('ID de la course actuelle requis'),
+  body('newRideId').notEmpty().withMessage('ID de la nouvelle course requis')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const driver = await Driver.findById(req.driver._id);
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chauffeur non trouvé'
+      });
+    }
+
+    const { currentRideId, newRideId } = req.body;
+
+    const currentRide = await Ride.findById(currentRideId);
+    const newRide = await Ride.findById(newRideId);
+
+    if (!currentRide || !newRide) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course non trouvée'
+      });
+    }
+
+    // Vérifier la capacité du véhicule
+    const totalPassengers = currentRide.passengers + newRide.passengers;
+    if (totalPassengers > driver.vehicle.capacity) {
+      return res.status(400).json({
+        success: false,
+        message: 'Capacité du véhicule dépassée'
+      });
+    }
+
+    // Marquer la nouvelle course comme partagée
+    newRide.isShared = true;
+    newRide.driver = driver._id;
+    newRide.status = 'accepted';
+    newRide.rideType = 'shared';
+    
+    // Réduire le prix pour le passager (30% de réduction)
+    newRide.sharedPrice = Math.round(newRide.pricing.totalPrice * 0.7);
+    
+    // Ajouter le passager à la liste des passagers partagés
+    if (!currentRide.sharedWith) {
+      currentRide.sharedWith = [];
+    }
+    currentRide.sharedWith.push(newRide.passenger);
+    currentRide.isShared = true;
+    currentRide.rideType = 'shared';
+
+    await currentRide.save();
+    await newRide.save();
+
+    res.json({
+      success: true,
+      message: 'Course partagée acceptée',
+      data: {
+        currentRide: {
+          id: currentRide._id,
+          isShared: currentRide.isShared,
+          sharedWith: currentRide.sharedWith,
+          totalPassengers: totalPassengers
+        },
+        newRide: {
+          id: newRide._id,
+          sharedPrice: newRide.sharedPrice,
+          originalPrice: newRide.pricing.totalPrice
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de l\'acceptation de la course partagée:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
 module.exports = router;
