@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import '../themes/app_theme.dart';
 import 'working_map_screen.dart';
 
@@ -524,8 +525,8 @@ class _ImprovedRideRequestScreenState extends State<ImprovedRideRequestScreen> {
 
     final a = (deltaLat / 2) * (deltaLat / 2) + 
               (deltaLng / 2) * (deltaLng / 2) * 
-              (lat1).cos() * (lat2).cos();
-    final c = 2 * (a.sqrt()).asin();
+              math.cos(lat1) * math.cos(lat2);
+    final c = 2 * math.asin(math.sqrt(a));
     
     return earthRadius * c;
   }

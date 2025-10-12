@@ -4,7 +4,7 @@ import '../providers/auth_provider.dart';
 import '../themes/app_theme.dart';
 import 'login_screen.dart';
 import 'improved_ride_request_screen.dart';
-import 'rides_screen.dart';
+import 'rides_screen.dart' as rides;
 import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,7 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = [
     const _MapScreen(),
-    const RidesScreen(),
+    const rides.RidesScreen(),
     const ProfileScreen(),
   ];
 

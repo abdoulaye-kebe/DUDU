@@ -4,6 +4,7 @@ import 'providers/auth_provider.dart';
 import 'themes/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/client_home_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -35,7 +36,10 @@ class AppWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        // Toujours afficher l'écran de connexion pour commencer
+        // Si l'utilisateur est connecté, afficher la carte, sinon le login
+        if (authProvider.isAuthenticated) {
+          return const ClientHomeScreen();
+        }
         return const LoginScreen();
       },
     );

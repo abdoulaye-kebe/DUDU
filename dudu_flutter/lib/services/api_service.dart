@@ -5,7 +5,7 @@ import '../models/user.dart';
 import '../models/ride.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://127.0.0.1:3000/api/v1';
+  static const String baseUrl = 'http://localhost:8000/api/v1';
   static const Duration timeout = Duration(seconds: 10);
 
   // Headers par défaut
