@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../themes/app_theme.dart';
 import 'register_screen.dart';
 import 'home_screen.dart';
+import 'client_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -77,11 +78,11 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (success && mounted) {
-        // Navigation vers l'écran d'accueil
+        // Navigation vers l'écran avec carte Google Maps
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
+            builder: (context) => const ClientHomeScreen(),
           ),
         );
       } else if (mounted) {

@@ -36,7 +36,7 @@ class AppWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        // Si l'utilisateur est connecté, afficher la carte, sinon le login
+        // Flux normal : Login puis Carte
         if (authProvider.isAuthenticated) {
           return const ClientHomeScreen();
         }

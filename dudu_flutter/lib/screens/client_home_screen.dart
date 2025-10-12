@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/places_service.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({Key? key}) : super(key: key);
@@ -41,6 +42,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   
   // Controllers
   final TextEditingController _destinationController = TextEditingController();
+  
+  // Suggestions d'adresses
+  List<PlaceSuggestion> _placeSuggestions = [];
 
   @override
   void initState() {
@@ -122,13 +126,60 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   Future<String> getAddressFromCoordinates(double lat, double lng) async {
     try {
-      // TODO: Implémenter le géocodage inverse avec Google Maps API
-      // Pour l'instant, retourne une adresse par défaut
-      return 'Dakar, Sénégal';
+      // Utiliser Google Maps Geocoding API
+      return await PlacesService.reverseGeocode(lat, lng);
     } catch (e) {
       print('Erreur géocodage: $e');
-      return 'Adresse inconnue';
+      return 'Dakar, Sénégal';
     }
+  }
+  
+  Future<void> _searchPlaces(String query) async {
+    if (query.isEmpty) {
+      setState(() => _placeSuggestions = []);
+      return;
+    }
+    
+    try {
+      final suggestions = await PlacesService.getPlaceSuggestions(query);
+      setState(() => _placeSuggestions = suggestions);
+    } catch (e) {
+      print('Erreur recherche: $e');
+    }
+  }
+  
+  Future<void> _selectPlace(PlaceSuggestion suggestion) async {
+    try {
+      final details = await PlacesService.getPlaceDetails(suggestion.placeId);
+      if (details != null) {
+        _selectDestinationWithCoordinates(
+          details.formattedAddress,
+          details.latitude,
+          details.longitude,
+        );
+      }
+    } catch (e) {
+      print('Erreur sélection lieu: $e');
+    }
+  }
+  
+  void _selectDestinationWithCoordinates(String address, double lat, double lng) {
+    setState(() {
+      _destinationAddress = address;
+      _destinationLocation = Position(
+        latitude: lat,
+        longitude: lng,
+        timestamp: DateTime.now(),
+        accuracy: 0,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      );
+    });
+    _showPriceConfiguration();
   }
 
   Future<void> _loadRecentRides() async {
@@ -234,31 +285,49 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 ),
               ),
               onChanged: (value) {
-                // TODO: Recherche en temps réel
+                // Autocomplétion en temps réel
+                _searchPlaces(value);
               },
             ),
           ),
           
           const SizedBox(height: 16),
           
-          // Suggestions récentes
+          // Suggestions d'adresses en temps réel ou historique
           Expanded(
-            child: ListView.builder(
-              itemCount: _recentRides.length,
-              itemBuilder: (context, index) {
-                final ride = _recentRides[index];
-                return ListTile(
-                  leading: const Icon(Icons.history, color: Color(0xFF00A651)),
-                  title: Text(ride['destination']),
-                  subtitle: Text('${ride['price']} FCFA'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _selectDestination(ride['destination']);
-                  },
-                );
-              },
-            ),
+            child: _placeSuggestions.isNotEmpty
+                ? ListView.builder(
+                    itemCount: _placeSuggestions.length,
+                    itemBuilder: (context, index) {
+                      final suggestion = _placeSuggestions[index];
+                      return ListTile(
+                        leading: const Icon(Icons.location_on, color: Color(0xFF00A651)),
+                        title: Text(suggestion.mainText),
+                        subtitle: Text(suggestion.secondaryText),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _selectPlace(suggestion);
+                        },
+                      );
+                    },
+                  )
+                : ListView.builder(
+                    itemCount: _recentRides.length,
+                    itemBuilder: (context, index) {
+                      final ride = _recentRides[index];
+                      return ListTile(
+                        leading: const Icon(Icons.history, color: Color(0xFF00A651)),
+                        title: Text(ride['destination']),
+                        subtitle: Text('Depuis ${ride['pickup']} • ${ride['price']} FCFA'),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _selectDestination(ride['destination']);
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
       ),
