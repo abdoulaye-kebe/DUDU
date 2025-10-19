@@ -547,3 +547,4 @@ class RidesScreen extends StatelessWidget {
   }
 }
 
+

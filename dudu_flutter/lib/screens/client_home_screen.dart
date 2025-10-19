@@ -150,8 +150,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   void _setDefaultLocation() {
     // Position par défaut : DAKAR - CHIFFRES RONDS
     final defaultPos = Position(
-      latitude: 14.70,
-      longitude: -17.45,
+      latitude: 14.6928,
+      longitude: -17.4467,
       timestamp: DateTime.now(),
       accuracy: 0,
       altitude: 0,

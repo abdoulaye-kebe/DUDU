@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'driver_dashboard_screen.dart';
+import '../models/driver_profile.dart';
+import '../services/api_service.dart';
+import '../data/test_data.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -23,14 +26,62 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // Simuler une connexion
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final phone = _phoneController.text.trim();
+      final password = _passwordController.text.trim();
 
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DriverDashboardScreen()),
-      );
+      // Vérification simple des identifiants de test
+      bool isValidCredentials = false;
+      String userType = '';
+      
+      if (phone == '221771234567' && password == 'chauffeur123') {
+        isValidCredentials = true;
+        userType = 'Chauffeur';
+      } else if (phone == '221771234568' && password == 'livreur123') {
+        isValidCredentials = true;
+        userType = 'Livreur';
+      }
+      
+      if (isValidCredentials) {
+        // Simuler un délai de connexion
+        await Future.delayed(const Duration(seconds: 1));
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Connexion réussie ! $userType'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const DriverDashboardScreen()),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Identifiants incorrects'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de connexion: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -65,7 +116,38 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontSize: 16, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 24),
+              // Informations de test
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '🧪 Identifiants de Test',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '🚗 Chauffeur: 221771234567 / chauffeur123',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    const Text(
+                      '🏍️ Livreur: 221771234568 / livreur123',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,

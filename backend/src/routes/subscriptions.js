@@ -7,25 +7,42 @@ const { auth, requireDriver } = require('../middleware/auth');
 const router = express.Router();
 
 // @route   GET /api/v1/subscriptions/plans
-// @desc    Obtenir les plans d'abonnement disponibles
+// @desc    Obtenir les plans d'abonnement disponibles selon le type de véhicule
 // @access  Public
 router.get('/plans', (req, res) => {
   try {
-    const plans = Subscription.getAvailablePlans();
+    const { vehicleType = 'car' } = req.query;
+    const allPlans = Subscription.getAvailablePlans();
+    
+    // Filtrer les plans selon le type de véhicule
+    const availablePlans = allPlans.filter(plan => 
+      plan.vehicleTypes.includes(vehicleType)
+    );
     
     res.json({
       success: true,
       data: {
-        plans: plans.map(plan => ({
+        vehicleType,
+        plans: availablePlans.map(plan => ({
           type: plan.type,
           name: plan.name,
           price: plan.price,
           currency: plan.currency,
           duration: plan.duration,
           features: plan.features,
-          description: plan.description,
-          savings: calculateSavings(plan)
-        }))
+          savings: calculateSavings(plan),
+          isAvailable: plan.vehicleTypes.includes(vehicleType)
+        })),
+        restrictions: vehicleType === 'moto' ? {
+          allowedPlans: ['daily'],
+          maxDailyRides: 20,
+          weeklyBonus: {
+            description: 'Bonus hebdomadaire pour livreurs moto',
+            types: ['free_subscription', 'cash_bonus'],
+            freeSubscription: '24h gratuites',
+            cashBonus: 'Virement Orange Money/Wave'
+          }
+        } : null
       }
     });
 
@@ -39,7 +56,7 @@ router.get('/plans', (req, res) => {
 });
 
 // @route   POST /api/v1/subscriptions/purchase
-// @desc    Acheter un abonnement
+// @desc    Acheter un abonnement avec restrictions selon le type de véhicule
 // @access  Private (chauffeur)
 router.post('/purchase', [
   auth,
@@ -60,6 +77,26 @@ router.post('/purchase', [
     }
 
     const { planType, paymentMethod, phone, autoRenew = false } = req.body;
+
+    // Vérifier le type de véhicule du chauffeur
+    const driver = await Driver.findById(req.driver._id);
+    const vehicleType = driver.vehicle.type === 'moto' ? 'moto' : 'car';
+
+    // Vérifier les restrictions pour livreurs moto
+    if (vehicleType === 'moto' && planType !== 'daily') {
+      return res.status(400).json({
+        success: false,
+        message: 'Les livreurs moto ne peuvent souscrire qu\'au forfait journalier',
+        data: {
+          allowedPlans: ['daily'],
+          vehicleType: 'moto',
+          weeklyBonus: {
+            description: 'Bonus hebdomadaire disponible',
+            types: ['free_subscription', 'cash_bonus']
+          }
+        }
+      });
+    }
 
     // Vérifier si le chauffeur a déjà un abonnement actif
     const existingSubscription = await Subscription.findOne({
@@ -92,7 +129,7 @@ router.post('/purchase', [
     const startDate = new Date();
     const endDate = new Date(startDate.getTime() + (plan.duration * 24 * 60 * 60 * 1000));
 
-    // Créer l'abonnement
+    // Créer l'abonnement avec type de véhicule
     const subscription = new Subscription({
       driver: req.driver._id,
       plan: {
@@ -103,9 +140,17 @@ router.post('/purchase', [
         duration: plan.duration,
         features: plan.features
       },
+      vehicleType,
       startDate,
       endDate,
-      autoRenew
+      autoRenew,
+      restrictions: vehicleType === 'moto' ? {
+        maxDailyRides: 20,
+        allowedPlans: ['daily']
+      } : {
+        maxDailyRides: 50,
+        allowedPlans: ['daily', 'weekly', 'monthly', 'yearly']
+      }
     });
 
     await subscription.save();
@@ -500,6 +545,204 @@ router.get('/expiring', auth, requireDriver, async (req, res) => {
   }
 });
 
+// @route   POST /api/v1/subscriptions/:id/bonus
+// @desc    Ajouter un bonus hebdomadaire pour livreur moto
+// @access  Private (admin)
+router.post('/:id/bonus', [
+  auth,
+  body('type').isIn(['free_subscription', 'cash_bonus']).withMessage('Type de bonus invalide'),
+  body('amount').optional().isFloat({ min: 0 }).withMessage('Montant invalide'),
+  body('description').optional().isString()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const { type, amount = 0, description = '' } = req.body;
+
+    const subscription = await Subscription.findById(req.params.id);
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Abonnement non trouvé'
+      });
+    }
+
+    if (subscription.vehicleType !== 'moto') {
+      return res.status(400).json({
+        success: false,
+        message: 'Les bonus sont uniquement pour les livreurs moto'
+      });
+    }
+
+    // Ajouter le bonus
+    await subscription.addBonus(type, amount, description);
+
+    res.json({
+      success: true,
+      message: 'Bonus ajouté avec succès',
+      data: {
+        subscription: subscription.getSummary(),
+        bonus: {
+          type,
+          amount,
+          description,
+          date: new Date()
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de l\'ajout du bonus:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
+// @route   GET /api/v1/subscriptions/:id/bonus-history
+// @desc    Obtenir l'historique des bonus pour livreur moto
+// @access  Private (chauffeur)
+router.get('/:id/bonus-history', auth, requireDriver, async (req, res) => {
+  try {
+    const subscription = await Subscription.findById(req.params.id);
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Abonnement non trouvé'
+      });
+    }
+
+    if (subscription.driver.toString() !== req.driver._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès non autorisé'
+      });
+    }
+
+    if (subscription.vehicleType !== 'moto') {
+      return res.status(400).json({
+        success: false,
+        message: 'Les bonus sont uniquement pour les livreurs moto'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        subscription: subscription.getSummary(),
+        bonusHistory: subscription.weeklyBonus.bonusHistory,
+        totalBonusEarned: subscription.usage.bonusEarned,
+        lastBonusDate: subscription.weeklyBonus.lastBonusDate
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la récupération de l\'historique des bonus:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
+// @route   GET /api/v1/subscriptions/moto/weekly-bonus-eligible
+// @desc    Obtenir les livreurs moto éligibles pour bonus hebdomadaire
+// @access  Private (admin)
+router.get('/moto/weekly-bonus-eligible', auth, async (req, res) => {
+  try {
+    const { minRides = 10, minEarnings = 5000 } = req.query;
+
+    // Trouver les livreurs moto avec abonnement actif
+    const eligibleDrivers = await Subscription.aggregate([
+      {
+        $match: {
+          vehicleType: 'moto',
+          status: 'active'
+        }
+      },
+      {
+        $lookup: {
+          from: 'drivers',
+          localField: 'driver',
+          foreignField: '_id',
+          as: 'driverInfo'
+        }
+      },
+      {
+        $lookup: {
+          from: 'rides',
+          localField: 'driver',
+          foreignField: 'driver',
+          as: 'rides'
+        }
+      },
+      {
+        $match: {
+          'rides.status': 'completed',
+          'rides.completedAt': {
+            $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 derniers jours
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$driver',
+          subscription: { $first: '$$ROOT' },
+          weeklyRides: { $sum: 1 },
+          weeklyEarnings: { $sum: '$rides.pricing.totalPrice' }
+        }
+      },
+      {
+        $match: {
+          weeklyRides: { $gte: parseInt(minRides) },
+          weeklyEarnings: { $gte: parseInt(minEarnings) }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        eligibleDrivers: eligibleDrivers.map(driver => ({
+          driverId: driver._id,
+          subscription: driver.subscription.getSummary(),
+          weeklyStats: {
+            rides: driver.weeklyRides,
+            earnings: driver.weeklyEarnings
+          },
+          bonusRecommendation: {
+            type: driver.weeklyRides >= 15 ? 'free_subscription' : 'cash_bonus',
+            amount: driver.weeklyRides >= 15 ? 0 : Math.round(driver.weeklyEarnings * 0.1),
+            description: driver.weeklyRides >= 15 
+              ? '24h gratuites pour excellentes performances'
+              : `Bonus de ${Math.round(driver.weeklyEarnings * 0.1)} FCFA`
+          }
+        })),
+        criteria: {
+          minRides: parseInt(minRides),
+          minEarnings: parseInt(minEarnings),
+          period: '7 derniers jours'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la récupération des livreurs éligibles:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
 // Fonction utilitaire pour calculer les économies
 function calculateSavings(plan) {
   const dailyPrice = 2000; // Prix journalier de référence
@@ -514,6 +757,7 @@ function calculateSavings(plan) {
 }
 
 module.exports = router;
+
 
 
 
