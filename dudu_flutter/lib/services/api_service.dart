@@ -5,8 +5,12 @@ import '../models/user.dart';
 import '../models/ride.dart';
 
 class ApiService {
-  // Sur iOS Simulator, localhost ne fonctionne pas, utiliser 127.0.0.1
-  static const String baseUrl = 'http://127.0.0.1:8000/api/v1';
+  // Configuration de l'URL selon la plateforme
+  // - Android Emulator: 10.0.2.2 (localhost de votre PC)
+  // - iOS Simulator: 127.0.0.1
+  // - Chrome/Web: localhost ou 127.0.0.1
+  // - Device physique: 192.168.1.17 (si sur le même WiFi)
+  static const String baseUrl = 'http://10.0.2.2:3000/api/v1';
   static const Duration timeout = Duration(seconds: 10);
 
   // Headers par défaut

@@ -292,7 +292,6 @@ const driverSchema = new mongoose.Schema({
 driverSchema.index({ 'currentLocation': '2dsphere' });
 driverSchema.index({ status: 1, isAvailable: 1 });
 driverSchema.index({ 'subscription.isActive': 1 });
-driverSchema.index({ 'vehicle.plateNumber': 1 });
 
 // Méthode pour mettre à jour la localisation
 driverSchema.methods.updateLocation = function(latitude, longitude, address) {

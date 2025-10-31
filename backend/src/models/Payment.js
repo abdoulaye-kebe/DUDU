@@ -202,7 +202,6 @@ const paymentSchema = new mongoose.Schema({
 });
 
 // Index pour les recherches
-paymentSchema.index({ paymentId: 1 });
 paymentSchema.index({ user: 1, status: 1 });
 paymentSchema.index({ driver: 1, status: 1 });
 paymentSchema.index({ ride: 1 });

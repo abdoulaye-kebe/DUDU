@@ -1,23 +1,64 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Couleurs principales
-  static const Color primaryColor = Color(0xFF00A651); // Vert sénégalais
-  static const Color secondaryColor = Color(0xFFFFD700); // Jaune sénégalais
-  static const Color accentColor = Color(0xFFFF6B35); // Orange accent
-  static const Color backgroundColor = Color(0xFFF8F9FA);
-  static const Color surfaceColor = Color(0xFFFFFFFF);
-  static const Color textColor = Color(0xFF2C3E50);
-  static const Color textSecondaryColor = Color(0xFF7F8C8D);
-  static const Color borderColor = Color(0xFFE1E8ED);
-  static const Color successColor = Color(0xFF27AE60);
-  static const Color warningColor = Color(0xFFF39C12);
-  static const Color errorColor = Color(0xFFE74C3C);
-  static const Color infoColor = Color(0xFF3498DB);
+  // Couleurs principales - Design DUDU officiel (Vert foncé et Noir)
+  static const Color primaryColor = Color(0xFF1B5E20); // Vert foncé
+  static const Color secondaryColor = Color(0xFF2E7D32); // Vert moyen
+  static const Color accentColor = Color(0xFF66BB6A); // Vert clair accent
+  static const Color backgroundColor = Color(0xFFF5F5F5); // Gris très clair
+  static const Color surfaceColor = Color(0xFFFFFFFF); // Blanc
+  static const Color darkColor = Color(0xFF212121); // Noir profond
+  static const Color textColor = Color(0xFF212121); // Noir pour texte
+  static const Color textSecondaryColor = Color(0xFF757575); // Gris
+  static const Color textLightColor = Color(0xFFFFFFFF); // Blanc pour texte sur fond foncé
+  static const Color borderColor = Color(0xFFE0E0E0); // Gris clair
+  static const Color successColor = Color(0xFF2E7D32); // Vert succès
+  static const Color warningColor = Color(0xFFFFA726); // Orange warning
+  static const Color errorColor = Color(0xFFE53935); // Rouge erreur
+  static const Color infoColor = Color(0xFF1B5E20); // Vert foncé (primaire)
 
-  // Thème clair
+  // AJOUTS POUR LE DESIGN MODERNE
+  static const Gradient primaryGradient = LinearGradient(
+    colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static const Gradient secondaryGradient = LinearGradient(
+    colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static const Gradient darkGradient = LinearGradient(
+    colors: [Color(0xFF212121), Color(0xFF424242)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  // Ombres modernes
+  static final BoxShadow cardShadow = BoxShadow(
+    color: Colors.black.withOpacity(0.08),
+    blurRadius: 20,
+    offset: const Offset(0, 8),
+  );
+  
+  static final BoxShadow buttonShadow = BoxShadow(
+    color: primaryColor.withOpacity(0.3),
+    blurRadius: 15,
+    offset: const Offset(0, 6),
+  );
+  
+  static final BoxShadow floatingShadow = BoxShadow(
+    color: Colors.black.withOpacity(0.15),
+    blurRadius: 25,
+    offset: const Offset(0, 12),
+  );
+
+  // Thème clair (CORRIGÉ)
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
+    fontFamily: 'Poppins',
     colorScheme: ColorScheme.fromSeed(
       seedColor: primaryColor,
       brightness: Brightness.light,
@@ -87,6 +128,7 @@ class AppTheme {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
+    // CORRECTION ICI : Utilise CardTheme directement
     cardTheme: CardThemeData(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -158,6 +200,7 @@ class AppTheme {
   // Thème sombre
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
+    fontFamily: 'Poppins',
     colorScheme: ColorScheme.fromSeed(
       seedColor: primaryColor,
       brightness: Brightness.dark,
@@ -188,4 +231,34 @@ class AppTheme {
       ),
     ),
   );
+
+  // MÉTHODES UTILITAIRES POUR LE DESIGN MODERNE
+  static BoxDecoration get cardDecoration {
+    return BoxDecoration(
+      color: surfaceColor,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [cardShadow],
+    );
+  }
+  
+  static BoxDecoration get buttonDecoration {
+    return BoxDecoration(
+      gradient: primaryGradient,
+      borderRadius: BorderRadius.circular(25),
+      boxShadow: [buttonShadow],
+    );
+  }
+  
+  static BoxDecoration get secondaryButtonDecoration {
+    return BoxDecoration(
+      gradient: secondaryGradient,
+      borderRadius: BorderRadius.circular(25),
+      boxShadow: [buttonShadow],
+    );
+  }
+  
+  static BorderRadius get borderRadiusSmall => BorderRadius.circular(8);
+  static BorderRadius get borderRadiusMedium => BorderRadius.circular(12);
+  static BorderRadius get borderRadiusLarge => BorderRadius.circular(16);
+  static BorderRadius get borderRadiusXLarge => BorderRadius.circular(25);
 }

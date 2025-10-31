@@ -7,6 +7,13 @@ import 'screens/login_screen.dart';
 import 'screens/client_home_screen.dart';
 
 void main() {
+  // Gestionnaire d'erreurs global
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter Error: ${details.exception}');
+    debugPrint('Stack trace: ${details.stack}');
+  };
+
   runApp(const MyApp());
 }
 
@@ -24,6 +31,10 @@ class MyApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         home: const AppWrapper(),
         debugShowCheckedModeBanner: false,
+        routes: {
+          '/login': (context) => const LoginScreen(),
+          '/home': (context) => const ClientHomeScreen(),
+        },
       ),
     );
   }

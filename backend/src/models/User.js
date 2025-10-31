@@ -134,10 +134,7 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index pour les recherches
-userSchema.index({ phone: 1 });
-userSchema.index({ email: 1 });
-userSchema.index({ referralCode: 1 });
+// Index géospatial pour la localisation
 userSchema.index({ 'address.coordinates': '2dsphere' });
 
 // Middleware pour hasher le mot de passe

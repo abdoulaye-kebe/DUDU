@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../themes/app_theme.dart';
+import 'rides_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -527,24 +528,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-
-// Import de RidesScreen pour la navigation
-class RidesScreen extends StatelessWidget {
-  const RidesScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Historique des courses'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-      ),
-      body: const Center(
-        child: Text('Historique des courses - En développement'),
-      ),
-    );
-  }
-}
-
-

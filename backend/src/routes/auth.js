@@ -138,7 +138,7 @@ router.post('/register', [
     });
 
   } catch (error) {
-    console.error('Erreur lors de l\'inscription:', error);
+    console.error('❌ Erreur lors de l\'inscription:', error);
     
     // Gestion des erreurs MongoDB
     if (error.code === 11000) {
@@ -151,7 +151,8 @@ router.post('/register', [
 
     res.status(500).json({
       success: false,
-      message: 'Erreur interne du serveur'
+      message: 'Erreur interne du serveur',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

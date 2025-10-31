@@ -25,11 +25,11 @@ app.use(helmet());
 app.use(compression());
 app.use(morgan('combined'));
 
-// Configuration CORS
+// Configuration CORS - Autoriser toutes les origines en développement
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://dudu.sn', 'https://admin.dudu.sn'] 
-    : ['http://localhost:3000', 'http://localhost:3001'],
+    : true, // Autoriser toutes les origines en dev
   credentials: true
 }));
 
@@ -48,10 +48,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Connexion à MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dudu', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dudu')
 .then(() => {
   console.log('✅ Connexion à MongoDB réussie');
 })
@@ -102,9 +99,11 @@ app.use((error, req, res, next) => {
 require('./socket/socketHandler')(io);
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0'; // Écouter sur toutes les interfaces
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   console.log(`🚀 Serveur DUDU démarré sur le port ${PORT}`);
+  console.log(`🌐 Accessible sur: http://${HOST}:${PORT}`);
   console.log(`📱 Environnement: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🗺️  API Version: ${process.env.API_VERSION || 'v1'}`);
 });

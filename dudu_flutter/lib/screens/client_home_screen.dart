@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/places_service.dart';
 import '../services/carpool_monitor_service.dart';
+import '../themes/app_theme.dart';
 import 'ride_type_selection_screen.dart';
 import 'delivery_request_screen.dart';
 
@@ -366,7 +367,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   controller: TextEditingController(text: _pickupAddress),
                   decoration: InputDecoration(
                     labelText: 'Point de départ',
-                    prefixIcon: const Icon(Icons.location_on, color: Color(0xFF00A651)),
+                    prefixIcon: Icon(Icons.location_on, color: AppTheme.primaryColor),
                     filled: true,
                     fillColor: Colors.grey[100],
                     border: OutlineInputBorder(
@@ -394,7 +395,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   decoration: InputDecoration(
                     labelText: 'Destination',
                     hintText: 'Tapez votre destination...',
-                    prefixIcon: const Icon(Icons.flag, color: Colors.red),
+                    prefixIcon: Icon(Icons.flag, color: AppTheme.errorColor),
                     filled: true,
                     fillColor: Colors.grey[100],
                     border: OutlineInputBorder(
@@ -403,7 +404,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     ),
                     suffixIcon: _destinationController.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.check_circle, color: Color(0xFF00A651)),
+                            icon: Icon(Icons.check_circle, color: AppTheme.primaryColor),
                             onPressed: () {
                               // Valider la destination tapée
                               Navigator.pop(context);
@@ -444,7 +445,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     itemBuilder: (context, index) {
                       final suggestion = _placeSuggestions[index];
                       return ListTile(
-                        leading: const Icon(Icons.location_on, color: Color(0xFF00A651)),
+                        leading: Icon(Icons.location_on, color: AppTheme.primaryColor),
                         title: Text(suggestion.mainText),
                         subtitle: Text(suggestion.secondaryText),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -460,7 +461,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     itemBuilder: (context, index) {
                       final ride = _recentRides[index];
                       return ListTile(
-                        leading: const Icon(Icons.history, color: Color(0xFF00A651)),
+                        leading: Icon(Icons.history, color: AppTheme.primaryColor),
                         title: Text(ride['destination']),
                         subtitle: Text('Depuis ${ride['pickup']} • ${ride['price']} FCFA'),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -567,10 +568,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 children: [
                   Text(
                     '${_selectedPrice.toInt()} FCFA',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF00A651),
+                      color: AppTheme.primaryColor,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -596,7 +597,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     min: _minPrice,
                     max: _maxPrice,
                     divisions: 100,
-                    activeColor: const Color(0xFF00A651),
+                    activeColor: AppTheme.primaryColor,
                     label: '${_selectedPrice.toInt()} FCFA',
                     onChanged: (value) {
                       setModalState(() {
@@ -666,7 +667,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     _searchForDrivers();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00A651),
+                    backgroundColor: AppTheme.primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -824,7 +825,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Icon(Icons.search, color: Color(0xFF00A651)),
+                Icon(Icons.search, color: AppTheme.primaryColor),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -864,7 +865,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.history, color: Color(0xFF00A651)),
+              Icon(Icons.history, color: AppTheme.primaryColor),
               const SizedBox(width: 8),
               const Text(
                 'Courses récentes',
@@ -902,9 +903,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   ),
                   Text(
                     '${ride['price']} FCFA',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF00A651),
+                      color: AppTheme.primaryColor,
                     ),
                   ),
                 ],
@@ -944,7 +945,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           ],
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF00A651),
+          backgroundColor: AppTheme.primaryColor,
           padding: const EdgeInsets.symmetric(vertical: 20),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -1022,7 +1023,7 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recherche de chauffeurs'),
-        backgroundColor: const Color(0xFF00A651),
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
       body: Column(
@@ -1035,10 +1036,10 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen> {
               children: [
                 Text(
                   '$minutes:${seconds.toString().padLeft(2, '0')}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 48,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF00A651),
+                    color: AppTheme.primaryColor,
                   ),
                 ),
                 const Text('Temps restant'),
@@ -1046,7 +1047,7 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen> {
                 LinearProgressIndicator(
                   value: _remainingSeconds / 180,
                   backgroundColor: Colors.grey[300],
-                  color: const Color(0xFF00A651),
+                  color: AppTheme.primaryColor,
                 ),
               ],
             ),
@@ -1063,7 +1064,7 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.location_on, color: Color(0xFF00A651)),
+                        Icon(Icons.location_on, color: AppTheme.primaryColor),
                         const SizedBox(width: 8),
                         Expanded(child: Text(widget.pickup)),
                       ],
@@ -1086,10 +1087,10 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen> {
                         ),
                         Text(
                           '${widget.price.toInt()} FCFA',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF00A651),
+                            color: AppTheme.primaryColor,
                           ),
                         ),
                       ],
@@ -1107,8 +1108,8 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const CircularProgressIndicator(
-                          color: Color(0xFF00A651),
+                        CircularProgressIndicator(
+                          color: AppTheme.primaryColor,
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -1129,7 +1130,7 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen> {
                         ),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: const Color(0xFF00A651),
+                            backgroundColor: AppTheme.primaryColor,
                             child: Text(
                               driver['name'][0],
                               style: const TextStyle(color: Colors.white),
@@ -1163,7 +1164,7 @@ class _DriverWaitingScreenState extends State<DriverWaitingScreen> {
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00A651),
+                              backgroundColor: AppTheme.primaryColor,
                             ),
                             child: const Text(
                               'Choisir',

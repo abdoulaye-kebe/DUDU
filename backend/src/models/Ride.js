@@ -124,13 +124,11 @@ const rideSchema = new mongoose.Schema({
   rideType: {
     type: String,
     enum: [
-      'standard',        // Voiture standard (passagers)
-      'express',         // Voiture express (passagers)
-      'shared',          // Covoiturage (passagers)
-      'premium',         // Voiture premium (passagers)
-      'cargo',           // Voiture cargo (bagages)
-      'women_only',      // Réservé femmes
-      'delivery'         // Livraison moto uniquement
+      'standard',        // Course standard - Tarif normal
+      'express',         // Course express - Prise en charge immédiate (+30%)
+      'shared',          // Covoiturage - Partagé avec d'autres (-40%)
+      'women_only',      // Femmes uniquement - Chauffeur et passagers femmes
+      'delivery'         // Livraison - Moto uniquement
     ],
     default: 'standard'
   },
@@ -326,7 +324,6 @@ const rideSchema = new mongoose.Schema({
 });
 
 // Index pour les recherches
-rideSchema.index({ rideId: 1 });
 rideSchema.index({ passenger: 1, status: 1 });
 rideSchema.index({ driver: 1, status: 1 });
 rideSchema.index({ status: 1, requestedAt: 1 });
