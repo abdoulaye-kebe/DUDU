@@ -1,12 +1,13 @@
 .app {
   display: flex;
   min-height: 100vh;
+  background: #f5f5f5;
 }
 
 /* Sidebar */
 .sidebar {
   width: 250px;
-  background: linear-gradient(180deg, #00A651 0%, #008A43 100%);
+  background: linear-gradient(180deg, #0d5d36 0%, #094d2a 100%);
   color: white;
   display: flex;
   flex-direction: column;
@@ -53,7 +54,7 @@
 
 .sidebar-nav button.active {
   background: white;
-  color: #00A651;
+  color: #0d5d36;
   font-weight: bold;
 }
 
@@ -238,12 +239,12 @@ tbody tr:hover {
 }
 
 .btn-primary {
-  background: #00A651;
+  background: #0d5d36;
   color: white;
 }
 
 .btn-primary:hover {
-  background: #008A43;
+  background: #094d2a;
 }
 
 .btn-danger {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'driver_dashboard_screen.dart';
+import 'new_driver_dashboard.dart';
+import 'change_password_screen.dart';
 import '../models/driver_profile.dart';
 import '../services/api_service.dart';
 import '../data/test_data.dart';
@@ -113,14 +114,61 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       _errorMessage = '';
     });
 
-    // Simuler une connexion
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DriverDashboardScreen()),
+    try {
+      print('🔍 Tentative de connexion...');
+      print('📱 URL Backend: ${ApiService.baseUrl}');
+      print('📞 Téléphone: ${_phoneController.text.trim()}');
+      
+      // Appel API pour vérifier le chauffeur
+      final response = await ApiService.loginDriver(
+        _phoneController.text.trim(),
+        _passwordController.text,
       );
+
+      print('📥 Réponse reçue: $response');
+
+      if (!mounted) return;
+
+      if (response['success'] == true) {
+        // Sauvegarder les infos du chauffeur
+        final driver = response['driver'];
+        print('✅ Connexion réussie pour: ${driver['firstName']} ${driver['lastName']}');
+        
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const NewDriverDashboard()),
+        );
+      } else {
+        setState(() {
+          _errorMessage = response['message'] ?? 'Identifiants incorrects';
+          _isLoading = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      print('❌ Erreur de connexion: $e');
+      print('📍 Stack trace: $stackTrace');
+      
+      if (!mounted) return;
+      
+      setState(() {
+        String errorMsg = 'Erreur de connexion au serveur.\n\n';
+        
+        if (e.toString().contains('SocketException')) {
+          errorMsg += '🔌 Vérifiez:\n';
+          errorMsg += '• Le backend est démarré (npm run dev)\n';
+          errorMsg += '• Le pare-feu autorise le port 3000\n';
+          errorMsg += '• Vous êtes sur le même WiFi que le PC\n';
+          errorMsg += '• IP du PC: 192.168.1.17';
+        } else if (e.toString().contains('TimeoutException')) {
+          errorMsg += '⏱️ Le serveur ne répond pas.\n';
+          errorMsg += 'Vérifiez que le backend est démarré.';
+        } else {
+          errorMsg += e.toString();
+        }
+        
+        _errorMessage = errorMsg;
+        _isLoading = false;
+      });
     }
   }
 
@@ -441,6 +489,33 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               ),
                               const SizedBox(height: 20),
                               _buildLoginButton(),
+                              const SizedBox(height: 20),
+                              TextButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const ChangePasswordScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.lock_reset, color: primaryGreen, size: 20),
+                                label: const Text(
+                                  'Modifier mon mot de passe',
+                                  style: TextStyle(
+                                    color: primaryGreen,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    side: const BorderSide(color: primaryGreen, width: 1.5),
+                                  ),
+                                ),
+                              ),
                               const SizedBox(height: 30),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,

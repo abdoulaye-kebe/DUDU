@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../themes/app_theme.dart';
 import 'rides_screen.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -10,17 +13,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  Map<String, dynamic> _userProfile = {
-    'firstName': 'Abdoulaye',
-    'lastName': 'Kebe',
-    'phone': '+221786205993',
-    'email': 'abdoulaye.kebe@example.com',
-    'rating': 4.8,
-    'totalRides': 45,
-    'memberSince': 'Janvier 2024',
-    'preferredLanguage': 'Français',
-    'paymentMethod': 'Orange Money',
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -38,16 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF2E7D32),
-              Color(0xFF4CAF50),
-            ],
-          ),
-        ),
+        color: Colors.white,
         child: SafeArea(
           child: SingleChildScrollView(
             child: Column(
@@ -72,17 +55,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       // Photo de profil
                       Stack(
                         children: [
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundColor: AppTheme.primaryColor,
-                            child: Text(
-                              '${_userProfile['firstName'][0]}${_userProfile['lastName'][0]}',
-                              style: const TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
+                              Consumer<AuthProvider>(
+                            builder: (context, authProvider, child) {
+                              final user = authProvider.user;
+                              final initials = user != null
+                                  ? '${user.firstName[0]}${user.lastName[0]}'
+                                  : 'U';
+                              return CircleAvatar(
+                                radius: 50,
+                                backgroundColor: AppTheme.primaryColor,
+                                child: Text(
+                                  initials,
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                           Positioned(
                             bottom: 0,
@@ -106,53 +97,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 16),
                       // Nom et informations
-                      Text(
-                        '${_userProfile['firstName']} ${_userProfile['lastName']}',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _userProfile['phone'],
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 16,
-                        ),
+                      Consumer<AuthProvider>(
+                        builder: (context, authProvider, child) {
+                          final user = authProvider.user;
+                          return Column(
+                            children: [
+                              Text(
+                                user?.fullName ?? 'Utilisateur',
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                user?.phone ?? '',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
                       // Statistiques
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildStatItem('Note', '${_userProfile['rating']} ⭐', Icons.star),
-                          _buildStatItem('Courses', '${_userProfile['totalRides']}', Icons.directions_car),
-                          _buildStatItem('Membre', _userProfile['memberSince'], Icons.calendar_today),
-                        ],
+                      Consumer<AuthProvider>(
+                        builder: (context, authProvider, child) {
+                          // TODO: Récupérer les vraies stats depuis le backend
+                          final totalRides = 0; // À remplacer par authProvider.user?.totalRides ?? 0
+                          final rating = totalRides > 0 ? '5.0 ⭐' : 'Nouveau';
+                          
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatItem('Note', rating, Icons.star),
+                              _buildStatItem('Courses', '$totalRides', Icons.directions_car),
+                              _buildStatItem('Membre', '2024', Icons.calendar_today),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
                 ),
                 // Informations personnelles
-                _buildSection(
-                  'Informations personnelles',
-                  Icons.person,
-                  [
-                    _buildInfoItem('Prénom', _userProfile['firstName'], Icons.badge),
-                    _buildInfoItem('Nom', _userProfile['lastName'], Icons.badge),
-                    _buildInfoItem('Téléphone', _userProfile['phone'], Icons.phone),
-                    _buildInfoItem('Email', _userProfile['email'], Icons.email),
-                  ],
+                Consumer<AuthProvider>(
+                  builder: (context, authProvider, child) {
+                    final user = authProvider.user;
+                    return _buildSection(
+                      'Informations personnelles',
+                      Icons.person,
+                      [
+                        _buildInfoItem('Prénom', user?.firstName ?? '', Icons.badge),
+                        _buildInfoItem('Nom', user?.lastName ?? '', Icons.badge),
+                        _buildInfoItem('Téléphone', user?.phone ?? '', Icons.phone),
+                        _buildInfoItem('Email', user?.email ?? 'Non renseigné', Icons.email),
+                      ],
+                    );
+                  },
                 ),
                 // Préférences
-                _buildSection(
-                  'Préférences',
-                  Icons.settings,
-                  [
-                    _buildInfoItem('Langue', _userProfile['preferredLanguage'], Icons.language),
-                    _buildInfoItem('Méthode de paiement', _userProfile['paymentMethod'], Icons.payment),
-                  ],
+                Consumer<AuthProvider>(
+                  builder: (context, authProvider, child) {
+                    final user = authProvider.user;
+                    return _buildSection(
+                      'Préférences',
+                      Icons.settings,
+                      [
+                        _buildInfoItem('Langue', user?.language ?? 'Français', Icons.language),
+                        _buildInfoItem('Méthode de paiement', 'Orange Money', Icons.payment),
+                      ],
+                    );
+                  },
                 ),
                 // Actions
                 _buildSection(
@@ -360,15 +378,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _editProfile() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    
+    final firstNameController = TextEditingController(text: user?.firstName ?? '');
+    final lastNameController = TextEditingController(text: user?.lastName ?? '');
+    final emailController = TextEditingController(text: user?.email ?? '');
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Modifier le profil'),
-        content: const Text('Fonctionnalité en cours de développement'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: firstNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Prénom',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: lastNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nom',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Envoyer les modifications au backend
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Profil mis à jour avec succès'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+            child: const Text('Enregistrer'),
           ),
         ],
       ),
@@ -498,7 +567,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _logout() {
+  void _logout() async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -510,15 +579,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Annuler'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              // Ici, vous pouvez ajouter la logique de déconnexion
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Déconnexion réussie'),
-                  backgroundColor: Colors.green,
-                ),
-              );
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              await authProvider.logout();
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Se déconnecter'),

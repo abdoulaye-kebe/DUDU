@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import Dashboard from './pages/Dashboard'
-import Drivers from './pages/Drivers'
+import DashboardNew from './pages/DashboardNew'
+import DriversNew from './pages/DriversNew'
+import Clients from './pages/Clients'
 import Rides from './pages/Rides'
 import './App.css'
 
@@ -10,13 +11,15 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard />
+        return <DashboardNew />
       case 'drivers':
-        return <Drivers />
+        return <DriversNew />
+      case 'clients':
+        return <Clients />
       case 'rides':
         return <Rides />
       default:
-        return <Dashboard />
+        return <DashboardNew />
     }
   }
 
@@ -41,6 +44,12 @@ function App() {
             onClick={() => setCurrentPage('drivers')}
           >
             🚕 Chauffeurs
+          </button>
+          <button 
+            className={currentPage === 'clients' ? 'active' : ''}
+            onClick={() => setCurrentPage('clients')}
+          >
+            👥 Clients
           </button>
           <button 
             className={currentPage === 'rides' ? 'active' : ''}

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
@@ -6,11 +7,23 @@ import '../models/ride.dart';
 
 class ApiService {
   // Configuration de l'URL selon la plateforme
-  // - Android Emulator: 10.0.2.2 (localhost de votre PC)
-  // - iOS Simulator: 127.0.0.1
-  // - Chrome/Web: localhost ou 127.0.0.1
-  // - Device physique: 192.168.1.17 (si sur le même WiFi)
-  static const String baseUrl = 'http://10.0.2.2:3000/api/v1';
+  // - Web: localhost (navigateur)
+  // - Web: localhost
+  // - Android Emulator: 10.0.2.2
+  // - Appareil physique: IP publique 41.208.146.203
+  static String get baseUrl {
+    if (kIsWeb) {
+      // Pour le web, utiliser localhost
+      return 'http://localhost:3000/api/v1';
+    } else if (kDebugMode) {
+      // Mode debug: émulateur
+      return 'http://10.0.2.2:3000/api/v1';
+    } else {
+      // Mode release: IP publique
+      return 'http://41.208.146.203:3000/api/v1';
+    }
+  }
+  
   static const Duration timeout = Duration(seconds: 10);
 
   // Headers par défaut
@@ -223,6 +236,63 @@ class ApiService {
       return ApiResponse<Ride>(
         success: false,
         message: 'Erreur de récupération de la course: $e',
+        data: null,
+      );
+    }
+  }
+
+  // Nouvelle méthode pour créer une course avec prix libre
+  static Future<ApiResponse<dynamic>> createRide({
+    required double pickupLatitude,
+    required double pickupLongitude,
+    required String pickupAddress,
+    required double destinationLatitude,
+    required double destinationLongitude,
+    required String destinationAddress,
+    required String rideType,
+    required int customPrice,
+    required double estimatedDistance,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/rides/create'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'pickup': {
+            'latitude': pickupLatitude,
+            'longitude': pickupLongitude,
+            'address': pickupAddress,
+          },
+          'destination': {
+            'latitude': destinationLatitude,
+            'longitude': destinationLongitude,
+            'address': destinationAddress,
+          },
+          'rideType': rideType,
+          'customPrice': customPrice,
+          'estimatedDistance': estimatedDistance,
+        }),
+      ).timeout(timeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return ApiResponse<dynamic>(
+          success: true,
+          message: data['message'] ?? 'Course créée avec succès',
+          data: data,
+        );
+      } else {
+        final error = json.decode(response.body);
+        return ApiResponse<dynamic>(
+          success: false,
+          message: error['message'] ?? 'Erreur lors de la création de la course',
+          data: null,
+        );
+      }
+    } catch (e) {
+      return ApiResponse<dynamic>(
+        success: false,
+        message: 'Erreur de connexion: $e',
         data: null,
       );
     }

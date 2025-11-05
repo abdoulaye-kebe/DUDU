@@ -7,7 +7,26 @@ import '../services/places_service.dart';
 import '../themes/app_theme.dart';
 
 class MapRideScreen extends StatefulWidget {
-  const MapRideScreen({Key? key}) : super(key: key);
+  final String rideType;
+  final String rideTitle;
+  final String rideDescription;
+  final double priceMultiplier;
+  final Color rideColor;
+  final IconData rideIcon;
+  final bool isPopular;
+  final String? discount;
+
+  const MapRideScreen({
+    Key? key,
+    this.rideType = 'standard',
+    this.rideTitle = 'Course Standard',
+    this.rideDescription = 'Course classique avec voiture',
+    this.priceMultiplier = 1.0,
+    this.rideColor = const Color(0xFF0d5d36),
+    this.rideIcon = Icons.directions_car,
+    this.isPopular = false,
+    this.discount,
+  }) : super(key: key);
 
   @override
   State<MapRideScreen> createState() => _MapRideScreenState();
@@ -33,7 +52,7 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
   bool _isLoading = true;
   bool _showDestinationInput = false;
   List<PlaceSuggestion> _suggestions = [];
-  String _selectedRideType = 'standard';
+  late String _selectedRideType;
   double _estimatedPrice = 0;
   
   // Animations
@@ -45,6 +64,9 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
+    
+    // Initialiser le type de course depuis le widget
+    _selectedRideType = widget.rideType;
     
     // Vérifier l'authentification
     WidgetsBinding.instance.addPostFrameCallback((_) {

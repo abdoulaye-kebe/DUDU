@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'themes/app_theme.dart';
-import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/client_home_screen.dart';
+import 'screens/dashboard_screen.dart';
 
 void main() {
   // Gestionnaire d'erreurs global
@@ -33,7 +32,7 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         routes: {
           '/login': (context) => const LoginScreen(),
-          '/home': (context) => const ClientHomeScreen(),
+          '/dashboard': (context) => const DashboardScreen(),
         },
       ),
     );
@@ -47,9 +46,9 @@ class AppWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        // Flux normal : Login puis Carte
+        // Flux normal : Login puis Dashboard
         if (authProvider.isAuthenticated) {
-          return const ClientHomeScreen();
+          return const DashboardScreen();
         }
         return const LoginScreen();
       },

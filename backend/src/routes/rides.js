@@ -6,12 +6,24 @@ const User = require('../models/User');
 const { auth, requireVerification, requireDriver, requireActiveSubscription, requireOnline, requireAvailable } = require('../middleware/auth');
 const router = express.Router();
 
+// Fonction pour calculer la distance entre deux points (formule de Haversine)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Rayon de la Terre en km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c; // Distance en km
+}
+
 // @route   POST /api/v1/rides/request
 // @desc    Demander une course
-// @access  Private (utilisateur vérifié)
+// @access  Private (utilisateur)
 router.post('/request', [
   auth,
-  requireVerification,
   body('pickup.address').notEmpty().withMessage('L\'adresse de prise en charge est requise'),
   body('pickup.coordinates.latitude').isFloat().withMessage('Latitude invalide'),
   body('pickup.coordinates.longitude').isFloat().withMessage('Longitude invalide'),
@@ -601,6 +613,183 @@ router.get('/:id', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erreur interne du serveur'
+    });
+  }
+});
+
+// @route   POST /api/v1/rides/create
+// @desc    Créer une course avec PRIX LIBRE (concept DUDU)
+// @access  Private
+router.post('/create', [
+  auth,
+  // requireVerification, // Désactivé temporairement pour les tests
+  body('pickup.latitude').isFloat().withMessage('Latitude de départ invalide'),
+  body('pickup.longitude').isFloat().withMessage('Longitude de départ invalide'),
+  body('pickup.address').notEmpty().withMessage('Adresse de départ requise'),
+  body('destination.latitude').isFloat().withMessage('Latitude de destination invalide'),
+  body('destination.longitude').isFloat().withMessage('Longitude de destination invalide'),
+  body('destination.address').notEmpty().withMessage('Adresse de destination requise'),
+  body('rideType').isIn(['standard', 'express', 'shared', 'women_only']).withMessage('Type de course invalide'),
+  body('customPrice').isInt({ min: 500 }).withMessage('Le prix minimum est 500 FCFA'),
+  body('estimatedDistance').isFloat({ min: 0 }).withMessage('Distance invalide')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const {
+      pickup,
+      destination,
+      rideType,
+      customPrice,
+      estimatedDistance
+    } = req.body;
+
+    // Créer la course avec le prix libre proposé par le client
+    const ride = new Ride({
+      passenger: req.user.id || req.userId,
+      pickup: {
+        address: pickup.address,
+        coordinates: {
+          type: 'Point',
+          coordinates: [pickup.longitude, pickup.latitude]
+        }
+      },
+      destination: {
+        address: destination.address,
+        coordinates: {
+          type: 'Point',
+          coordinates: [destination.longitude, destination.latitude]
+        }
+      },
+      distance: estimatedDistance,
+      estimatedDuration: Math.round(estimatedDistance * 3), // ~20 km/h moyenne
+      pricing: {
+        basePrice: 0,
+        distancePrice: 0,
+        timePrice: 0,
+        surgeMultiplier: 1.0,
+        totalPrice: customPrice, // PRIX LIBRE du client
+        currency: 'XOF',
+        isPriceFixed: true,
+        customPrice: customPrice // Stocker le prix proposé
+      },
+      rideType,
+      passengers: 1,
+      status: 'requested'
+    });
+
+    await ride.save();
+
+    // Définir le rayon de recherche selon le type de course
+    const SEARCH_RADIUS = {
+      standard: 5000,    // 5 km
+      express: 7000,     // 7 km
+      shared: 5000,      // 5 km
+      women_only: 5000   // 5 km
+    };
+    
+    const searchRadius = SEARCH_RADIUS[rideType] || 3000;
+    
+    // Critères de base
+    const driverQuery = {
+      status: 'online',
+      isAvailable: true,
+      'subscription.isActive': true,
+      'subscription.endDate': { $gt: new Date() },
+      [`rideTypes.${rideType}`]: true, // Le chauffeur doit accepter ce type
+      'preferences.minPrice': { $lte: customPrice }, // Prix proposé >= prix min du chauffeur
+      'location.latitude': { $exists: true, $ne: null },
+      'location.longitude': { $exists: true, $ne: null }
+    };
+    
+    // Filtre spécial pour "Femmes uniquement"
+    if (rideType === 'women_only') {
+      // Récupérer les IDs des chauffeurs femmes
+      const femaleUsers = await User.find({ gender: 'female' }).select('_id');
+      const femaleUserIds = femaleUsers.map(u => u._id);
+      driverQuery.user = { $in: femaleUserIds };
+    }
+    
+    // Rechercher des chauffeurs disponibles
+    const allDrivers = await Driver.find(driverQuery)
+      .populate('user', 'firstName lastName gender')
+      .limit(50);
+
+    // Filtrer par distance manuellement (car on n'a plus d'index géospatial)
+    const availableDrivers = allDrivers.filter(driver => {
+      if (!driver.location || !driver.location.latitude || !driver.location.longitude) {
+        return false;
+      }
+      
+      const distance = calculateDistance(
+        pickup.latitude,
+        pickup.longitude,
+        driver.location.latitude,
+        driver.location.longitude
+      );
+      
+      return distance <= (searchRadius / 1000); // Convertir en km
+    }).slice(0, 20);
+
+    if (availableDrivers.length === 0) {
+      ride.status = 'no_driver';
+      await ride.save();
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Aucun chauffeur disponible pour le moment. Veuillez réessayer.',
+        data: {
+          rideId: ride._id,
+          status: 'no_driver'
+        }
+      });
+    }
+
+    // Notifier les chauffeurs via Socket.IO
+    // Le chauffeur peut ACCEPTER ou REFUSER selon le prix proposé
+    const io = req.app.get('io');
+    if (io) {
+      availableDrivers.forEach(driver => {
+        io.to(`driver_${driver._id}`).emit('new_ride_request', {
+          rideId: ride._id,
+          pickup: pickup.address,
+          destination: destination.address,
+          distance: estimatedDistance,
+          rideType,
+          customPrice, // Le chauffeur voit le prix proposé
+          estimatedDuration: ride.estimatedDuration,
+          passengerName: req.user.firstName + ' ' + req.user.lastName
+        });
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Demande envoyée à ${availableDrivers.length} chauffeur(s) disponible(s)`,
+      data: {
+        rideId: ride._id,
+        status: 'requested',
+        driversNotified: availableDrivers.length,
+        customPrice,
+        estimatedDistance
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la création de la course:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

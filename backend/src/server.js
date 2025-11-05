@@ -47,6 +47,9 @@ app.use('/api/', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Servir les fichiers statiques (pages de téléchargement APK)
+app.use(express.static('public'));
+
 // Connexion à MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dudu')
 .then(() => {
@@ -95,6 +98,9 @@ app.use((error, req, res, next) => {
   });
 });
 
+// Rendre io accessible dans les routes
+app.set('io', io);
+
 // Configuration Socket.io
 require('./socket/socketHandler')(io);
 
@@ -106,6 +112,7 @@ server.listen(PORT, HOST, () => {
   console.log(`🌐 Accessible sur: http://${HOST}:${PORT}`);
   console.log(`📱 Environnement: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🗺️  API Version: ${process.env.API_VERSION || 'v1'}`);
+  console.log(`🔌 WebSocket activé pour synchro temps réel`);
 });
 
 module.exports = { app, io };

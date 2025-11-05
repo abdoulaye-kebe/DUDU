@@ -6,11 +6,16 @@ class PlacesService {
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
 
   /// Autocomplete des adresses
-  static Future<List<PlaceSuggestion>> getPlaceSuggestions(String input) async {
+  static Future<List<PlaceSuggestion>> getPlaceSuggestions(String input, {double? userLat, double? userLng}) async {
     if (input.isEmpty) return [];
 
+    // Bias vers Dakar pour des résultats plus pertinents
+    final dakarLat = userLat ?? 14.6928;
+    final dakarLng = userLng ?? -17.4467;
+    final radius = 50000; // 50km autour de la position
+
     final url = Uri.parse(
-      '$_baseUrl/autocomplete/json?input=$input&key=$_apiKey&components=country:sn&language=fr',
+      '$_baseUrl/autocomplete/json?input=$input&key=$_apiKey&components=country:sn&language=fr&location=$dakarLat,$dakarLng&radius=$radius&strictbounds=false',
     );
 
     try {

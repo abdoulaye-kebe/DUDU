@@ -6,9 +6,60 @@ const driverSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false, // Optionnel car l'admin peut créer des chauffeurs directement
+    unique: true,
+    sparse: true // Permet des valeurs null multiples
+  },
+  
+  // Mot de passe pour connexion directe
+  password: {
+    type: String,
+    required: [true, 'Le mot de passe est requis'],
+    minlength: [4, 'Le mot de passe doit contenir au moins 4 caractères']
+  },
+  
+  // Informations personnelles complètes
+  firstName: {
+    type: String,
+    required: [true, 'Le prénom est requis']
+  },
+  lastName: {
+    type: String,
+    required: [true, 'Le nom est requis']
+  },
+  phone: {
+    type: String,
+    required: [true, 'Le téléphone est requis'],
     unique: true
   },
+  email: {
+    type: String,
+    required: [true, 'L\'email est requis'],
+    unique: true,
+    lowercase: true
+  },
+  dateOfBirth: {
+    type: Date,
+    required: [true, 'La date de naissance est requise']
+  },
+  gender: {
+    type: String,
+    enum: ['male', 'female', 'other'],
+    required: [true, 'Le genre est requis']
+  },
+  address: {
+    street: String,
+    city: String,
+    region: String,
+    country: { type: String, default: 'Sénégal' },
+    postalCode: String
+  },
+  nationalId: {
+    type: String,
+    required: [true, 'La CNI est requise'],
+    unique: true
+  },
+  profilePhoto: String,
   
   // Informations professionnelles
   driverLicense: {
@@ -63,8 +114,8 @@ const driverSchema = new mongoose.Schema({
     },
     type: {
       type: String,
-      enum: ['standard', 'cargo', 'premium', 'moto_delivery'],
-      default: 'standard'
+      enum: ['sedan', 'suv', 'minivan', 'moto_delivery'],
+      default: 'sedan'
     },
     capacity: {
       type: Number,
@@ -72,11 +123,35 @@ const driverSchema = new mongoose.Schema({
       min: 1,
       max: 8
     },
+    hasAirConditioning: {
+      type: Boolean,
+      default: false
+    },
     features: [{
       type: String,
       enum: ['ac', 'wifi', 'charging', 'child_seat', 'wheelchair_access', 'large_cargo', 'refrigerated']
     }],
     photos: [String] // URLs des photos du véhicule
+  },
+  
+  // Types de courses acceptées
+  rideTypes: {
+    standard: {
+      type: Boolean,
+      default: true
+    },
+    express: {
+      type: Boolean,
+      default: false
+    },
+    shared: {
+      type: Boolean,
+      default: false
+    },
+    womenOnly: {
+      type: Boolean,
+      default: false
+    }
   },
   
   // Statut et disponibilité
@@ -89,14 +164,12 @@ const driverSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  currentLocation: {
+  
+  // Position actuelle (pour le tracking en temps réel)
+  location: {
     latitude: Number,
     longitude: Number,
-    address: String,
-    lastUpdated: {
-      type: Date,
-      default: Date.now
-    }
+    lastUpdated: Date
   },
   
   // Zone de travail
@@ -113,22 +186,22 @@ const driverSchema = new mongoose.Schema({
   
   // Forfait et abonnement
   subscription: {
-    type: {
+    plan: {
       type: String,
-      enum: ['daily', 'weekly', 'monthly', 'yearly'],
-      required: true
+      enum: ['free', 'daily', 'weekly', 'monthly', 'yearly'],
+      default: 'free'
     },
     startDate: {
       type: Date,
-      required: true
+      default: Date.now
     },
     endDate: {
       type: Date,
-      required: true
+      default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     },
     isActive: {
       type: Boolean,
-      default: true
+      default: false
     },
     autoRenew: {
       type: Boolean,
@@ -358,13 +431,26 @@ driverSchema.methods.isSubscriptionValid = function() {
          this.subscription.endDate > new Date();
 };
 
-// Middleware pour mettre à jour les statistiques
-driverSchema.pre('save', function(next) {
+// Middleware pour hasher le mot de passe avant sauvegarde
+driverSchema.pre('save', async function(next) {
+  // Hasher le mot de passe s'il a été modifié
+  if (this.isModified('password')) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  }
+  
+  // Mettre à jour les statistiques
   if (this.isModified('stats.totalRides')) {
     this.stats.completedRides = this.stats.totalRides - this.stats.cancelledRides;
   }
+  
   next();
 });
+
+// Méthode pour comparer les mots de passe
+driverSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
 
 module.exports = mongoose.model('Driver', driverSchema);
 

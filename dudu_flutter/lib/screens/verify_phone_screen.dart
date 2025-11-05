@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../themes/app_theme.dart';
-import 'home_screen.dart';
+import 'dashboard_screen.dart';
 
 class VerifyPhoneScreen extends StatefulWidget {
   final String phone;
@@ -88,7 +88,7 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
         // Navigation vers l'écran principal
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
           (route) => false,
         );
       } else if (mounted) {

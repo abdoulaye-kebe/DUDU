@@ -1,10 +1,27 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, defaultTargetPlatform, TargetPlatform;
+import 'dart:io' show Platform;
 import '../models/driver_profile.dart';
 import '../data/test_data.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:8000/api/v1';
+  // URL de base de l'API
+  // - Web: localhost
+  // - Android Emulator: 10.0.2.2
+  // - Appareil physique: IP publique 41.208.146.203
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://localhost:3000/api/v1';
+    } else if (kDebugMode) {
+      // Mode debug: émulateur
+      return 'http://10.0.2.2:3000/api/v1';
+    } else {
+      // Mode release: IP publique
+      return 'http://41.208.146.203:3000/api/v1';
+    }
+  }
+  
   static String? _authToken;
 
   // Gestion du token d'authentification
@@ -45,14 +62,42 @@ class ApiService {
     }
   }
 
+  // Authentification chauffeur
+  static Future<Map<String, dynamic>> loginDriver(String phone, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/drivers/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'phone': phone,
+          'password': password,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['token'] != null) {
+          _authToken = data['token'];
+        }
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': error['message'] ?? 'Identifiants incorrects'
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erreur de connexion. Vérifiez que le backend est démarré.'
+      };
+    }
+  }
+
   // Profil chauffeur
   static Future<DriverProfile> getDriverProfile() async {
     try {
-      // Pour les tests, utiliser les données simulées
-      if (_authToken != null && _authToken!.startsWith('test_token_')) {
-        return await TestData.simulateGetProfile(_authToken!);
-      }
-      
       final response = await http.get(
         Uri.parse('$baseUrl/drivers/profile'),
         headers: _headers,

@@ -1,10 +1,96 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const Driver = require('../models/Driver');
 const User = require('../models/User');
 const Ride = require('../models/Ride');
 const { auth, requireDriver, requireActiveSubscription, requireLocation, requireOnline, requireAvailable } = require('../middleware/auth');
 const router = express.Router();
+
+// @route   POST /api/v1/drivers/login
+// @desc    Connexion d'un chauffeur
+// @access  Public
+router.post('/login', async (req, res) => {
+  try {
+    let { phone, password } = req.body;
+
+    // Validation
+    if (!phone || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Téléphone et mot de passe requis'
+      });
+    }
+
+    // Normaliser le numéro de téléphone
+    // Accepter: 776862514, +221776862514, 221776862514
+    phone = phone.trim();
+    if (!phone.startsWith('+')) {
+      if (phone.startsWith('221')) {
+        phone = '+' + phone;
+      } else if (phone.length === 9) {
+        phone = '+221' + phone;
+      }
+    }
+
+    // Vérifier que le chauffeur existe
+    const driver = await Driver.findOne({ phone });
+    
+    if (!driver) {
+      return res.status(401).json({
+        success: false,
+        message: 'Chauffeur non trouvé. Contactez l\'administrateur pour créer votre compte.'
+      });
+    }
+
+    // Vérifier le mot de passe
+    const isPasswordValid = await driver.comparePassword(password);
+    
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Mot de passe incorrect'
+      });
+    }
+    
+    // Générer un token JWT
+    const token = jwt.sign(
+      { 
+        id: driver._id,
+        phone: driver.phone,
+        type: 'driver'
+      },
+      process.env.JWT_SECRET || 'dudu_secret_key_2024',
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Connexion réussie',
+      token,
+      driver: {
+        id: driver._id,
+        firstName: driver.firstName,
+        lastName: driver.lastName,
+        phone: driver.phone,
+        email: driver.email,
+        status: driver.status,
+        vehicle: driver.vehicle,
+        rideTypes: driver.rideTypes,
+        stats: driver.stats,
+        subscription: driver.subscription
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur login chauffeur:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la connexion'
+    });
+  }
+});
 
 // @route   POST /api/v1/drivers/register
 // @desc    Enregistrer un chauffeur
@@ -82,34 +168,52 @@ router.post('/register', [
 // @route   GET /api/v1/drivers/profile
 // @desc    Obtenir le profil du chauffeur
 // @access  Private (chauffeur)
-router.get('/profile', auth, requireDriver, async (req, res) => {
+router.get('/profile', auth, async (req, res) => {
   try {
-    const driver = await Driver.findById(req.driver._id)
-      .populate('user', 'firstName lastName phone email');
+    // Trouver le chauffeur par son ID (depuis le token)
+    const driver = await Driver.findById(req.user.id);
 
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chauffeur non trouvé'
+      });
+    }
+
+    // Retourner le profil complet
     res.json({
       success: true,
       data: {
         driver: {
           id: driver._id,
-          user: {
-            firstName: driver.user.firstName,
-            lastName: driver.user.lastName,
-            phone: driver.user.phone,
-            email: driver.user.email
-          },
+          firstName: driver.firstName,
+          lastName: driver.lastName,
+          phone: driver.phone,
+          email: driver.email,
+          dateOfBirth: driver.dateOfBirth,
+          gender: driver.gender,
+          nationalId: driver.nationalId,
+          address: driver.address,
           driverLicense: driver.driverLicense,
           vehicle: driver.vehicle,
           status: driver.status,
           isAvailable: driver.isAvailable,
+          isVerified: driver.isVerified,
           currentLocation: driver.currentLocation,
-          workingZones: driver.workingZones,
           subscription: driver.subscription,
-          earnings: driver.earnings,
-          stats: driver.stats,
-          preferences: driver.preferences,
-          verificationStatus: driver.verificationStatus,
-          specialModes: driver.specialModes,
+          rideTypes: driver.rideTypes || {},
+          preferences: driver.preferences || {},
+          stats: {
+            totalRides: driver.stats?.totalRides || 0,
+            completedRides: driver.stats?.completedRides || 0,
+            cancelledRides: driver.stats?.cancelledRides || 0,
+            averageRating: driver.rating || 0,
+            totalEarnings: driver.earnings?.total || 0,
+            todayRides: driver.stats?.todayRides || 0,
+            todayEarnings: driver.earnings?.today || 0,
+            weeklyRides: driver.stats?.weeklyRides || 0,
+            weeklyEarnings: driver.earnings?.weekly || 0,
+          },
           createdAt: driver.createdAt
         }
       }
@@ -119,7 +223,8 @@ router.get('/profile', auth, requireDriver, async (req, res) => {
     console.error('Erreur lors de la récupération du profil chauffeur:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur interne du serveur'
+      message: 'Erreur interne du serveur',
+      error: error.message
     });
   }
 });
@@ -247,7 +352,6 @@ router.put('/location', [
 // @access  Private (chauffeur)
 router.put('/status', [
   auth,
-  requireDriver,
   body('status').isIn(['offline', 'online', 'busy', 'unavailable']).withMessage('Statut invalide'),
   body('isAvailable').optional().isBoolean()
 ], async (req, res) => {
@@ -263,7 +367,8 @@ router.put('/status', [
 
     const { status, isAvailable } = req.body;
     
-    const driver = await Driver.findById(req.driver._id);
+    // Trouver le chauffeur par son ID
+    const driver = await Driver.findById(req.user.id);
     if (!driver) {
       return res.status(404).json({
         success: false,
@@ -278,6 +383,17 @@ router.put('/status', [
 
     await driver.save();
 
+    // Émettre l'événement WebSocket pour synchro temps réel
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('driver:status:updated', {
+        driverId: driver._id,
+        status: driver.status,
+        isAvailable: driver.isAvailable,
+        timestamp: new Date()
+      });
+    }
+
     res.json({
       success: true,
       message: 'Statut mis à jour avec succès',
@@ -291,7 +407,8 @@ router.put('/status', [
     console.error('Erreur lors de la mise à jour du statut:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur interne du serveur'
+      message: 'Erreur interne du serveur',
+      error: error.message
     });
   }
 });
@@ -881,6 +998,66 @@ router.post('/carpool/accept', [
     res.status(500).json({
       success: false,
       message: 'Erreur interne du serveur'
+    });
+  }
+});
+
+// @route   PUT /api/v1/drivers/change-password
+// @desc    Modifier le mot de passe d'un chauffeur
+// @access  Public
+router.put('/change-password', async (req, res) => {
+  try {
+    const { phone, oldPassword, newPassword } = req.body;
+
+    // Validation
+    if (!phone || !oldPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tous les champs sont requis'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le nouveau mot de passe doit contenir au moins 6 caractères'
+      });
+    }
+
+    // Trouver le chauffeur
+    const driver = await Driver.findOne({ phone });
+    
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chauffeur non trouvé'
+      });
+    }
+
+    // Vérifier l'ancien mot de passe
+    const isMatch = await driver.comparePassword(oldPassword);
+    
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Ancien mot de passe incorrect'
+      });
+    }
+
+    // Mettre à jour le mot de passe (sera hashé automatiquement par le middleware)
+    driver.password = newPassword;
+    await driver.save();
+
+    res.json({
+      success: true,
+      message: 'Mot de passe modifié avec succès'
+    });
+
+  } catch (error) {
+    console.error('Erreur changement mot de passe:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors du changement de mot de passe'
     });
   }
 });

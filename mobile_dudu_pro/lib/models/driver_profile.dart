@@ -11,6 +11,8 @@ class DriverProfile {
   final bool isOnline;
   final bool isAvailable;
   final LocationInfo? currentLocation;
+  final Map<String, bool>? rideTypes;
+  final DriverPreferences? preferences;
 
   DriverProfile({
     required this.id,
@@ -25,25 +27,37 @@ class DriverProfile {
     required this.isOnline,
     required this.isAvailable,
     this.currentLocation,
+    this.rideTypes,
+    this.preferences,
   });
 
   factory DriverProfile.fromJson(Map<String, dynamic> json) {
+    // Gérer les deux formats: direct ou imbriqué
+    final vehicle = json['vehicle'] ?? {};
+    final stats = json['stats'] ?? {};
+    
     return DriverProfile(
-      id: json['id'],
-      firstName: json['firstName'],
-      lastName: json['lastName'],
-      phone: json['phone'],
-      email: json['email'],
-      vehicleType: VehicleType.fromString(json['vehicleType']),
-      vehicle: VehicleInfo.fromJson(json['vehicle']),
+      id: json['id'] ?? json['_id'] ?? '',
+      firstName: json['firstName'] ?? '',
+      lastName: json['lastName'] ?? '',
+      phone: json['phone'] ?? '',
+      email: json['email'] ?? '',
+      vehicleType: VehicleType.fromString(vehicle['type'] ?? 'car'),
+      vehicle: VehicleInfo.fromJson(vehicle),
       subscription: json['subscription'] != null 
           ? SubscriptionInfo.fromJson(json['subscription']) 
           : null,
-      stats: DriverStats.fromJson(json['stats']),
-      isOnline: json['isOnline'] ?? false,
+      stats: DriverStats.fromJson(stats),
+      isOnline: json['status'] == 'online' || json['isOnline'] == true,
       isAvailable: json['isAvailable'] ?? false,
       currentLocation: json['currentLocation'] != null 
           ? LocationInfo.fromJson(json['currentLocation']) 
+          : null,
+      rideTypes: json['rideTypes'] != null 
+          ? Map<String, bool>.from(json['rideTypes'])
+          : null,
+      preferences: json['preferences'] != null
+          ? DriverPreferences.fromJson(json['preferences'])
           : null,
     );
   }
@@ -153,13 +167,13 @@ class VehicleInfo {
 
   factory VehicleInfo.fromJson(Map<String, dynamic> json) {
     return VehicleInfo(
-      make: json['make'],
-      model: json['model'],
-      year: json['year'],
-      color: json['color'],
-      plateNumber: json['plateNumber'],
-      type: json['type'],
-      capacity: json['capacity'] ?? 1,
+      make: json['make'] ?? '',
+      model: json['model'] ?? '',
+      year: json['year'] ?? 2020,
+      color: json['color'] ?? '',
+      plateNumber: json['plateNumber'] ?? '',
+      type: json['type'] ?? 'standard',
+      capacity: json['capacity'] ?? 4,
       features: json['features'],
     );
   }
@@ -216,18 +230,18 @@ class SubscriptionInfo {
 
   factory SubscriptionInfo.fromJson(Map<String, dynamic> json) {
     return SubscriptionInfo(
-      id: json['id'],
-      type: json['type'],
-      name: json['name'],
-      price: json['price'].toDouble(),
-      currency: json['currency'],
-      duration: json['duration'],
-      features: List<String>.from(json['features']),
-      status: json['status'],
-      startDate: DateTime.parse(json['startDate']),
-      endDate: DateTime.parse(json['endDate']),
-      isActive: json['isActive'],
-      isExpiringSoon: json['isExpiringSoon'],
+      id: json['id'] ?? json['_id'] ?? '',
+      type: json['type'] ?? 'daily',
+      name: json['name'] ?? 'Forfait',
+      price: (json['price'] ?? 0).toDouble(),
+      currency: json['currency'] ?? 'FCFA',
+      duration: json['duration'] ?? 1,
+      features: json['features'] != null ? List<String>.from(json['features']) : [],
+      status: json['status'] ?? 'active',
+      startDate: json['startDate'] != null ? DateTime.parse(json['startDate']) : DateTime.now(),
+      endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : DateTime.now().add(Duration(days: 1)),
+      isActive: json['isActive'] ?? true,
+      isExpiringSoon: json['isExpiringSoon'] ?? false,
       weeklyBonus: json['weeklyBonus'] != null 
           ? WeeklyBonus.fromJson(json['weeklyBonus']) 
           : null,
@@ -460,11 +474,11 @@ class LocationInfo {
 
   factory LocationInfo.fromJson(Map<String, dynamic> json) {
     return LocationInfo(
-      latitude: json['latitude'].toDouble(),
-      longitude: json['longitude'].toDouble(),
+      latitude: (json['latitude'] ?? 0).toDouble(),
+      longitude: (json['longitude'] ?? 0).toDouble(),
       address: json['address'],
       accuracy: json['accuracy']?.toDouble(),
-      timestamp: DateTime.parse(json['timestamp']),
+      timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
     );
   }
 
@@ -475,6 +489,38 @@ class LocationInfo {
       'address': address,
       'accuracy': accuracy,
       'timestamp': timestamp.toIso8601String(),
+    };
+  }
+}
+
+class DriverPreferences {
+  final bool acceptShared;
+  final bool acceptWomenOnly;
+  final int minPrice;
+  final int maxDistance;
+
+  DriverPreferences({
+    required this.acceptShared,
+    required this.acceptWomenOnly,
+    required this.minPrice,
+    required this.maxDistance,
+  });
+
+  factory DriverPreferences.fromJson(Map<String, dynamic> json) {
+    return DriverPreferences(
+      acceptShared: json['acceptShared'] ?? false,
+      acceptWomenOnly: json['acceptWomenOnly'] ?? false,
+      minPrice: json['minPrice'] ?? 500,
+      maxDistance: json['maxDistance'] ?? 50,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'acceptShared': acceptShared,
+      'acceptWomenOnly': acceptWomenOnly,
+      'minPrice': minPrice,
+      'maxDistance': maxDistance,
     };
   }
 }

@@ -10,7 +10,8 @@ const router = express.Router();
 // @access  Private
 router.get('/profile', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('-password');
+    // Utiliser req.user.id au lieu de req.userId
+    const user = await User.findById(req.user.id || req.userId).select('-password');
     
     if (!user) {
       return res.status(404).json({
@@ -36,9 +37,9 @@ router.get('/profile', auth, async (req, res) => {
           profilePicture: user.profilePicture,
           dateOfBirth: user.dateOfBirth,
           gender: user.gender,
-          totalRides: user.totalRides,
-          totalSpent: user.totalSpent,
-          averageRating: user.averageRating,
+          totalRides: user.totalRides || 0,
+          totalSpent: user.totalSpent || 0,
+          averageRating: user.averageRating || 0,
           budgetSettings: user.budgetSettings,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt
@@ -50,7 +51,8 @@ router.get('/profile', auth, async (req, res) => {
     console.error('Erreur lors de la récupération du profil:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur interne du serveur'
+      message: 'Erreur interne du serveur',
+      error: error.message
     });
   }
 });

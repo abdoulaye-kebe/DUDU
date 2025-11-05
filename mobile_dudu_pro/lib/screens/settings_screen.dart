@@ -21,15 +21,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _language = 'fr';
   String _theme = 'light';
 
+  static const Color primaryGreen = Color(0xFF0d5d36);
+  static const Color lightGreen = Color(0xFF10b981);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text(
           'Paramètres',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white, fontSize: 18),
         ),
-        backgroundColor: const Color(0xFF00A651),
+        backgroundColor: primaryGreen,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(

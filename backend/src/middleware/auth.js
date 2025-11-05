@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Driver = require('../models/Driver');
 
 // Middleware d'authentification
 const auth = async (req, res, next) => {
@@ -29,8 +30,19 @@ const auth = async (req, res, next) => {
     // Vérifier le token JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Vérifier que l'utilisateur existe toujours
-    const user = await User.findById(decoded.userId);
+    // Essayer de trouver un chauffeur d'abord
+    let driver = await Driver.findById(decoded.userId || decoded.id);
+    
+    if (driver) {
+      // C'est un chauffeur
+      req.user = { id: driver._id, role: 'driver' };
+      req.userId = driver._id;
+      next();
+      return;
+    }
+    
+    // Sinon, chercher un utilisateur client
+    const user = await User.findById(decoded.userId || decoded.id);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -48,7 +60,7 @@ const auth = async (req, res, next) => {
 
     // Ajouter l'ID de l'utilisateur à la requête
     req.userId = user._id;
-    req.user = user;
+    req.user = { id: user._id, role: 'client', ...user.toObject() };
     
     next();
   } catch (error) {
@@ -105,7 +117,17 @@ const requireRole = (roles) => {
 // Middleware pour les chauffeurs uniquement
 const requireDriver = async (req, res, next) => {
   try {
-    const Driver = require('../models/Driver');
+    // Si déjà identifié comme chauffeur par auth
+    if (req.user && req.user.role === 'driver') {
+      const driver = await Driver.findById(req.user.id);
+      if (driver) {
+        req.driver = driver;
+        next();
+        return;
+      }
+    }
+    
+    // Sinon chercher par userId (ancien système)
     const driver = await Driver.findOne({ user: req.userId });
     
     if (!driver) {
