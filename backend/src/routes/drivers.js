@@ -8,6 +8,36 @@ const Ride = require('../models/Ride');
 const { auth, requireDriver, requireActiveSubscription, requireLocation, requireOnline, requireAvailable } = require('../middleware/auth');
 const router = express.Router();
 
+const normalizePhoneNumber = (phone) => {
+  if (!phone) return null;
+  let normalized = phone.toString().trim();
+  normalized = normalized.replace(/\s+/g, '');
+
+  if (normalized.startsWith('+')) {
+    normalized = '+' + normalized.slice(1).replace(/\D/g, '');
+  } else {
+    normalized = normalized.replace(/\D/g, '');
+  }
+
+  if (normalized.startsWith('+221')) {
+    return normalized;
+  }
+
+  if (normalized.startsWith('221')) {
+    return `+${normalized}`;
+  }
+
+  if (normalized.length === 9) {
+    return `+221${normalized}`;
+  }
+
+  if (!normalized.startsWith('+') && normalized.length > 0) {
+    return `+${normalized}`;
+  }
+
+  return normalized;
+};
+
 // @route   POST /api/v1/drivers/login
 // @desc    Connexion d'un chauffeur
 // @access  Public
@@ -24,15 +54,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Normaliser le numéro de téléphone
-    // Accepter: 776862514, +221776862514, 221776862514
-    phone = phone.trim();
-    if (!phone.startsWith('+')) {
-      if (phone.startsWith('221')) {
-        phone = '+' + phone;
-      } else if (phone.length === 9) {
-        phone = '+221' + phone;
-      }
-    }
+    phone = normalizePhoneNumber(phone);
 
     // Vérifier que le chauffeur existe
     const driver = await Driver.findOne({ phone });
@@ -51,6 +73,13 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Mot de passe incorrect'
+      });
+    }
+
+    if (!driver.isVerified || driver.verificationStatus !== 'approved') {
+      return res.status(403).json({
+        success: false,
+        message: 'Votre compte chauffeur est en attente de validation par l\'administration.'
       });
     }
     
@@ -88,6 +117,141 @@ router.post('/login', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erreur lors de la connexion'
+    });
+  }
+});
+
+// @route   POST /api/v1/drivers/apply
+// @desc    Soumettre une candidature chauffeur
+// @access  Public
+router.post('/apply', [
+  body('firstName').trim().isLength({ min: 2 }).withMessage('Le prénom est requis'),
+  body('lastName').trim().isLength({ min: 2 }).withMessage('Le nom de famille est requis'),
+  body('phone').trim().isLength({ min: 9 }).withMessage('Téléphone requis'),
+  body('email').optional().isEmail().withMessage('Email invalide'),
+  body('password').isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
+  body('dateOfBirth').optional().isISO8601().withMessage('Date de naissance invalide'),
+  body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Genre invalide'),
+  body('nationalId').optional().trim(),
+  body('driverLicense.number').notEmpty().withMessage('Le numéro de permis est requis'),
+  body('driverLicense.expiryDate').isISO8601().withMessage('La date d\'expiration du permis est requise'),
+  body('vehicle.make').notEmpty().withMessage('La marque du véhicule est requise'),
+  body('vehicle.model').notEmpty().withMessage('Le modèle du véhicule est requis'),
+  body('vehicle.year').isInt({ min: 1990, max: new Date().getFullYear() + 1 }).withMessage('Année du véhicule invalide'),
+  body('vehicle.color').notEmpty().withMessage('La couleur du véhicule est requise'),
+  body('vehicle.plateNumber').notEmpty().withMessage('Le numéro de plaque est requis')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const {
+      firstName,
+      lastName,
+      phone,
+      email,
+      password,
+      dateOfBirth,
+      gender,
+      nationalId,
+      address = {},
+      driverLicense,
+      vehicle,
+      rideTypes = {},
+      preferences = {}
+    } = req.body;
+
+    const normalizedPhone = normalizePhoneNumber(phone);
+
+    const duplicate = await Driver.findOne({
+      $or: [
+        { phone: normalizedPhone },
+        email ? { email: email.toLowerCase() } : null,
+        nationalId ? { nationalId } : null
+      ].filter(Boolean)
+    });
+
+    if (duplicate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Un compte chauffeur existe déjà avec ces informations.'
+      });
+    }
+
+    const driver = new Driver({
+      firstName,
+      lastName,
+      phone: normalizedPhone,
+      email: email?.toLowerCase(),
+      password,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+      gender,
+      nationalId,
+      address: {
+        street: address.street,
+        city: address.city,
+        region: address.region,
+        country: address.country || 'Sénégal',
+        postalCode: address.postalCode
+      },
+      driverLicense: {
+        number: driverLicense.number,
+        expiryDate: new Date(driverLicense.expiryDate),
+        issueDate: driverLicense.issueDate ? new Date(driverLicense.issueDate) : undefined,
+        category: driverLicense.category || 'B'
+      },
+      vehicle: {
+        make: vehicle.make,
+        model: vehicle.model,
+        year: parseInt(vehicle.year, 10),
+        color: vehicle.color,
+        plateNumber: vehicle.plateNumber?.toUpperCase(),
+        category: vehicle.category || 'car',
+        type: vehicle.type || 'sedan',
+        capacity: vehicle.capacity || 4,
+        hasAirConditioning: vehicle.hasAirConditioning || false,
+        features: vehicle.features || []
+      },
+      rideTypes: {
+        standard: rideTypes.standard ?? true,
+        express: rideTypes.express ?? false,
+        shared: rideTypes.shared ?? false,
+        womenOnly: rideTypes.womenOnly ?? false
+      },
+      preferences: {
+        maxDistance: preferences.maxDistance ?? 10,
+        minPrice: preferences.minPrice ?? 1000,
+        acceptSharedRides: preferences.acceptSharedRides ?? true,
+        acceptExpressRides: preferences.acceptExpressRides ?? true,
+        acceptLuggage: preferences.acceptLuggage ?? false
+      },
+      status: 'pending',
+      isAvailable: false,
+      isVerified: false,
+      verificationStatus: 'pending'
+    });
+
+    await driver.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Votre demande a été envoyée. Vous serez informé(e) après vérification.',
+      data: {
+        driverId: driver._id,
+        status: driver.verificationStatus
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la candidature chauffeur:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
     });
   }
 });

@@ -657,6 +657,10 @@ router.post('/create', [
       pickup: {
         address: pickup.address,
         coordinates: {
+          latitude: pickup.latitude,
+          longitude: pickup.longitude
+        },
+        location: {
           type: 'Point',
           coordinates: [pickup.longitude, pickup.latitude]
         }
@@ -664,6 +668,10 @@ router.post('/create', [
       destination: {
         address: destination.address,
         coordinates: {
+          latitude: destination.latitude,
+          longitude: destination.longitude
+        },
+        location: {
           type: 'Point',
           coordinates: [destination.longitude, destination.latitude]
         }
@@ -682,7 +690,11 @@ router.post('/create', [
       },
       rideType,
       passengers: 1,
-      status: 'requested'
+      status: 'requested',
+      payment: {
+        method: 'cash',
+        status: 'pending'
+      }
     });
 
     await ride.save();

@@ -96,6 +96,21 @@ class ApiService {
     }
   }
 
+  // Candidature chauffeur
+  static Future<Map<String, dynamic>> applyAsDriver(Map<String, dynamic> payload) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/drivers/apply'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      throw Exception('Erreur candidature chauffeur: $e');
+    }
+  }
+
   // Profil chauffeur
   static Future<DriverProfile> getDriverProfile() async {
     try {

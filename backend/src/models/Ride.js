@@ -17,7 +17,8 @@ const rideSchema = new mongoose.Schema({
   driver: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Driver',
-    required: true
+    required: false,
+    default: null
   },
   
   // Itinéraire
@@ -34,6 +35,16 @@ const rideSchema = new mongoose.Schema({
       longitude: {
         type: Number,
         required: true
+      }
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number]
       }
     },
     instructions: String,
@@ -53,6 +64,16 @@ const rideSchema = new mongoose.Schema({
       longitude: {
         type: Number,
         required: true
+      }
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number]
       }
     },
     instructions: String,
@@ -210,7 +231,7 @@ const rideSchema = new mongoose.Schema({
     method: {
       type: String,
       enum: ['orange_money', 'wave', 'free_money', 'cash'],
-      required: true
+      default: 'cash'
     },
     status: {
       type: String,
@@ -327,8 +348,8 @@ const rideSchema = new mongoose.Schema({
 rideSchema.index({ passenger: 1, status: 1 });
 rideSchema.index({ driver: 1, status: 1 });
 rideSchema.index({ status: 1, requestedAt: 1 });
-rideSchema.index({ 'pickup.coordinates': '2dsphere' });
-rideSchema.index({ 'destination.coordinates': '2dsphere' });
+rideSchema.index({ 'pickup.location': '2dsphere' });
+rideSchema.index({ 'destination.location': '2dsphere' });
 
 // Méthode pour générer un ID de course unique
 rideSchema.statics.generateRideId = function() {

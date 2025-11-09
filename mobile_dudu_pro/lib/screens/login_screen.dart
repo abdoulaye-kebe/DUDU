@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'new_driver_dashboard.dart';
 import 'change_password_screen.dart';
+import 'driver_registration_screen.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 
@@ -497,7 +498,33 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               ),
                               const SizedBox(height: 20),
                               _buildLoginButton(),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 16),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const DriverRegistrationScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.app_registration, color: primaryGreen),
+                                label: const Text(
+                                  'S\'inscrire comme chauffeur',
+                                  style: TextStyle(
+                                    color: primaryGreen,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: primaryGreen, width: 1.5),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
                               TextButton.icon(
                                 onPressed: () {
                                   Navigator.push(

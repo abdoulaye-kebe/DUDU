@@ -228,8 +228,6 @@ router.get('/users', async (req, res) => {
 // @desc    Vérifier un chauffeur
 // @access  Private (admin)
 router.put('/drivers/:id/verify', [
-  auth,
-  requireAdmin,
   body('status').isIn(['approved', 'rejected']).withMessage('Statut de vérification invalide'),
   body('notes').optional().isString()
 ], async (req, res) => {
@@ -256,10 +254,9 @@ router.put('/drivers/:id/verify', [
     driver.verificationStatus = status;
     driver.verificationNotes = notes;
     driver.isVerified = status === 'approved';
-
-    if (status === 'approved') {
-      driver.isActive = true;
-    }
+    driver.isActive = status === 'approved';
+    driver.status = status === 'approved' ? 'offline' : 'pending';
+    driver.isAvailable = false;
 
     await driver.save();
 
@@ -594,15 +591,18 @@ router.post('/drivers', async (req, res) => {
 // @access  Private (admin)
 router.get('/drivers', async (req, res) => {
   try {
-    const { status, page = 1, limit = 50 } = req.query;
+    const { status, verificationStatus, page = 1, limit = 50 } = req.query;
     
     const query = {};
     if (status) {
       query.status = status;
     }
+    if (verificationStatus) {
+      query.verificationStatus = verificationStatus;
+    }
 
     const drivers = await Driver.find(query)
-      .select('-__v')
+      .select('-__v -password')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -624,6 +624,28 @@ router.get('/drivers', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erreur lors de la récupération des chauffeurs'
+    });
+  }
+});
+
+// @route   GET /api/v1/admin/driver-applications
+// @desc    Obtenir les candidatures chauffeurs en attente
+// @access  Private (admin)
+router.get('/driver-applications', async (req, res) => {
+  try {
+    const drivers = await Driver.find({ verificationStatus: 'pending' })
+      .select('-password -__v')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      applications: drivers
+    });
+  } catch (error) {
+    console.error('Erreur récupération candidatures chauffeurs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des candidatures'
     });
   }
 });

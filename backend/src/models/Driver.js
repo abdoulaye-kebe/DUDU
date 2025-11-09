@@ -157,7 +157,7 @@ const driverSchema = new mongoose.Schema({
   // Statut et disponibilité
   status: {
     type: String,
-    enum: ['offline', 'online', 'busy', 'unavailable'],
+    enum: ['offline', 'online', 'busy', 'unavailable', 'pending'],
     default: 'offline'
   },
   isAvailable: {
@@ -174,12 +174,10 @@ const driverSchema = new mongoose.Schema({
   currentLocation: {
     type: {
       type: String,
-      enum: ['Point'],
-      default: 'Point'
+      enum: ['Point']
     },
     coordinates: {
-      type: [Number], // [longitude, latitude]
-      default: undefined
+      type: [Number] // [longitude, latitude]
     },
     address: String,
     lastUpdated: Date
