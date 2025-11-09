@@ -1,24 +1,25 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, defaultTargetPlatform, TargetPlatform;
-import 'dart:io' show Platform;
 import '../models/driver_profile.dart';
-import '../data/test_data.dart';
 
 class ApiService {
   // URL de base de l'API
   // - Web: localhost
   // - Android Emulator: 10.0.2.2
-  // - Appareil physique: IP publique 41.208.146.203
+  // - Appareil physique: IP publique 213.154.90.11
   static String get baseUrl {
     if (kIsWeb) {
       return 'http://localhost:3000/api/v1';
     } else if (kDebugMode) {
-      // Mode debug: émulateur
-      return 'http://10.0.2.2:3000/api/v1';
+      // Mode debug: gérer Android/iOS différemment
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        return 'http://10.0.2.2:3000/api/v1';
+      }
+      return 'http://213.154.90.11/api/v1';
     } else {
       // Mode release: IP publique
-      return 'http://41.208.146.203:3000/api/v1';
+      return 'http://213.154.90.11/api/v1';
     }
   }
   

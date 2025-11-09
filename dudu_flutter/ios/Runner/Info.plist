@@ -54,5 +54,25 @@
 	<!-- Google Maps API Key -->
 	<key>GMSApiKey</key>
 	<string>AIzaSyBebPcA35Q6WKIiGxG1Xi4iW0ZErazWvZA</string>
+
+	<!-- App Transport Security: autoriser les requêtes HTTP vers le backend -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<!-- Optionnel: restreindre aux domaines nécessaires -->
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>213.154.90.11</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSAllowsArbitraryLoads</key>
+				<true/>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-
+import '../services/socket_service.dart';
 /// Écran des demandes de courses en temps réel
 /// Le chauffeur voit les demandes avec le PRIX LIBRE proposé par le client
 class RideRequestsScreen extends StatefulWidget {
@@ -12,29 +12,49 @@ class RideRequestsScreen extends StatefulWidget {
 
 class _RideRequestsScreenState extends State<RideRequestsScreen> {
   final List<RideRequest> _pendingRequests = [];
-  Timer? _refreshTimer;
+  StreamSubscription<Map<String, dynamic>>? _rideRequestSub;
+  StreamSubscription<String>? _rideClosedSub;
+  Timer? _countdownTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadPendingRequests();
-    // Rafraîchir toutes les 5 secondes
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      _loadPendingRequests();
+    _subscribeToSocket();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() {});
     });
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    _rideRequestSub?.cancel();
+    _rideClosedSub?.cancel();
+    _countdownTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadPendingRequests() async {
-    // TODO: Charger depuis l'API avec WebSocket
-    // Pour l'instant, aucune donnée de test
-    setState(() {
-      _pendingRequests.clear();
+  void _subscribeToSocket() {
+    final socketService = SocketService();
+
+    _rideRequestSub = socketService.rideRequestsStream.listen((data) {
+      setState(() {
+        final rideId = data['id']?.toString() ?? data['rideId']?.toString();
+        if (rideId == null) return;
+        final existingIndex = _pendingRequests.indexWhere((r) => r.id == rideId);
+        final request = RideRequest.fromSocketData(data);
+        if (existingIndex >= 0) {
+          _pendingRequests[existingIndex] = request;
+        } else {
+          _pendingRequests.add(request);
+        }
+      });
+    });
+
+    _rideClosedSub = socketService.rideClosedStream.listen((rideId) {
+      if (rideId.isEmpty) return;
+      setState(() {
+        _pendingRequests.removeWhere((r) => r.id == rideId);
+      });
     });
   }
 
@@ -390,27 +410,38 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
     );
   }
 
-  void _acceptRide(String rideId) {
-    // TODO: Appeler l'API pour accepter la course
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('✅ Course acceptée'),
-        content: const Text(
-          'Navigation vers le client...\n\n'
-          'Le client a été notifié de votre acceptation.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: const Text('OK'),
+  Future<void> _acceptRide(String rideId) async {
+    try {
+      await SocketService().acceptRide(rideId);
+      setState(() {
+        _pendingRequests.removeWhere((r) => r.id == rideId);
+      });
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('✅ Course acceptée'),
+          content: const Text(
+            'Navigation vers le client...\n\n'
+            'Le client a été notifié de votre acceptation.',
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pop(context);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de l\'acceptation: $e')),
+      );
+    }
   }
 
   void _refuseRide(String rideId) {
@@ -432,7 +463,8 @@ class RideRequest {
   final int customPrice;
   final String rideType;
   final int estimatedDuration;
-  final int timeLeft;
+  final DateTime requestedAt;
+  final int expiresInSeconds;
 
   RideRequest({
     required this.id,
@@ -443,6 +475,54 @@ class RideRequest {
     required this.customPrice,
     required this.rideType,
     required this.estimatedDuration,
-    required this.timeLeft,
+    required this.requestedAt,
+    required this.expiresInSeconds,
   });
+
+  int get timeLeft {
+    final expiry = requestedAt.add(Duration(seconds: expiresInSeconds));
+    final remaining = expiry.difference(DateTime.now());
+    return remaining.isNegative ? 0 : remaining.inSeconds;
+  }
+
+  factory RideRequest.fromSocketData(Map<String, dynamic> data) {
+    final pickup = data['pickup'] ?? {};
+    final destination = data['destination'] ?? {};
+    final pricing = data['pricing'] ?? {};
+    final passenger = data['passenger'] ?? {};
+    final requestedAtRaw = data['requestedAt'];
+
+    final requestId = data['id']?.toString() ?? data['rideId']?.toString() ?? '';
+
+    DateTime requestedAt;
+    if (requestedAtRaw is String) {
+      requestedAt = DateTime.tryParse(requestedAtRaw)?.toUtc() ?? DateTime.now().toUtc();
+    } else {
+      requestedAt = DateTime.now().toUtc();
+    }
+
+    final pickupText = pickup['address'] ??
+        pickup['label'] ??
+        '${pickup['latitude'] ?? ''}, ${pickup['longitude'] ?? ''}';
+    final destinationText = destination['address'] ??
+        destination['label'] ??
+        '${destination['latitude'] ?? ''}, ${destination['longitude'] ?? ''}';
+
+    return RideRequest(
+      id: requestId,
+      passengerName: passenger['name']?.toString() ?? 'Client DUDU',
+      pickup: pickupText.toString(),
+      destination: destinationText.toString(),
+      distance: (pricing['distance'] ?? data['distance'] ?? 0).toDouble(),
+      customPrice: pricing['customPrice']?.toInt() ??
+          pricing['totalPrice']?.toInt() ??
+          0,
+      rideType: data['rideType']?.toString() ?? 'standard',
+      estimatedDuration: pricing['estimatedDuration']?.toInt() ??
+          data['estimatedDuration']?.toInt() ??
+          5,
+      requestedAt: requestedAt,
+      expiresInSeconds: 180,
+    );
+  }
 }

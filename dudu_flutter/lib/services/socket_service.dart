@@ -1,5 +1,4 @@
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'dart:async';
 
 /// Service Socket.io côté client pour recevoir les mises à jour en temps réel
 class SocketService {
@@ -25,7 +24,7 @@ class SocketService {
     }
 
     _socket = IO.io(
-      'http://127.0.0.1:8000',
+      'http://213.154.90.11',
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .enableAutoConnect()

@@ -1,6 +1,6 @@
-import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'package:geolocator/geolocator.dart';
 import 'dart:async';
+import 'package:geolocator/geolocator.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 /// Service Socket.io pour communication temps réel
 class SocketService {
@@ -12,6 +12,12 @@ class SocketService {
   bool _isConnected = false;
   String? _currentRideId;
   Timer? _locationUpdateTimer;
+  final _rideRequestController = StreamController<Map<String, dynamic>>.broadcast();
+  final _rideClosedController = StreamController<String>.broadcast();
+  final Map<String, Completer<Map<String, dynamic>>> _pendingAccepts = {};
+
+  Stream<Map<String, dynamic>> get rideRequestsStream => _rideRequestController.stream;
+  Stream<String> get rideClosedStream => _rideClosedController.stream;
 
   /// Connecter au serveur Socket.io
   void connect(String token) {
@@ -21,7 +27,7 @@ class SocketService {
     }
 
     _socket = IO.io(
-      'http://127.0.0.1:8000',
+      'http://213.154.90.11',
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .enableAutoConnect()
@@ -47,12 +53,31 @@ class SocketService {
     // Écouter les nouvelles demandes de courses
     _socket!.on('new-ride-request', (data) {
       print('🔔 Nouvelle demande de course: ${data['rideId']}');
-      // TODO: Afficher notification au chauffeur
+      if (data is Map) {
+        _rideRequestController.add(Map<String, dynamic>.from(data));
+      }
     });
 
     _socket!.on('ride-cancelled', (data) {
       print('❌ Course annulée: ${data['rideId']}');
-      // TODO: Notifier le chauffeur
+      final rideId = data is Map ? data['rideId']?.toString() : null;
+      if (rideId != null) {
+        _rideClosedController.add(rideId);
+      }
+    });
+
+    _socket!.on('ride-no-longer-available', (data) {
+      final rideId = data is Map ? data['rideId']?.toString() : null;
+      if (rideId != null) {
+        _rideClosedController.add(rideId);
+      }
+    });
+
+    _socket!.on('ride-accepted-success', (data) {
+      final rideId = data is Map ? data['rideId']?.toString() : null;
+      if (rideId != null && _pendingAccepts.containsKey(rideId)) {
+        _pendingAccepts.remove(rideId)?.complete(Map<String, dynamic>.from(data));
+      }
     });
   }
 
@@ -187,6 +212,31 @@ class SocketService {
     _currentRideId = null;
 
     print('🏁 Course terminée: $rideId');
+  }
+
+  Future<Map<String, dynamic>> acceptRide(String rideId) {
+    if (!_isConnected) {
+      throw Exception('Socket non connecté');
+    }
+
+    final completer = Completer<Map<String, dynamic>>();
+    _pendingAccepts[rideId] = completer;
+    _socket!.emit('accept-ride', {'rideId': rideId});
+    return completer.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        _pendingAccepts.remove(rideId);
+        throw TimeoutException('Aucune réponse du serveur pour l\'acceptation');
+      },
+    );
+  }
+
+  void dispose() {
+    _rideRequestController.close();
+    _rideClosedController.close();
+    _locationUpdateTimer?.cancel();
+    _locationUpdateTimer = null;
+    _pendingAccepts.clear();
   }
 
   /// Getters

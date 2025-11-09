@@ -8,7 +8,9 @@ plugins {
 android {
     namespace = "sn.dudu.client"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // La version NDK fournie par Flutter pointe vers une installation incomplète (26.3.11579264).
+    // On force l'utilisation de la version valide déjà présente localement.
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

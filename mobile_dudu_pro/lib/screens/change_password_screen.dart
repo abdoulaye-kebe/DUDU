@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../services/api_service.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({Key? key}) : super(key: key);
@@ -23,7 +24,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color lightGreen = Color(0xFF10b981);
-  static const Color accentBlack = Color(0xFF1A1A1A);
 
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) return;
@@ -42,7 +42,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     try {
       final response = await http.put(
-        Uri.parse('http://localhost:3000/api/v1/drivers/change-password'),
+        Uri.parse('${ApiService.baseUrl}/drivers/change-password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'phone': _phoneController.text,

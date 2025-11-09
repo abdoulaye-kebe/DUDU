@@ -14,35 +14,49 @@ module.exports = (io) => {
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.userId);
-      
-      if (!user || !user.isActive) {
-        return next(new Error('Utilisateur non trouvé ou inactif'));
-      }
 
-      socket.userId = user._id;
-      socket.user = user;
-      next();
+      if (decoded.type === 'driver') {
+        const driver = await Driver.findById(decoded.id);
+
+        if (!driver || !driver.isActive) {
+          return next(new Error('Chauffeur non trouvé ou inactif'));
+        }
+
+        socket.userType = 'driver';
+        socket.driverId = driver._id.toString();
+        socket.driver = driver;
+        socket.user = driver;
+        socket.userId = driver.user ? driver.user.toString() : null;
+        next();
+      } else {
+        const user = await User.findById(decoded.userId);
+        
+        if (!user || !user.isActive) {
+          return next(new Error('Utilisateur non trouvé ou inactif'));
+        }
+
+        socket.userType = 'passenger';
+        socket.userId = user._id.toString();
+        socket.user = user;
+        next();
+      }
     } catch (error) {
       next(new Error('Token invalide'));
     }
   });
 
   io.on('connection', async (socket) => {
-    console.log(`Utilisateur connecté: ${socket.userId}`);
+    console.log(`Socket connecté: type=${socket.userType} id=${socket.userType === 'driver' ? socket.driverId : socket.userId}`);
 
-    // Vérifier si c'est un chauffeur
-    const driver = await Driver.findOne({ user: socket.userId });
-    if (driver) {
-      socket.driverId = driver._id;
-      socket.driver = driver;
-      
-      // Rejoindre la room des chauffeurs
+    if (socket.userType === 'driver') {
       socket.join('drivers');
-      console.log(`Chauffeur connecté: ${driver._id}`);
+      socket.join(`driver_${socket.driverId}`);
+      console.log(`Chauffeur connecté: ${socket.driverId}`);
     } else {
-      // Rejoindre la room des passagers
       socket.join('passengers');
+      if (socket.userId) {
+        socket.join(`passenger_${socket.userId}`);
+      }
       console.log(`Passager connecté: ${socket.userId}`);
     }
 
@@ -60,6 +74,7 @@ module.exports = (io) => {
         if (driver) {
           driver.updateLocation(latitude, longitude, address);
           await driver.save();
+          socket.driver = driver;
 
           // Diffuser la position aux passagers à proximité
           socket.broadcast.to('passengers').emit('driver-location-updated', {
@@ -91,6 +106,7 @@ module.exports = (io) => {
             driver.isAvailable = isAvailable;
           }
           await driver.save();
+          socket.driver = driver;
 
           // Notifier les passagers du changement de statut
           socket.broadcast.to('passengers').emit('driver-status-updated', {
@@ -129,7 +145,8 @@ module.exports = (io) => {
           status: 'online',
           isAvailable: true,
           'subscription.isActive': true,
-          'currentLocation': {
+          'currentLocation.coordinates': { $exists: true },
+          currentLocation: {
             $near: {
               $geometry: {
                 type: 'Point',
@@ -173,8 +190,9 @@ module.exports = (io) => {
             pickup.coordinates.latitude,
             pickup.coordinates.longitude
           );
-          
-          io.to(`driver_${driver._id}`).emit('new-ride-request', {
+          const roomId = `driver_${driver._id.toString()}`;
+
+          io.to(roomId).emit('new-ride-request', {
             ...rideData,
             driverDistance: distance
           });
@@ -235,8 +253,11 @@ module.exports = (io) => {
         driver.isAvailable = false;
         await driver.save();
 
+        const passenger = await User.findById(ride.passenger);
+
         // Notifier le passager
-        io.to(`passenger_${ride.passenger}`).emit('ride-accepted', {
+        const passengerRoom = `passenger_${ride.passenger.toString()}`;
+        io.to(passengerRoom).emit('ride-accepted', {
           rideId: ride._id,
           driver: {
             id: driver._id,
@@ -254,10 +275,10 @@ module.exports = (io) => {
 
         socket.emit('ride-accepted-success', {
           rideId: ride._id,
-          passenger: {
-            name: `${ride.passenger.firstName} ${ride.passenger.lastName}`,
-            phone: ride.passenger.phone
-          }
+          passenger: passenger ? {
+            name: `${passenger.firstName} ${passenger.lastName}`,
+            phone: passenger.phone
+          } : null
         });
 
       } catch (error) {
@@ -422,7 +443,8 @@ module.exports = (io) => {
 
         // Notifier l'autre partie
         if (isPassenger) {
-          io.to(`driver_${ride.driver}`).emit('ride-cancelled', {
+          const driverRoom = `driver_${ride.driver.toString()}`;
+          io.to(driverRoom).emit('ride-cancelled', {
             rideId: ride._id,
             cancelledBy: 'passenger',
             reason

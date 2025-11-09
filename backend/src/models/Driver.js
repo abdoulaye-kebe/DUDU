@@ -171,6 +171,19 @@ const driverSchema = new mongoose.Schema({
     longitude: Number,
     lastUpdated: Date
   },
+  currentLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: undefined
+    },
+    address: String,
+    lastUpdated: Date
+  },
   
   // Zone de travail
   workingZones: [{
@@ -362,24 +375,32 @@ const driverSchema = new mongoose.Schema({
 });
 
 // Index pour les recherches géospatiales
-driverSchema.index({ 'currentLocation': '2dsphere' });
+driverSchema.index({ currentLocation: '2dsphere' });
 driverSchema.index({ status: 1, isAvailable: 1 });
 driverSchema.index({ 'subscription.isActive': 1 });
 
 // Méthode pour mettre à jour la localisation
 driverSchema.methods.updateLocation = function(latitude, longitude, address) {
-  this.currentLocation = {
+  const now = new Date();
+
+  this.location = {
     latitude,
     longitude,
-    address,
-    lastUpdated: new Date()
+    lastUpdated: now
   };
-  
+
+  this.currentLocation = {
+    type: 'Point',
+    coordinates: [longitude, latitude],
+    address,
+    lastUpdated: now
+  };
+
   // Garder seulement les 100 dernières positions
   this.locationHistory.push({
     latitude,
     longitude,
-    timestamp: new Date()
+    timestamp: now
   });
   
   if (this.locationHistory.length > 100) {
@@ -389,11 +410,16 @@ driverSchema.methods.updateLocation = function(latitude, longitude, address) {
 
 // Méthode pour calculer la distance avec un point
 driverSchema.methods.calculateDistance = function(latitude, longitude) {
+  if (!this.currentLocation || !Array.isArray(this.currentLocation.coordinates)) {
+    return null;
+  }
+
+  const [currentLon, currentLat] = this.currentLocation.coordinates;
   const R = 6371; // Rayon de la Terre en km
-  const dLat = (latitude - this.currentLocation.latitude) * Math.PI / 180;
-  const dLon = (longitude - this.currentLocation.longitude) * Math.PI / 180;
+  const dLat = (latitude - currentLat) * Math.PI / 180;
+  const dLon = (longitude - currentLon) * Math.PI / 180;
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(this.currentLocation.latitude * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
+    Math.cos(currentLat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
     Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;

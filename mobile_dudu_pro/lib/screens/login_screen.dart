@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'new_driver_dashboard.dart';
 import 'change_password_screen.dart';
-import '../models/driver_profile.dart';
 import '../services/api_service.dart';
-import '../data/test_data.dart';
+import '../services/socket_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -133,6 +132,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         // Sauvegarder les infos du chauffeur
         final driver = response['driver'];
         print('✅ Connexion réussie pour: ${driver['firstName']} ${driver['lastName']}');
+
+        final token = response['token']?.toString();
+        if (token != null && token.isNotEmpty) {
+          try {
+            SocketService().connect(token);
+          } catch (e) {
+            print('⚠️ Impossible d\'initialiser le socket: $e');
+          }
+        }
         
         Navigator.pushReplacement(
           context,
