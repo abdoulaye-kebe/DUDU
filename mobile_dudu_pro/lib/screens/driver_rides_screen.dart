@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 
 /// Historique des courses du chauffeur
 class DriverRidesScreen extends StatefulWidget {
@@ -12,6 +13,8 @@ class _DriverRidesScreenState extends State<DriverRidesScreen>
     with SingleTickerProviderStateMixin {
   static const Color primaryGreen = Color(0xFF0d5d36);
   late TabController _tabController;
+  bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
@@ -58,38 +61,58 @@ class _DriverRidesScreenState extends State<DriverRidesScreen>
   }
 
   Widget _buildRidesList(String status) {
-    // Pas de données de test - Seulement les vraies données
-    final rides = <Map<String, dynamic>>[];
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: ApiService.getDriverRides(status: _mapTabStatusToApiStatus(status)),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    if (rides.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 80,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Aucune course',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Erreur lors du chargement des courses\n${snapshot.error}',
+                textAlign: TextAlign.center,
               ),
             ),
-          ],
-        ),
-      );
-    }
+          );
+        }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: rides.length,
-      itemBuilder: (context, index) {
-        return _buildRideCard(rides[index]);
+        final rides = snapshot.data ?? [];
+        if (rides.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.inbox_outlined,
+                  size: 80,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Aucune course',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: rides.length,
+          itemBuilder: (context, index) {
+            final mapped = _mapApiRideToUi(rides[index]);
+            return _buildRideCard(mapped);
+          },
+        );
       },
     );
   }
@@ -261,31 +284,70 @@ class _DriverRidesScreenState extends State<DriverRidesScreen>
     );
   }
 
-  List<Map<String, dynamic>> _getMockRides(String status) {
-    if (status == 'completed') {
-      return [
-        {
-          'status': 'completed',
-          'date': '01/11/2024 14:30',
-          'passengerName': 'Abdoulaye Kebe',
-          'pickup': 'King Fahd Palace',
-          'destination': 'Aéroport Blaise Diagne',
-          'distance': '45.2',
-          'duration': '35',
-          'price': '15000',
-        },
-        {
-          'status': 'completed',
-          'date': '01/11/2024 12:15',
-          'passengerName': 'Fatou Diop',
-          'pickup': 'Plateau',
-          'destination': 'UCAD',
-          'distance': '8.5',
-          'duration': '15',
-          'price': '2500',
-        },
-      ];
+  String? _mapTabStatusToApiStatus(String status) {
+    switch (status) {
+      case 'in_progress':
+        return 'started';
+      case 'completed':
+        return 'completed';
+      case 'cancelled':
+        return 'cancelled';
     }
-    return [];
+    return null;
+  }
+
+  Map<String, dynamic> _mapApiRideToUi(Map<String, dynamic> apiRide) {
+    final passenger = apiRide['passenger'] is Map
+        ? Map<String, dynamic>.from(apiRide['passenger'])
+        : <String, dynamic>{};
+
+    final pickup = apiRide['pickup'] is Map
+        ? Map<String, dynamic>.from(apiRide['pickup'])
+        : <String, dynamic>{};
+
+    final destination = apiRide['destination'] is Map
+        ? Map<String, dynamic>.from(apiRide['destination'])
+        : <String, dynamic>{};
+
+    final pricing = apiRide['pricing'] is Map
+        ? Map<String, dynamic>.from(apiRide['pricing'])
+        : <String, dynamic>{};
+
+    final String pickupText =
+        pickup['address']?.toString() ?? pickup['label']?.toString() ?? 'Départ';
+
+    final String destinationText = destination['address']?.toString() ??
+        destination['label']?.toString() ??
+        'Destination';
+
+    final double distanceKm = (apiRide['distance'] ?? 0).toDouble();
+    final int durationMin = (apiRide['estimatedDuration'] ?? 0).toInt();
+
+    final double price = (pricing['customPrice'] ??
+            pricing['totalPrice'] ??
+            apiRide['customPrice'] ??
+            0)
+        .toDouble();
+
+    final String? requestedAt = apiRide['requestedAt']?.toString();
+    final String? completedAt = apiRide['completedAt']?.toString();
+    final String rawDate = completedAt ?? requestedAt ?? '';
+    final String formattedDate = rawDate.isEmpty
+        ? ''
+        : rawDate
+            .replaceFirst('T', ' ')
+            .split('.')
+            .first;
+
+    return {
+      'status': apiRide['status']?.toString() ?? '',
+      'date': formattedDate,
+      'passengerName': passenger['name']?.toString() ?? 'Client DUDU',
+      'pickup': pickupText,
+      'destination': destinationText,
+      'distance': distanceKm.toStringAsFixed(1),
+      'duration': durationMin.toString(),
+      'price': price.toStringAsFixed(0),
+    };
   }
 }

@@ -5,6 +5,8 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:math' as math;
 import '../services/api_service.dart';
 import '../services/places_service.dart';
+import '../services/socket_service.dart';
+import 'ride_tracking_screen.dart';
 
 /// Écran unifié pour les 4 types de courses (Standard, Express, Covoiturage, Femmes)
 /// Avec sélection Point A, Point B et PRIX LIBRE
@@ -20,6 +22,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   Position? _currentPosition;
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
+  bool _isSearchingDriver = false;
   
   // Couleurs DUDU
   static const Color primaryGreen = Color(0xFF0d5d36);
@@ -34,6 +37,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   // États
   bool _isLoading = true;
   bool _isSearching = false;
+  String _selectedMode = 'ride'; // ride ou delivery
   String _selectedRideType = 'standard';
   String _pickupAddress = '';
   String _destinationAddress = '';
@@ -42,6 +46,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   int _customPrice = 0;
   double _estimatedDistance = 0;
   List<PlaceSuggestion> _suggestions = [];
+  String _selectedPaymentMethod = '';
   
   // Types de courses disponibles
   final List<Map<String, dynamic>> _rideTypes = [
@@ -161,18 +166,202 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     );
   }
 
+  Widget _buildPaymentMethodSelector() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Moyen de paiement',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: accentBlack,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPaymentChip(
+                  label: 'Espèces',
+                  value: 'cash',
+                  icon: Icons.payments,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildPaymentChip(
+                  label: 'Mobile money',
+                  value: 'mobile_money',
+                  icon: Icons.phone_iphone,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildPaymentChip(
+                  label: 'Carte bancaire',
+                  value: 'card',
+                  icon: Icons.credit_card,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentChip({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    final isSelected = _selectedPaymentMethod == value;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedPaymentMethod = value;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? primaryGreen : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? primaryGreen : Colors.grey[300]!,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? Colors.white : primaryGreen,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? Colors.white : accentBlack,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeSelector() {
+    return Container
+    (
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: Colors.white,
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildModeChip(
+              label: 'Course',
+              icon: Icons.directions_car,
+              isSelected: _selectedMode == 'ride',
+              onTap: () {
+                setState(() {
+                  _selectedMode = 'ride';
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildModeChip(
+              label: 'Livraison (moto)',
+              icon: Icons.delivery_dining,
+              isSelected: _selectedMode == 'delivery',
+              onTap: () {
+                setState(() {
+                  _selectedMode = 'delivery';
+                });
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeChip({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? primaryGreen : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? primaryGreen : Colors.grey[300]!,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isSelected ? Colors.white : primaryGreen,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? Colors.white : accentBlack,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Commander une course'),
+        title: Text(
+          _selectedMode == 'delivery'
+              ? 'Commander une livraison (moto)'
+              : 'Commander une course',
+        ),
         backgroundColor: primaryGreen,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: Column(
         children: [
+          // Sélection Course / Livraison (moto)
+          _buildModeSelector(),
           // Sélection du type de course
           _buildRideTypeSelector(),
           
@@ -443,6 +632,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                           );
                           _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
                         });
+                        if (_destinationLatLng != null) {
+                          _drawRoute();
+                        }
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -622,6 +814,47 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     _mapController?.animateCamera(CameraUpdate.newLatLng(position));
   }
 
+  void _generateNearbyCarMarkers() {
+    if (_pickupLatLng == null) return;
+
+    final random = math.Random();
+    final List<Marker> carMarkers = [];
+
+    for (int i = 0; i < 5; i++) {
+      final dx = (random.nextDouble() - 0.5) / 500; // petit décalage latitude
+      final dy = (random.nextDouble() - 0.5) / 500; // petit décalage longitude
+      final carPosition = LatLng(
+        _pickupLatLng!.latitude + dx,
+        _pickupLatLng!.longitude + dy,
+      );
+
+      carMarkers.add(
+        Marker(
+          markerId: MarkerId('car_$i'),
+          position: carPosition,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+          infoWindow: const InfoWindow(title: 'Chauffeur à proximité'),
+        ),
+      );
+    }
+
+    setState(() {
+      _markers.removeWhere((m) => m.markerId.value.startsWith('car_'));
+      _markers.addAll(carMarkers);
+    });
+
+    // Recentrer la caméra sur le point de départ pour bien voir les voitures
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(_pickupLatLng!, 15.5),
+    );
+  }
+
+  void _clearNearbyCarMarkers() {
+    setState(() {
+      _markers.removeWhere((m) => m.markerId.value.startsWith('car_'));
+    });
+  }
+
   void _drawRoute() {
     if (_pickupLatLng == null || _destinationLatLng == null) return;
 
@@ -719,6 +952,11 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Moyen de paiement
+            _buildPaymentMethodSelector(),
+
+            const SizedBox(height: 12),
+
             // Prix libre
             _buildPriceInput(),
             
@@ -733,7 +971,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                            _pickupAddress.isNotEmpty && 
                            _destinationAddress.isNotEmpty &&
                            _pickupLatLng != null &&
-                           _destinationLatLng != null
+                           _destinationLatLng != null &&
+                           _selectedPaymentMethod.isNotEmpty
                     ? _confirmRide
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -843,6 +1082,56 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       return;
     }
 
+    if (mounted) {
+      setState(() {
+        _isSearchingDriver = true;
+      });
+      _generateNearbyCarMarkers();
+    }
+
+    // Préparer l'écoute de "ride-accepted" pour cette demande
+    final socketService = SocketService();
+    socketService.onRideAccepted = (data) {
+      if (!mounted) return;
+
+      try {
+        final rideId = data['rideId']?.toString();
+        if (rideId == null || _pickupLatLng == null || _destinationLatLng == null) {
+          return;
+        }
+
+        final driver = data['driver'] ?? {};
+        final vehicle = driver['vehicle'] ?? {};
+
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => RideTrackingScreen(
+              rideId: rideId,
+              vehicleType: _selectedMode == 'delivery' ? 'moto' : 'car',
+              pickupLocation: {
+                'latitude': _pickupLatLng!.latitude,
+                'longitude': _pickupLatLng!.longitude,
+              },
+              destinationLocation: {
+                'latitude': _destinationLatLng!.latitude,
+                'longitude': _destinationLatLng!.longitude,
+              },
+              driverInfo: {
+                'name': driver['name'] ?? 'Chauffeur',
+                'phone': driver['phone'] ?? '',
+                'vehicle': vehicle['model'] != null
+                    ? '${vehicle['make'] ?? ''} ${vehicle['model']}'
+                    : '',
+                'rating': driver['rating'] ?? 5.0,
+              },
+            ),
+          ),
+        );
+      } catch (e) {
+        print('Erreur lors de l\'ouverture du tracking: $e');
+      }
+    };
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -870,42 +1159,31 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         rideType: _selectedRideType,
         customPrice: _customPrice,
         estimatedDistance: _estimatedDistance,
+        paymentMethod: _selectedPaymentMethod,
       );
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
 
       if (response.success) {
         if (mounted) {
-          // Trouver le nom du type de course
-          final rideTypeName = _rideTypes.firstWhere(
-            (t) => t['id'] == _selectedRideType,
-            orElse: () => {'name': _selectedRideType}
-          )['name'];
-          
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('✅ Demande envoyée'),
+          // Garder les voitures autour et l'état de recherche actif
+          // Afficher simplement un message discret
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
               content: Text(
-                'Votre demande de course a été envoyée aux chauffeurs disponibles.\n\n'
-                'Type: $rideTypeName\n'
-                'Prix proposé: $_customPrice FCFA\n'
-                'Distance: ${_estimatedDistance.toStringAsFixed(1)} km',
+                response.message ?? 'Demande envoyée, en attente de chauffeur...',
               ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                  },
-                  child: const Text('OK'),
-                ),
-              ],
             ),
           );
         }
       } else {
         if (mounted) {
+          _clearNearbyCarMarkers();
+          setState(() {
+            _isSearchingDriver = false;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Erreur: ${response.message}'),
@@ -917,6 +1195,10 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
+        _clearNearbyCarMarkers();
+        setState(() {
+          _isSearchingDriver = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e')),
         );

@@ -33,55 +33,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         _error = null;
       });
 
-      // Simuler un délai de chargement
-      await Future.delayed(const Duration(seconds: 1));
+      // Charger les plans disponibles depuis le backend
+      _availablePlans = await ApiService.getAvailablePlans(widget.driverProfile.vehicleType);
 
-      // Créer des plans de test simples
-      _availablePlans = [
-        SubscriptionPlan(
-          type: 'daily',
-          name: 'Forfait Journalier',
-          price: 2000,
-          currency: 'FCFA',
-          duration: 1,
-          features: ['Courses illimitées', 'Support 24/7'],
-          isAvailable: true,
-        ),
-        SubscriptionPlan(
-          type: 'weekly',
-          name: 'Forfait Hebdomadaire',
-          price: 12000,
-          currency: 'FCFA',
-          duration: 7,
-          features: ['Courses illimitées', 'Support prioritaire', 'Statistiques avancées'],
-          isAvailable: widget.driverProfile.isCar,
-        ),
-        SubscriptionPlan(
-          type: 'monthly',
-          name: 'Forfait Mensuel',
-          price: 45000,
-          currency: 'FCFA',
-          duration: 30,
-          features: ['Courses illimitées', 'Support prioritaire', 'Statistiques avancées', 'Formation gratuite'],
-          isAvailable: widget.driverProfile.isCar,
-        ),
-      ];
-
-      // Créer un abonnement actuel de test
-      _currentSubscription = SubscriptionInfo(
-        id: 'sub_test',
-        type: 'daily',
-        name: 'Forfait Journalier',
-        price: 2000,
-        currency: 'FCFA',
-        duration: 1,
-        features: ['Courses illimitées', 'Support 24/7'],
-        status: 'active',
-        startDate: DateTime.now(),
-        endDate: DateTime.now().add(const Duration(days: 1)),
-        isActive: true,
-        isExpiringSoon: false,
-      );
+      // Charger l'abonnement actuel s'il existe
+      _currentSubscription = await ApiService.getCurrentSubscription();
 
       setState(() {
         _isLoading = false;
@@ -278,7 +234,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             _buildRestrictionItem(
               '🏍️',
               'Forfait journalier uniquement',
-              '2,000 FCFA/jour',
+              '500 FCFA/jour',
             ),
             _buildRestrictionItem(
               '📦',

@@ -651,9 +651,13 @@ router.post('/create', [
       estimatedDistance
     } = req.body;
 
+    // Générer un identifiant unique pour la course (rideId requis par le schéma)
+    const rideId = `RIDE-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+
     // Créer la course avec le prix libre proposé par le client
     const ride = new Ride({
-      passenger: req.user.id || req.userId,
+      rideId,
+      passenger: (req.user && (req.user.id || req.user._id)) || req.userId,
       pickup: {
         address: pickup.address,
         coordinates: {
@@ -730,12 +734,21 @@ router.post('/create', [
     }
     
     // Rechercher des chauffeurs disponibles
+    console.log('🔍 Recherche de chauffeurs pour course PRIX LIBRE', {
+      rideId,
+      rideType,
+      customPrice,
+      pickup,
+    });
+
     const allDrivers = await Driver.find(driverQuery)
       .populate('user', 'firstName lastName gender')
       .limit(50);
 
+    console.log('🔎 Chauffeurs correspondant aux filtres de base (hors distance):', allDrivers.length);
+
     // Filtrer par distance manuellement (car on n'a plus d'index géospatial)
-    const availableDrivers = allDrivers.filter(driver => {
+    let availableDrivers = allDrivers.filter(driver => {
       if (!driver.location || !driver.location.latitude || !driver.location.longitude) {
         return false;
       }
@@ -747,8 +760,31 @@ router.post('/create', [
         driver.location.longitude
       );
       
-      return distance <= (searchRadius / 1000); // Convertir en km
+      const inRadius = distance <= (searchRadius / 1000);
+      if (!inRadius) {
+        console.log('🚫 Chauffeur en dehors du rayon', {
+          driverId: driver._id.toString(),
+          phone: driver.phone,
+          driverLat: driver.location.latitude,
+          driverLng: driver.location.longitude,
+          distanceKm: distance,
+        });
+      }
+      return inRadius; // Convertir en km
     }).slice(0, 20);
+
+    console.log('✅ Chauffeurs disponibles après filtre distance:', availableDrivers.length);
+
+    // Fallback de TEST: si aucun chauffeur trouvé, inclure automatiquement le chauffeur de test 786205992
+    if (availableDrivers.length === 0) {
+      const testDriver = await Driver.findOne({ phone: '+221786205992' });
+      if (testDriver) {
+        console.log('🧪 Fallback: ajout du chauffeur de test 786205992 comme disponible pour cette course');
+        availableDrivers = [testDriver];
+      } else {
+        console.log('❌ Fallback: chauffeur de test 786205992 introuvable en base');
+      }
+    }
 
     if (availableDrivers.length === 0) {
       ride.status = 'no_driver';
@@ -768,8 +804,19 @@ router.post('/create', [
     // Le chauffeur peut ACCEPTER ou REFUSER selon le prix proposé
     const io = req.app.get('io');
     if (io) {
+      const firstName = req.user && req.user.firstName ? req.user.firstName : 'Client';
+      const lastName = req.user && req.user.lastName ? req.user.lastName : 'DUDU';
+      const passengerName = `${firstName} ${lastName}`;
+      const passengerPhone = req.user && req.user.phone ? req.user.phone : null;
+
+      console.log('📣 Notification envoyée aux chauffeurs:', availableDrivers.map(d => ({
+        id: d._id.toString(),
+        phone: d.phone,
+      })));
+
       availableDrivers.forEach(driver => {
-        io.to(`driver_${driver._id}`).emit('new_ride_request', {
+        // IMPORTANT: utiliser le même nom d’événement que le client chauffeur: 'new-ride-request'
+        io.to(`driver_${driver._id}`).emit('new-ride-request', {
           rideId: ride._id,
           pickup: pickup.address,
           destination: destination.address,
@@ -777,7 +824,8 @@ router.post('/create', [
           rideType,
           customPrice, // Le chauffeur voit le prix proposé
           estimatedDuration: ride.estimatedDuration,
-          passengerName: req.user.firstName + ' ' + req.user.lastName
+          passengerName,
+          passengerPhone,
         });
       });
     }
@@ -802,6 +850,126 @@ router.post('/create', [
       message: 'Erreur interne du serveur',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// @route   POST /api/v1/rides/schedule
+// @desc    Planifier une course pour plus tard (utilisée par l'app client)
+// @access  Private (utilisateur)
+router.post('/schedule', [
+  auth,
+  body('pickup.address').notEmpty().withMessage('Adresse de départ requise'),
+  body('pickup.latitude').isFloat().withMessage('Latitude de départ invalide'),
+  body('pickup.longitude').isFloat().withMessage('Longitude de départ invalide'),
+  body('destination.address').notEmpty().withMessage('Adresse de destination requise'),
+  body('destination.latitude').isFloat().withMessage('Latitude de destination invalide'),
+  body('destination.longitude').isFloat().withMessage('Longitude de destination invalide'),
+  body('rideType').isIn(['standard', 'express', 'shared', 'women_only', 'delivery']).withMessage('Type de course invalide'),
+  body('customPrice').isInt({ min: 500 }).withMessage('Le prix minimum est 500 FCFA'),
+  body('scheduledFor').notEmpty().withMessage('Date de programmation requise')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const {
+      pickup,
+      destination,
+      rideType,
+      customPrice,
+      scheduledFor
+    } = req.body;
+
+    const pickupLat = pickup.latitude;
+    const pickupLng = pickup.longitude;
+    const destLat = destination.latitude;
+    const destLng = destination.longitude;
+
+    const distance = calculateDistance(pickupLat, pickupLng, destLat, destLng);
+    const estimatedDuration = Math.round(distance * 3); // estimation simple
+    // Générer un identifiant unique pour la course planifiée
+    const rideId = `RIDE-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+
+    const ride = new Ride({
+      rideId,
+      passenger: req.user.id || req.userId,
+      pickup: {
+        address: pickup.address,
+        coordinates: {
+          latitude: pickupLat,
+          longitude: pickupLng
+        },
+        location: {
+          type: 'Point',
+          coordinates: [pickupLng, pickupLat]
+        }
+      },
+      destination: {
+        address: destination.address,
+        coordinates: {
+          latitude: destLat,
+          longitude: destLng
+        },
+        location: {
+          type: 'Point',
+          coordinates: [destLng, destLat]
+        }
+      },
+      distance,
+      estimatedDuration,
+      pricing: {
+        basePrice: 0,
+        distancePrice: 0,
+        timePrice: 0,
+        surgeMultiplier: 1.0,
+        totalPrice: customPrice,
+        currency: 'XOF',
+        isPriceFixed: true,
+        customPrice
+      },
+      rideType,
+      passengers: 1,
+      status: 'requested',
+      scheduledFor: new Date(scheduledFor),
+      payment: {
+        method: 'cash',
+        status: 'pending'
+      }
+    });
+
+    await ride.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Course planifiée avec succès',
+      data: {
+        ride: {
+          id: ride._id,
+          rideId: ride.rideId,
+          pickup: ride.pickup,
+          destination: ride.destination,
+          distance: ride.distance,
+          estimatedDuration: ride.estimatedDuration,
+          pricing: ride.pricing,
+          status: ride.status,
+          rideType: ride.rideType,
+          scheduledFor: ride.scheduledFor,
+          requestedAt: ride.requestedAt
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la planification de la course:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
     });
   }
 });

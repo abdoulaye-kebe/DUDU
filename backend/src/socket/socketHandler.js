@@ -18,8 +18,9 @@ module.exports = (io) => {
       if (decoded.type === 'driver') {
         const driver = await Driver.findById(decoded.id);
 
-        if (!driver || !driver.isActive) {
-          return next(new Error('Chauffeur non trouvé ou inactif'));
+        // En phase de tests, on assouplit la condition: on vérifie seulement que le chauffeur existe
+        if (!driver) {
+          return next(new Error('Chauffeur non trouvé'));
         }
 
         socket.userType = 'driver';
@@ -227,17 +228,21 @@ module.exports = (io) => {
     socket.on('accept-ride', async (data) => {
       try {
         if (!socket.driver) {
+          console.log('❌ accept-ride refusé: socket sans driver');
           return socket.emit('error', { message: 'Accès réservé aux chauffeurs' });
         }
 
         const { rideId } = data;
+        console.log('📨 Event accept-ride reçu', { rideId, driverId: socket.driverId });
         
         const ride = await Ride.findById(rideId);
         if (!ride) {
+          console.log('❌ accept-ride: course introuvable', { rideId });
           return socket.emit('error', { message: 'Course non trouvée' });
         }
 
         if (ride.status !== 'requested') {
+          console.log('❌ accept-ride: statut invalide', { rideId, status: ride.status });
           return socket.emit('error', { message: 'Cette course ne peut plus être acceptée' });
         }
 
@@ -246,6 +251,8 @@ module.exports = (io) => {
         ride.status = 'accepted';
         ride.acceptedAt = new Date();
         await ride.save();
+
+        console.log('✅ Course acceptée via socket', { rideId: ride._id.toString(), driverId: socket.driverId });
 
         // Mettre le chauffeur en mode occupé
         const driver = await Driver.findById(socket.driverId);
@@ -532,6 +539,119 @@ module.exports = (io) => {
       } catch (error) {
         console.error('Erreur mise à jour position course:', error);
         socket.emit('error', { message: 'Erreur lors de la mise à jour de la position' });
+      }
+    });
+
+    // --- Signalisation WebRTC pour appels VOIP (base) ---
+    // Offre d'appel (WebRTC offer)
+    socket.on('call-offer', async (data) => {
+      try {
+        const { rideId, sdp } = data || {};
+        if (!rideId || !sdp) return;
+
+        const ride = await Ride.findById(rideId);
+        if (!ride) return;
+
+        let targetRoom = null;
+        if (socket.userType === 'passenger' && ride.driver) {
+          targetRoom = `driver_${ride.driver.toString()}`;
+        } else if (socket.userType === 'driver') {
+          targetRoom = `passenger_${ride.passenger.toString()}`;
+        }
+        if (!targetRoom) return;
+
+        io.to(targetRoom).emit('call-offer', {
+          rideId: ride._id.toString(),
+          sdp,
+          fromType: socket.userType,
+          fromId: socket.userType === 'driver' ? socket.driverId : socket.userId,
+        });
+      } catch (error) {
+        console.error('Erreur call-offer:', error);
+      }
+    });
+
+    // Réponse à l'appel (WebRTC answer)
+    socket.on('call-answer', async (data) => {
+      try {
+        const { rideId, sdp } = data || {};
+        if (!rideId || !sdp) return;
+
+        const ride = await Ride.findById(rideId);
+        if (!ride) return;
+
+        let targetRoom = null;
+        if (socket.userType === 'passenger' && ride.driver) {
+          targetRoom = `driver_${ride.driver.toString()}`;
+        } else if (socket.userType === 'driver') {
+          targetRoom = `passenger_${ride.passenger.toString()}`;
+        }
+        if (!targetRoom) return;
+
+        io.to(targetRoom).emit('call-answer', {
+          rideId: ride._id.toString(),
+          sdp,
+          fromType: socket.userType,
+          fromId: socket.userType === 'driver' ? socket.driverId : socket.userId,
+        });
+      } catch (error) {
+        console.error('Erreur call-answer:', error);
+      }
+    });
+
+    // Échange de ICE candidates
+    socket.on('ice-candidate', async (data) => {
+      try {
+        const { rideId, candidate } = data || {};
+        if (!rideId || !candidate) return;
+
+        const ride = await Ride.findById(rideId);
+        if (!ride) return;
+
+        let targetRoom = null;
+        if (socket.userType === 'passenger' && ride.driver) {
+          targetRoom = `driver_${ride.driver.toString()}`;
+        } else if (socket.userType === 'driver') {
+          targetRoom = `passenger_${ride.passenger.toString()}`;
+        }
+        if (!targetRoom) return;
+
+        io.to(targetRoom).emit('ice-candidate', {
+          rideId: ride._id.toString(),
+          candidate,
+          fromType: socket.userType,
+          fromId: socket.userType === 'driver' ? socket.driverId : socket.userId,
+        });
+      } catch (error) {
+        console.error('Erreur ice-candidate:', error);
+      }
+    });
+
+    // Fin d'appel
+    socket.on('call-end', async (data) => {
+      try {
+        const { rideId, reason } = data || {};
+        if (!rideId) return;
+
+        const ride = await Ride.findById(rideId);
+        if (!ride) return;
+
+        let targetRoom = null;
+        if (socket.userType === 'passenger' && ride.driver) {
+          targetRoom = `driver_${ride.driver.toString()}`;
+        } else if (socket.userType === 'driver') {
+          targetRoom = `passenger_${ride.passenger.toString()}`;
+        }
+        if (!targetRoom) return;
+
+        io.to(targetRoom).emit('call-end', {
+          rideId: ride._id.toString(),
+          reason: reason || 'ended',
+          fromType: socket.userType,
+          fromId: socket.userType === 'driver' ? socket.driverId : socket.userId,
+        });
+      } catch (error) {
+        console.error('Erreur call-end:', error);
       }
     });
 

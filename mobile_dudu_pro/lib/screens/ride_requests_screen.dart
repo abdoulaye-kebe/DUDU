@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/socket_service.dart';
 /// Écran des demandes de courses en temps réel
 /// Le chauffeur voit les demandes avec le PRIX LIBRE proposé par le client
@@ -19,6 +20,15 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
   @override
   void initState() {
     super.initState();
+    // Charger les demandes déjà reçues mais non encore consultées
+    final existingRequests = SocketService().currentRideRequests;
+    for (final data in existingRequests) {
+      final rideId = data['id']?.toString() ?? data['rideId']?.toString();
+      if (rideId == null) continue;
+      final request = RideRequest.fromSocketData(data);
+      _pendingRequests.removeWhere((r) => r.id == rideId);
+      _pendingRequests.add(request);
+    }
     _subscribeToSocket();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() {});
@@ -205,13 +215,23 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Text(
-                        request.passengerName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          request.passengerName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (request.passengerPhone != null && request.passengerPhone!.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.phone, color: Color(0xFF0d5d36)),
+                          onPressed: () => _callPassenger(request.passengerPhone!),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -308,6 +328,19 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
                   ),
 
                   const SizedBox(height: 16),
+
+                  // Bouton VOIP
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        SocketService().startVoipCall(request.id);
+                      },
+                      icon: const Icon(Icons.wifi_calling_3),
+                      label: const Text('Appel VOIP (BETA)'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
 
                   // Boutons ACCEPTER / REFUSER
                   Row(
@@ -410,11 +443,31 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
     );
   }
 
+  Future<void> _callPassenger(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de lancer l\'appel')), 
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de l\'appel: $e')),
+      );
+    }
+  }
+
   Future<void> _acceptRide(String rideId) async {
     try {
       await SocketService().acceptRide(rideId);
       setState(() {
         _pendingRequests.removeWhere((r) => r.id == rideId);
+        SocketService().removeRideRequest(rideId);
       });
       if (!mounted) return;
       showDialog(
@@ -447,6 +500,7 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
   void _refuseRide(String rideId) {
     setState(() {
       _pendingRequests.removeWhere((r) => r.id == rideId);
+      SocketService().removeRideRequest(rideId);
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Course refusée')),
@@ -457,6 +511,7 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
 class RideRequest {
   final String id;
   final String passengerName;
+  final String? passengerPhone;
   final String pickup;
   final String destination;
   final double distance;
@@ -469,6 +524,7 @@ class RideRequest {
   RideRequest({
     required this.id,
     required this.passengerName,
+    this.passengerPhone,
     required this.pickup,
     required this.destination,
     required this.distance,
@@ -486,8 +542,8 @@ class RideRequest {
   }
 
   factory RideRequest.fromSocketData(Map<String, dynamic> data) {
-    final pickup = data['pickup'] ?? {};
-    final destination = data['destination'] ?? {};
+    final pickupRaw = data['pickup'];
+    final destinationRaw = data['destination'];
     final pricing = data['pricing'] ?? {};
     final passenger = data['passenger'] ?? {};
     final requestedAtRaw = data['requestedAt'];
@@ -501,21 +557,38 @@ class RideRequest {
       requestedAt = DateTime.now().toUtc();
     }
 
-    final pickupText = pickup['address'] ??
-        pickup['label'] ??
-        '${pickup['latitude'] ?? ''}, ${pickup['longitude'] ?? ''}';
-    final destinationText = destination['address'] ??
-        destination['label'] ??
-        '${destination['latitude'] ?? ''}, ${destination['longitude'] ?? ''}';
+    String pickupText;
+    if (pickupRaw is Map) {
+      pickupText = pickupRaw['address'] ??
+          pickupRaw['label'] ??
+          '${pickupRaw['latitude'] ?? ''}, ${pickupRaw['longitude'] ?? ''}';
+    } else if (pickupRaw is String) {
+      pickupText = pickupRaw;
+    } else {
+      pickupText = 'Point de départ';
+    }
+
+    String destinationText;
+    if (destinationRaw is Map) {
+      destinationText = destinationRaw['address'] ??
+          destinationRaw['label'] ??
+          '${destinationRaw['latitude'] ?? ''}, ${destinationRaw['longitude'] ?? ''}';
+    } else if (destinationRaw is String) {
+      destinationText = destinationRaw;
+    } else {
+      destinationText = 'Destination';
+    }
 
     return RideRequest(
       id: requestId,
-      passengerName: passenger['name']?.toString() ?? 'Client DUDU',
+      passengerName: (data['passengerName']?.toString() ?? passenger['name']?.toString()) ?? 'Client DUDU',
+      passengerPhone: data['passengerPhone']?.toString(),
       pickup: pickupText.toString(),
       destination: destinationText.toString(),
       distance: (pricing['distance'] ?? data['distance'] ?? 0).toDouble(),
       customPrice: pricing['customPrice']?.toInt() ??
           pricing['totalPrice']?.toInt() ??
+          data['customPrice']?.toInt() ??
           0,
       rideType: data['rideType']?.toString() ?? 'standard',
       estimatedDuration: pricing['estimatedDuration']?.toInt() ??

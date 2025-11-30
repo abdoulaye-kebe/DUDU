@@ -14,8 +14,10 @@ class PlacesService {
     final dakarLng = userLng ?? -17.4467;
     final radius = 50000; // 50km autour de la position
 
+    final encodedInput = Uri.encodeComponent(input);
+
     final url = Uri.parse(
-      '$_baseUrl/autocomplete/json?input=$input&key=$_apiKey&components=country:sn&language=fr&location=$dakarLat,$dakarLng&radius=$radius&strictbounds=false',
+      '$_baseUrl/autocomplete/json?input=$encodedInput&key=$_apiKey&language=fr&location=$dakarLat,$dakarLng&radius=$radius&strictbounds=false',
     );
 
     try {
@@ -23,10 +25,48 @@ class PlacesService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        final status = data['status'];
+        print('Places autocomplete status (SN bias): $status');
 
-        if (data['status'] == 'OK') {
+        if (status == 'OK') {
           final predictions = data['predictions'] as List;
-          return predictions.map((p) => PlaceSuggestion.fromJson(p)).toList();
+          print('Places autocomplete predictions (SN bias) count: ${predictions.length}');
+          if (predictions.isNotEmpty) {
+            final results = <PlaceSuggestion>[];
+            for (final p in predictions) {
+              try {
+                results.add(PlaceSuggestion.fromJson(p as Map<String, dynamic>));
+              } catch (e) {
+                print('Erreur parsing suggestion (SN bias): $e');
+              }
+            }
+            return results;
+          }
+        }
+      }
+
+      // Fallback : requête globale sans restriction pays / localisation
+      final globalUrl = Uri.parse(
+        '$_baseUrl/autocomplete/json?input=$encodedInput&key=$_apiKey&language=fr',
+      );
+
+      final globalResponse = await http.get(globalUrl);
+      if (globalResponse.statusCode == 200) {
+        final data = json.decode(globalResponse.body);
+        final status = data['status'];
+        print('Places autocomplete status (global): $status');
+
+        if (status == 'OK') {
+          final predictions = data['predictions'] as List;
+          final results = <PlaceSuggestion>[];
+          for (final p in predictions) {
+            try {
+              results.add(PlaceSuggestion.fromJson(p as Map<String, dynamic>));
+            } catch (e) {
+              print('Erreur parsing suggestion (global): $e');
+            }
+          }
+          return results;
         }
       }
 
@@ -132,11 +172,12 @@ class PlaceSuggestion {
   });
 
   factory PlaceSuggestion.fromJson(Map<String, dynamic> json) {
+    final structured = json['structured_formatting'] as Map<String, dynamic>?;
     return PlaceSuggestion(
-      placeId: json['place_id'],
-      description: json['description'],
-      mainText: json['structured_formatting']['main_text'] ?? '',
-      secondaryText: json['structured_formatting']['secondary_text'] ?? '',
+      placeId: json['place_id'] ?? '',
+      description: json['description'] ?? '',
+      mainText: structured != null ? (structured['main_text'] ?? '') : '',
+      secondaryText: structured != null ? (structured['secondary_text'] ?? '') : '',
     );
   }
 }

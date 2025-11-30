@@ -17,6 +17,7 @@ class Ride {
   final User? driver;
   final User? passenger;
   final DateTime requestedAt;
+  final DateTime? scheduledFor;
   final DateTime? acceptedAt;
   final DateTime? arrivedAt;
   final DateTime? startedAt;
@@ -41,6 +42,7 @@ class Ride {
     this.driver,
     this.passenger,
     required this.requestedAt,
+    this.scheduledFor,
     this.acceptedAt,
     this.arrivedAt,
     this.startedAt,
@@ -70,6 +72,7 @@ class Ride {
       driver: json['driver'] != null ? User.fromJson(json['driver']) : null,
       passenger: json['passenger'] != null ? User.fromJson(json['passenger']) : null,
       requestedAt: DateTime.parse(json['requestedAt']),
+      scheduledFor: json['scheduledFor'] != null ? DateTime.parse(json['scheduledFor']) : null,
       acceptedAt: json['acceptedAt'] != null ? DateTime.parse(json['acceptedAt']) : null,
       arrivedAt: json['arrivedAt'] != null ? DateTime.parse(json['arrivedAt']) : null,
       startedAt: json['startedAt'] != null ? DateTime.parse(json['startedAt']) : null,
@@ -97,6 +100,7 @@ class Ride {
       'driver': driver?.toJson(),
       'passenger': passenger?.toJson(),
       'requestedAt': requestedAt.toIso8601String(),
+      'scheduledFor': scheduledFor?.toIso8601String(),
       'acceptedAt': acceptedAt?.toIso8601String(),
       'arrivedAt': arrivedAt?.toIso8601String(),
       'startedAt': startedAt?.toIso8601String(),

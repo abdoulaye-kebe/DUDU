@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
+import '../services/socket_service.dart';
 import 'ride_requests_screen.dart';
 import 'driver_profile_screen.dart';
 import 'driver_rides_screen.dart';
@@ -30,6 +33,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
   bool _womenOnlyEnabled = false;
   Position? _currentPosition;
   GoogleMapController? _mapController;
+  StreamSubscription<Map<String, dynamic>>? _rideRequestSub;
+  StreamSubscription<String>? _rideClosedSub;
 
   // Stats du jour (données réelles depuis l'API)
   int _todayRides = 0;
@@ -41,11 +46,150 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
   String _currentPlan = 'free'; // free, daily, weekly, monthly
   DateTime? _subscriptionExpiry; // null si pas d'abonnement
 
+  // Type de profil: chauffeur (voiture) ou livreur (moto)
+  String _driverTypeLabel = '';
+
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
     _loadTodayStats();
+    _subscribeToRideRequests();
+  }
+
+  @override
+  void dispose() {
+    _rideRequestSub?.cancel();
+    _rideClosedSub?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToRideRequests() {
+    final socketService = SocketService();
+
+    _rideRequestSub = socketService.rideRequestsStream.listen((data) {
+      setState(() {
+        _pendingRequests++;
+      });
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            final passenger = (data['passenger'] ?? {}) as Map?;
+            final pickup = data['pickup'];
+            final destination = data['destination'];
+            final pricing = (data['pricing'] ?? {}) as Map?;
+            final passengerName = passenger?['name']?.toString() ?? 'Client DUDU';
+            final passengerPhone = data['passengerPhone']?.toString();
+            String pickupText;
+            if (pickup is Map) {
+              pickupText = pickup['address']?.toString() ?? pickup['label']?.toString() ?? 'Point de départ';
+            } else if (pickup is String) {
+              pickupText = pickup;
+            } else {
+              pickupText = 'Point de départ';
+            }
+            String destinationText;
+            if (destination is Map) {
+              destinationText = destination['address']?.toString() ?? destination['label']?.toString() ?? 'Destination';
+            } else if (destination is String) {
+              destinationText = destination;
+            } else {
+              destinationText = 'Destination';
+            }
+            final priceValue = pricing?['customPrice'] ??
+                pricing?['totalPrice'] ??
+                data['customPrice'] ?? 0;
+            final price = priceValue.toString();
+
+            return AlertDialog(
+              title: const Text(
+                'NOUVELLE DEMANDE DE COURSE',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    passengerName,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Départ : $pickupText'),
+                  Text('Arrivée : $destinationText'),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Prix proposé : $price FCFA',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: primaryGreen,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Appuyez sur "VOIR LES DEMANDES" pour accepter ou refuser.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
+              actions: [
+                if (passengerPhone != null && passengerPhone.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: () async {
+                      final uri = Uri(scheme: 'tel', path: passengerPhone);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri);
+                      }
+                    },
+                    icon: const Icon(Icons.phone),
+                    label: const Text('APPELER LE CLIENT'),
+                  ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('PLUS TARD'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RideRequestsScreen(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryGreen,
+                  ),
+                  child: const Text('VOIR LES DEMANDES'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    });
+
+    _rideClosedSub = socketService.rideClosedStream.listen((rideId) {
+      if (!mounted) return;
+      setState(() {
+        if (_pendingRequests > 0) {
+          _pendingRequests--;
+        }
+      });
+    });
   }
 
   Future<void> _getCurrentLocation() async {
@@ -125,6 +269,13 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         _currentPosition = position;
       });
 
+      // Envoyer la localisation actuelle au backend pour rendre le chauffeur détectable par la recherche de courses
+      try {
+        await ApiService.updateLocation(position.latitude, position.longitude);
+      } catch (e) {
+        print('Erreur envoi localisation backend: $e');
+      }
+
       _mapController?.animateCamera(
         CameraUpdate.newLatLng(
           LatLng(position.latitude, position.longitude),
@@ -158,6 +309,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         _todayEarnings = profile.stats.todayEarnings;
         _rating = profile.stats.averageRating;
         _isOnline = profile.isOnline;
+        _driverTypeLabel = profile.isCourier ? 'Livreur (moto)' : 'Chauffeur';
         
         // Charger les préférences du chauffeur depuis le profil
         if (profile.rideTypes != null) {
@@ -193,12 +345,26 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
-              'Pro',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pro',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (_driverTypeLabel.isNotEmpty)
+                  Text(
+                    _driverTypeLabel,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.white70,
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -383,6 +549,17 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                   onChanged: (value) async {
                     try {
                       await ApiService.toggleOnlineStatus(value);
+                      // Lors du passage en ligne, renvoyer la localisation actuelle au backend si disponible
+                      if (value && _currentPosition != null) {
+                        try {
+                          await ApiService.updateLocation(
+                            _currentPosition!.latitude,
+                            _currentPosition!.longitude,
+                          );
+                        } catch (e) {
+                          print('Erreur mise à jour localisation lors du passage en ligne: $e');
+                        }
+                      }
                       setState(() => _isOnline = value);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(

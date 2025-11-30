@@ -16,7 +16,8 @@ class ApiService {
       if (defaultTargetPlatform == TargetPlatform.android) {
         return 'http://10.0.2.2:3000/api/v1';
       }
-      return 'http://213.154.90.11/api/v1';
+      // iOS/macOS simulateur: backend local
+      return 'http://localhost:3000/api/v1';
     } else {
       // Mode release: IP publique
       return 'http://213.154.90.11/api/v1';
@@ -267,6 +268,43 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Erreur réseau: $e');
+    }
+  }
+
+  // Historique des courses du chauffeur
+  static Future<List<Map<String, dynamic>>> getDriverRides({
+    String? status,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final query = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+        if (status != null && status.isNotEmpty) 'status': status,
+      };
+
+      final uri = Uri.parse('$baseUrl/drivers/rides').replace(queryParameters: query);
+
+      final response = await http.get(
+        uri,
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final rides = data['data']?['rides'];
+          if (rides is List) {
+            return List<Map<String, dynamic>>.from(rides);
+          }
+        }
+        throw Exception('Réponse inattendue du serveur');
+      } else {
+        throw Exception('Erreur serveur: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Erreur récupération historique courses: $e');
     }
   }
 

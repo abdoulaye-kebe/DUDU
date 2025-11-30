@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import '../providers/auth_provider.dart';
 import '../themes/app_theme.dart';
 import 'unified_ride_screen.dart';
 import 'delivery_request_screen.dart';
+import 'scheduled_rides_screen.dart';
 import 'rides_screen.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart';
@@ -20,6 +23,10 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
+  GoogleMapController? _mapController;
+  Position? _currentPosition;
+  final Set<Marker> _vehicleMarkers = {};
+
   // Couleurs DUDU
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color darkGreen = Color(0xFF094d2a);
@@ -30,6 +37,40 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   void initState() {
     super.initState();
     _setupAnimations();
+    _getCurrentLocation();
+  }
+
+  void _generateNearbyVehicles() {
+    if (_currentPosition == null) return;
+
+    final baseLat = _currentPosition!.latitude;
+    final baseLng = _currentPosition!.longitude;
+
+    final List<LatLng> positions = [
+      LatLng(baseLat + 0.002, baseLng + 0.0025),
+      LatLng(baseLat - 0.0015, baseLng + 0.002),
+      LatLng(baseLat + 0.001, baseLng - 0.002),
+      LatLng(baseLat - 0.0025, baseLng - 0.0015),
+      LatLng(baseLat + 0.0005, baseLng + 0.0015),
+    ];
+
+    final markers = <Marker>{};
+    for (var i = 0; i < positions.length; i++) {
+      markers.add(
+        Marker(
+          markerId: MarkerId('vehicle_$i'),
+          position: positions[i],
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          infoWindow: const InfoWindow(title: 'Chauffeur à proximité'),
+        ),
+      );
+    }
+
+    setState(() {
+      _vehicleMarkers
+        ..clear()
+        ..addAll(markers);
+    });
   }
 
   void _setupAnimations() {
@@ -55,6 +96,99 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     ));
 
     _animationController.forward();
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _useDakarAsDefault();
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _useDakarAsDefault();
+          return;
+        }
+      }
+
+      Position position = await Geolocator.getCurrentPosition();
+
+      bool isInSenegal = position.latitude >= 12.0 &&
+          position.latitude <= 17.0 &&
+          position.longitude >= -18.0 &&
+          position.longitude <= -11.0;
+
+      if (!isInSenegal) {
+        _useDakarAsDefault();
+        return;
+      }
+
+      setState(() {
+        _currentPosition = position;
+      });
+
+      _generateNearbyVehicles();
+
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(position.latitude, position.longitude),
+          14.0,
+        ),
+      );
+    } catch (e) {
+      _useDakarAsDefault();
+    }
+  }
+
+  void _useDakarAsDefault() {
+    final dakarPosition = Position(
+      latitude: 14.6928,
+      longitude: -17.4467,
+      timestamp: DateTime.now(),
+      accuracy: 0,
+      altitude: 0,
+      heading: 0,
+      speed: 0,
+      speedAccuracy: 0,
+      altitudeAccuracy: 0,
+      headingAccuracy: 0,
+    );
+
+    setState(() {
+      _currentPosition = dakarPosition;
+    });
+
+    _generateNearbyVehicles();
+
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(
+        const LatLng(14.6928, -17.4467),
+        13.0,
+      ),
+    );
+  }
+
+  Widget _buildMapBackground() {
+    final target = _currentPosition != null
+        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+        : const LatLng(14.6928, -17.4467);
+
+    return GoogleMap(
+      initialCameraPosition: CameraPosition(
+        target: target,
+        zoom: 14.0,
+      ),
+      onMapCreated: (controller) => _mapController = controller,
+      myLocationEnabled: true,
+      myLocationButtonEnabled: true,
+      zoomControlsEnabled: false,
+      mapType: MapType.normal,
+      markers: _vehicleMarkers,
+    );
   }
 
   @override
@@ -298,10 +432,18 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           // Bouton Courses (regroupe les 4 types)
           Expanded(
             child: _buildMainRideTypeCard(
-              icon: Icons.directions_car,
+              iconBuilder: (color) => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.directions_car, color: Colors.white, size: 28),
+                  const SizedBox(width: 6),
+                  Icon(Icons.local_taxi, color: Colors.white.withOpacity(0.85), size: 22),
+                ],
+              ),
               title: 'Courses',
               subtitle: '4 types disponibles',
               color: primaryGreen,
+              iconBackgroundColor: primaryGreen.withOpacity(0.25),
               onTap: () {
                 Navigator.push(
                   context,
@@ -310,14 +452,22 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               },
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           // Bouton Livraison
           Expanded(
             child: _buildMainRideTypeCard(
-              icon: Icons.local_shipping,
+              iconBuilder: (color) => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.directions_car, color: Colors.white, size: 26),
+                  const SizedBox(width: 6),
+                  Icon(Icons.motorcycle, color: Colors.white, size: 26),
+                ],
+              ),
               title: 'Livraison',
               subtitle: 'Colis & documents',
               color: const Color(0xFFFF6B00),
+              iconBackgroundColor: const Color(0xFFFF6B00).withOpacity(0.25),
               onTap: () {
                 Navigator.push(
                   context,
@@ -337,17 +487,20 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
 
   Widget _buildMainRideTypeCard({
-    required IconData icon,
+    required Widget Function(Color color) iconBuilder,
     required String title,
     required String subtitle,
     required Color color,
+    Color? iconBackgroundColor,
+    double verticalPadding = 16,
+    double iconPadding = 14,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.symmetric(horizontal: 18, vertical: verticalPadding),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [color, color.withOpacity(0.8)],
@@ -367,16 +520,12 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(iconPadding),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: iconBackgroundColor ?? Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: 36,
-              ),
+              child: iconBuilder(color),
             ),
             const SizedBox(height: 12),
             Text(
@@ -413,10 +562,10 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
               color: color.withOpacity(0.1),
@@ -433,22 +582,22 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 icon,
                 color: color,
-                size: 28,
+                size: 22,
               ),
             ),
             const SizedBox(height: 12),
             Text(
               title,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: accentBlack,
               ),
@@ -457,7 +606,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 color: Colors.grey[600],
               ),
             ),
@@ -475,21 +624,97 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         children: [
           Row(
             children: [
-              Icon(Icons.location_on_outlined, size: 20, color: Colors.grey[700]),
+              Icon(Icons.directions_car_filled_outlined, size: 22, color: primaryGreen),
               const SizedBox(width: 8),
               Text(
-                'Où allons-nous ?',
+                'On vous emmène !',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: accentBlack,
                 ),
               ),
-              const Spacer(),
-              Icon(Icons.arrow_forward, size: 20, color: primaryGreen),
             ],
           ),
           const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildActionCard(
+                  icon: Icons.directions_car,
+                  title: 'Trajets',
+                  subtitle: 'Allons-y',
+                  color: primaryGreen,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const UnifiedRideScreen()),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionCard(
+                  icon: Icons.calendar_today,
+                  title: 'Trajets planifiés',
+                  subtitle: 'Réserver à l’avance',
+                  color: Colors.grey[800]!,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ScheduledRidesScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const UnifiedRideScreen()),
+              );
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.search, color: Colors.grey[700], size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Où allez-vous ?',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[500]),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
           _buildLocationItem(
             icon: Icons.hotel,
             title: 'King Fahd Palace',
@@ -661,49 +886,77 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 20),
-                      // Slogan
-                      Center(
-                        child: ShaderMask(
-                          shaderCallback: (bounds) => LinearGradient(
-                            colors: [primaryGreen, darkGreen],
-                          ).createShader(bounds),
-                          child: const Text(
-                            'Yobalé sii sama prix',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              fontStyle: FontStyle.italic,
-                              color: Colors.white,
-                              letterSpacing: 1.5,
+      body: Stack(
+        children: [
+          _buildMapBackground(),
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: SingleChildScrollView(
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(24),
+                              topRight: Radius.circular(24),
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 12,
+                                offset: Offset(0, -4),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.only(
+                            top: 20,
+                            left: 0,
+                            right: 0,
+                            bottom: 24,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Slogan
+                              Center(
+                                child: ShaderMask(
+                                  shaderCallback: (bounds) => LinearGradient(
+                                    colors: [primaryGreen, darkGreen],
+                                  ).createShader(bounds),
+                                  child: const Text(
+                                    'Yobalé sii sama prix',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.white,
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              _buildRecentLocations(),
+                              const SizedBox(height: 24),
+                            ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      _buildRecentLocations(),
-                      const SizedBox(height: 32),
-                      _buildRideTypes(),
-                      const SizedBox(height: 40),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

@@ -126,6 +126,46 @@ router.put('/profile', [
   }
 });
 
+// @route   GET /api/v1/users/scheduled-rides
+// @desc    Obtenir les courses planifiées à venir de l'utilisateur
+// @access  Private
+router.get('/scheduled-rides', auth, async (req, res) => {
+  try {
+    const now = new Date();
+
+    const rides = await Ride.find({
+      passenger: req.userId,
+      scheduledFor: { $gte: now }
+    })
+      .sort({ scheduledFor: 1 });
+
+    res.json({
+      success: true,
+      data: {
+        rides: rides.map(ride => ({
+          id: ride._id,
+          rideId: ride.rideId,
+          pickup: ride.pickup,
+          destination: ride.destination,
+          distance: ride.distance,
+          estimatedDuration: ride.estimatedDuration,
+          pricing: ride.pricing,
+          status: ride.status,
+          rideType: ride.rideType,
+          scheduledFor: ride.scheduledFor,
+          requestedAt: ride.requestedAt
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des courses planifiées:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
 // @route   PUT /api/v1/users/address
 // @desc    Mettre à jour l'adresse de l'utilisateur
 // @access  Private

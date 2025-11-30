@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/new_driver_dashboard.dart';
 import 'screens/login_screen.dart';
+import 'services/notification_service.dart';
+
+final GlobalKey<NavigatorState> proNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   // Initialisation Flutter
@@ -12,6 +15,9 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+  
+  // Initialiser les notifications locales (son + vibration)
+  await NotificationService().initialize();
   
   // Gestion des erreurs globales
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -39,6 +45,7 @@ class DUDUProApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
+      navigatorKey: proNavigatorKey,
       home: const LoginScreen(), // Page de connexion par défaut
     );
   }

@@ -13,6 +13,7 @@ class DriverProfile {
   final LocationInfo? currentLocation;
   final Map<String, bool>? rideTypes;
   final DriverPreferences? preferences;
+  final String driverType; // 'driver' ou 'courier'
 
   DriverProfile({
     required this.id,
@@ -29,13 +30,18 @@ class DriverProfile {
     this.currentLocation,
     this.rideTypes,
     this.preferences,
+    required this.driverType,
   });
 
   factory DriverProfile.fromJson(Map<String, dynamic> json) {
     // Gérer les deux formats: direct ou imbriqué
     final vehicle = json['vehicle'] ?? {};
     final stats = json['stats'] ?? {};
-    
+    final rawDriverType = (json['driverType'] ?? '') as String;
+    final computedType = (vehicle['category'] == 'moto' || vehicle['type'] == 'moto_delivery')
+        ? 'courier'
+        : 'driver';
+
     return DriverProfile(
       id: json['id'] ?? json['_id'] ?? '',
       firstName: json['firstName'] ?? '',
@@ -59,6 +65,7 @@ class DriverProfile {
       preferences: json['preferences'] != null
           ? DriverPreferences.fromJson(json['preferences'])
           : null,
+      driverType: rawDriverType.isNotEmpty ? rawDriverType : computedType,
     );
   }
 
@@ -76,12 +83,15 @@ class DriverProfile {
       'isOnline': isOnline,
       'isAvailable': isAvailable,
       'currentLocation': currentLocation?.toJson(),
+      'driverType': driverType,
     };
   }
 
   // Méthodes utilitaires
   bool get isCar => vehicleType == VehicleType.car;
   bool get isMoto => vehicleType == VehicleType.moto;
+  bool get isCourier => driverType == 'courier' || isMoto;
+  bool get isDriver => driverType == 'driver' && isCar;
   
   String get fullName => '$firstName $lastName';
   

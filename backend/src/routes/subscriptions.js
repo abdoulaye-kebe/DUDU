@@ -13,12 +13,21 @@ router.get('/plans', (req, res) => {
   try {
     const { vehicleType = 'car' } = req.query;
     const allPlans = Subscription.getAvailablePlans();
-    
-    // Filtrer les plans selon le type de véhicule
-    const availablePlans = allPlans.filter(plan => 
-      plan.vehicleTypes.includes(vehicleType)
-    );
-    
+
+    // Filtrer les plans selon le type de véhicule et appliquer le tarif spécial livreur moto
+    const availablePlans = allPlans
+      .filter(plan => plan.vehicleTypes.includes(vehicleType))
+      .map(plan => {
+        if (vehicleType === 'moto' && plan.type === 'daily') {
+          // Tarif spécial livreur moto: journalier à 500 FCFA
+          return {
+            ...plan,
+            price: 500
+          };
+        }
+        return plan;
+      });
+
     res.json({
       success: true,
       data: {
@@ -80,7 +89,7 @@ router.post('/purchase', [
 
     // Vérifier le type de véhicule du chauffeur
     const driver = await Driver.findById(req.driver._id);
-    const vehicleType = driver.vehicle.type === 'moto' ? 'moto' : 'car';
+    const vehicleType = driver.vehicle.category === 'moto' ? 'moto' : 'car';
 
     // Vérifier les restrictions pour livreurs moto
     if (vehicleType === 'moto' && planType !== 'daily') {
@@ -116,7 +125,7 @@ router.post('/purchase', [
 
     // Obtenir les détails du plan
     const plans = Subscription.getAvailablePlans();
-    const plan = plans.find(p => p.type === planType);
+    let plan = plans.find(p => p.type === planType);
     
     if (!plan) {
       return res.status(400).json({

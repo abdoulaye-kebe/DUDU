@@ -1,4 +1,5 @@
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'call_service.dart';
 
 /// Service Socket.io côté client pour recevoir les mises à jour en temps réel
 class SocketService {
@@ -15,6 +16,7 @@ class SocketService {
   Function(Map<String, dynamic>)? onDriverArrived;
   Function(Map<String, dynamic>)? onTripStarted;
   Function(Map<String, dynamic>)? onRideCompleted;
+  Function(Map<String, dynamic>)? onRideAccepted;
 
   /// Connecter au serveur Socket.io
   void connect(String token) {
@@ -24,7 +26,7 @@ class SocketService {
     }
 
     _socket = IO.io(
-      'http://213.154.90.11',
+      'http://localhost:3000',
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .enableAutoConnect()
@@ -36,6 +38,8 @@ class SocketService {
     _socket!.onConnect((_) {
       print('✅ Socket.io connecté (Client)');
       _isConnected = true;
+      // Attacher le CallService pour gérer la signalisation VOIP
+      CallService().attachToSocket(_socket);
     });
 
     _socket!.onDisconnect((_) {
@@ -53,6 +57,14 @@ class SocketService {
 
   /// Configurer les écouteurs d'événements
   void _setupEventListeners() {
+    // Course acceptée par un chauffeur
+    _socket!.on('ride-accepted', (data) {
+      print('✅ Course acceptée par un chauffeur');
+      if (onRideAccepted != null && data is Map) {
+        onRideAccepted!(Map<String, dynamic>.from(data));
+      }
+    });
+
     // Le chauffeur arrive
     _socket!.on('ride:driver_coming', (data) {
       print('🚗 Chauffeur en route: ${data['driverName']}');
@@ -137,6 +149,11 @@ class SocketService {
 
   /// Getters
   bool get isConnected => _isConnected;
+  IO.Socket? get rawSocket => _socket;
+
+  /// Démarrer un appel VOIP (BETA) pour une course donnée
+  Future<void> startVoipCall(String rideId) async {
+    if (!_isConnected || _socket == null) return;
+    await CallService().startCall(rideId, _socket!);
+  }
 }
-
-

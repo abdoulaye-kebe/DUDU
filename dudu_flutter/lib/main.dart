@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'services/notification_service.dart';
 import 'providers/auth_provider.dart';
 import 'themes/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 
-void main() {
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await NotificationService().initialize();
+
   // Gestionnaire d'erreurs global
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
@@ -28,6 +35,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'DUDU',
         theme: AppTheme.lightTheme,
+        navigatorKey: appNavigatorKey,
         home: const AppWrapper(),
         debugShowCheckedModeBanner: false,
         routes: {

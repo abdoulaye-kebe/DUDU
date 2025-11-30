@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:url_launcher/url_launcher.dart';
 import '../services/socket_service.dart';
 
 /// Écran de suivi de course en temps réel
@@ -611,71 +612,94 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           children: [
-            // Avatar
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: const Color(0xFF00A651),
-              child: Text(
-                widget.vehicleType == 'moto' ? '🏍️' : '🚗',
-                style: const TextStyle(fontSize: 28),
-              ),
-            ),
-            const SizedBox(width: 16),
-            
-            // Info chauffeur
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.driverInfo['name'] ?? 'Chauffeur',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+            Row(
+              children: [
+                // Avatar
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: const Color(0xFF00A651),
+                  child: Text(
+                    widget.vehicleType == 'moto' ? '🏍️' : '🚗',
+                    style: const TextStyle(fontSize: 28),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.driverInfo['vehicle'] ?? '',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
+                ),
+                const SizedBox(width: 16),
+                
+                // Info chauffeur
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.star, size: 16, color: Colors.amber),
-                      const SizedBox(width: 4),
                       Text(
-                        widget.driverInfo['rating']?.toString() ?? '0.0',
+                        widget.driverInfo['name'] ?? 'Chauffeur',
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.driverInfo['vehicle'] ?? '',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.star, size: 16, color: Colors.amber),
+                          const SizedBox(width: 4),
+                          Text(
+                            widget.driverInfo['rating']?.toString() ?? '0.0',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                
+                // Bouton d'appel classique
+                IconButton(
+                  onPressed: () async {
+                    final phone = widget.driverInfo['phone']?.toString();
+                    if (phone == null || phone.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Numéro du chauffeur indisponible')),
+                      );
+                      return;
+                    }
+                    final uri = Uri(scheme: 'tel', path: phone);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Impossible de lancer l\'appel')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.phone),
+                  iconSize: 32,
+                  color: const Color(0xFF00A651),
+                ),
+              ],
             ),
-            
-            // Bouton d'appel
-            IconButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Appel ${widget.driverInfo['phone'] ?? ''}',
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.phone),
-              iconSize: 32,
-              color: const Color(0xFF00A651),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  SocketService().startVoipCall(widget.rideId);
+                },
+                icon: const Icon(Icons.wifi_calling_3),
+                label: const Text('Appel VOIP (BETA)'),
+              ),
             ),
           ],
         ),
@@ -683,4 +707,3 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     );
   }
 }
-

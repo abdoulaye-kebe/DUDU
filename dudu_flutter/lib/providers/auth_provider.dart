@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/user.dart';
 import '../services/api_service.dart';
+import '../services/socket_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   User? _user;
@@ -34,6 +35,9 @@ class AuthProvider extends ChangeNotifier {
         
         await _saveUserData(_user!);
         await _saveToken(_authToken!);
+        SocketService().connect(_authToken!);
+        // Connecter Socket.io pour recevoir les événements (ride-accepted, tracking, ...)
+        SocketService().connect(_authToken!);
         
         _setLoading(false);
         notifyListeners();
@@ -137,6 +141,7 @@ class AuthProvider extends ChangeNotifier {
     _authToken = null;
     _isAuthenticated = false;
     _clearError();
+    SocketService().disconnect();
     notifyListeners();
   }
 

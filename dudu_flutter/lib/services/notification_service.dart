@@ -179,6 +179,92 @@ class NotificationService {
     );
   }
 
+  /// Notification chauffeur en approche (course normale)
+  Future<void> showDriverApproachingNotification({
+    required String driverName,
+    required int etaMinutes,
+  }) async {
+    await showNotification(
+      title: '🚗 Votre chauffeur approche',
+      body: '$driverName arrive dans $etaMinutes minutes',
+      payload: 'driver_approaching',
+    );
+  }
+
+  /// Notification chauffeur arrivé au point de prise en charge
+  Future<void> showDriverArrivedNotification({
+    required String driverName,
+  }) async {
+    await showNotification(
+      title: '📍 Votre chauffeur est arrivé',
+      body: '$driverName vous attend au point de prise en charge',
+      payload: 'driver_arrived',
+    );
+  }
+
+  /// Notification début de course
+  Future<void> showRideStartedNotification() async {
+    await showNotification(
+      title: '🚕 Course démarrée',
+      body: 'Votre trajet DUDU est en cours.',
+      payload: 'ride_started',
+    );
+  }
+
+  /// Notification fin de course avec invitation à noter
+  Future<void> showRideCompletedNotification() async {
+    await showNotification(
+      title: '✅ Course terminée',
+      body: 'Merci d’avoir voyagé avec DUDU. Donnez une note à votre chauffeur.',
+      payload: 'ride_completed',
+    );
+  }
+
+  /// Rappel 2h avant pour une course planifiée
+  Future<void> showScheduledRideReminder2h({
+    required DateTime scheduledAt,
+  }) async {
+    await showNotification(
+      title: '⏰ Votre course est dans 2 heures',
+      body: 'Tenez-vous prêt, votre trajet DUDU est prévu à ${scheduledAt.hour.toString().padLeft(2, '0')}:${scheduledAt.minute.toString().padLeft(2, '0')}.',
+      payload: 'scheduled_reminder_2h',
+    );
+  }
+
+  /// Rappel 1h avant pour une course planifiée
+  Future<void> showScheduledRideReminder1h({
+    required DateTime scheduledAt,
+  }) async {
+    await showNotification(
+      title: '⏰ Votre course est dans 1 heure',
+      body: 'Votre chauffeur arrivera bientôt. Course prévue à ${scheduledAt.hour.toString().padLeft(2, '0')}:${scheduledAt.minute.toString().padLeft(2, '0')}.',
+      payload: 'scheduled_reminder_1h',
+    );
+  }
+
+  /// Notification chauffeur en route pour une course planifiée
+  Future<void> showScheduledDriverOnTheWayNotification({
+    required String driverName,
+    required int etaMinutes,
+  }) async {
+    await showNotification(
+      title: '🚗 Votre chauffeur est en route',
+      body: '$driverName arrivera dans environ $etaMinutes minutes.',
+      payload: 'scheduled_driver_on_way',
+    );
+  }
+
+  /// Notification chauffeur arrivé pour une course planifiée
+  Future<void> showScheduledDriverArrivedNotification({
+    required String driverName,
+  }) async {
+    await showNotification(
+      title: '📍 Votre chauffeur pour le trajet planifié est arrivé',
+      body: '$driverName vous attend au point de prise en charge.',
+      payload: 'scheduled_driver_arrived',
+    );
+  }
+
   /// Notification promotion
   Future<void> showPromotionNotification({
     required String title,
@@ -213,6 +299,24 @@ class NotificationService {
         break;
       case 'driver_found':
         // Navigator.push vers écran tracking
+        break;
+      case 'driver_approaching':
+        // Navigator.push vers écran tracking
+        break;
+      case 'driver_arrived':
+        // Navigator.push vers écran prise en charge
+        break;
+      case 'ride_started':
+        // Navigator.push vers écran tracking
+        break;
+      case 'ride_completed':
+        // Navigator.push vers écran rating
+        break;
+      case 'scheduled_reminder_2h':
+      case 'scheduled_reminder_1h':
+      case 'scheduled_driver_on_way':
+      case 'scheduled_driver_arrived':
+        // Navigator.push vers écran trajets planifiés / détail course
         break;
       case 'promotion':
         // Navigator.push vers écran promotions

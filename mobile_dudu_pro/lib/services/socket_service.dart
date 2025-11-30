@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'notification_service.dart';
+import 'call_service.dart';
 
 /// Service Socket.io pour communication temps réel
 class SocketService {
@@ -15,6 +17,7 @@ class SocketService {
   final _rideRequestController = StreamController<Map<String, dynamic>>.broadcast();
   final _rideClosedController = StreamController<String>.broadcast();
   final Map<String, Completer<Map<String, dynamic>>> _pendingAccepts = {};
+  final List<Map<String, dynamic>> _currentRideRequests = [];
 
   Stream<Map<String, dynamic>> get rideRequestsStream => _rideRequestController.stream;
   Stream<String> get rideClosedStream => _rideClosedController.stream;
@@ -27,7 +30,7 @@ class SocketService {
     }
 
     _socket = IO.io(
-      'http://213.154.90.11',
+      'http://localhost:3000',
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .enableAutoConnect()
@@ -39,6 +42,8 @@ class SocketService {
     _socket!.onConnect((_) {
       print('✅ Socket.io connecté (Chauffeur)');
       _isConnected = true;
+      // Attacher le CallService pour gérer la signalisation VOIP
+      CallService().attachToSocket(_socket);
     });
 
     _socket!.onDisconnect((_) {
@@ -50,11 +55,69 @@ class SocketService {
       print('❌ Erreur Socket.io: $error');
     });
 
-    // Écouter les nouvelles demandes de courses
     _socket!.on('new-ride-request', (data) {
       print('🔔 Nouvelle demande de course: ${data['rideId']}');
       if (data is Map) {
-        _rideRequestController.add(Map<String, dynamic>.from(data));
+        final mapData = Map<String, dynamic>.from(data);
+        final rideId = mapData['id']?.toString() ?? mapData['rideId']?.toString();
+        if (rideId != null) {
+          _currentRideRequests.removeWhere((r) =>
+              r['id']?.toString() == rideId || r['rideId']?.toString() == rideId);
+          _currentRideRequests.add(mapData);
+        }
+        try {
+          // Déclencher une notification locale avec son + vibration
+          final passengerRaw = mapData['passenger'];
+          final pickupRaw = mapData['pickup'];
+          final destinationRaw = mapData['destination'];
+          final pricingRaw = mapData['pricing'];
+
+          final passenger = passengerRaw is Map ? passengerRaw : <String, dynamic>{};
+          final pricing = pricingRaw is Map ? pricingRaw : <String, dynamic>{};
+
+          final passengerName = passenger['name']?.toString() ?? 'Client DUDU';
+
+          String pickupAddress;
+          if (pickupRaw is Map) {
+            pickupAddress = pickupRaw['address']?.toString() ??
+                pickupRaw['label']?.toString() ??
+                'Point de départ';
+          } else if (pickupRaw is String) {
+            pickupAddress = pickupRaw;
+          } else {
+            pickupAddress = 'Point de départ';
+          }
+
+          String destinationAddress;
+          if (destinationRaw is Map) {
+            destinationAddress = destinationRaw['address']?.toString() ??
+                destinationRaw['label']?.toString() ??
+                'Destination';
+          } else if (destinationRaw is String) {
+            destinationAddress = destinationRaw;
+          } else {
+            destinationAddress = 'Destination';
+          }
+
+          final price = (pricing['customPrice'] ??
+                  pricing['totalPrice'] ??
+                  mapData['customPrice'] ??
+                  0)
+              .toDouble();
+
+          NotificationService().showRideRequestNotification(
+            rideId: rideId ?? '',
+            passengerName: passengerName,
+            pickupAddress: pickupAddress,
+            destinationAddress: destinationAddress,
+            price: price,
+          );
+        } catch (e) {
+          print('⚠️ Erreur lors de la préparation de la notification de demande: $e');
+        }
+
+        // Toujours pousser les données sur le stream, même si la notif échoue
+        _rideRequestController.add(mapData);
       }
     });
 
@@ -62,6 +125,8 @@ class SocketService {
       print('❌ Course annulée: ${data['rideId']}');
       final rideId = data is Map ? data['rideId']?.toString() : null;
       if (rideId != null) {
+        _currentRideRequests.removeWhere((r) =>
+            r['id']?.toString() == rideId || r['rideId']?.toString() == rideId);
         _rideClosedController.add(rideId);
       }
     });
@@ -118,7 +183,6 @@ class SocketService {
 
     print('🚀 Course démarrée: $rideId ($vehicleType)');
 
-    // Démarrer l'envoi de position GPS
     _startLocationUpdates(rideId);
   }
 
@@ -219,6 +283,7 @@ class SocketService {
       throw Exception('Socket non connecté');
     }
 
+    print('📨 Envoi accept-ride pour rideId=$rideId');
     final completer = Completer<Map<String, dynamic>>();
     _pendingAccepts[rideId] = completer;
     _socket!.emit('accept-ride', {'rideId': rideId});
@@ -226,6 +291,7 @@ class SocketService {
       const Duration(seconds: 10),
       onTimeout: () {
         _pendingAccepts.remove(rideId);
+        print('⏱️ Timeout accept-ride pour rideId=$rideId');
         throw TimeoutException('Aucune réponse du serveur pour l\'acceptation');
       },
     );
@@ -237,11 +303,29 @@ class SocketService {
     _locationUpdateTimer?.cancel();
     _locationUpdateTimer = null;
     _pendingAccepts.clear();
+    _currentRideRequests.clear();
   }
 
   /// Getters
   bool get isConnected => _isConnected;
   String? get currentRideId => _currentRideId;
+  List<Map<String, dynamic>> get currentRideRequests => _currentRideRequests;
+  IO.Socket? get rawSocket => _socket;
+
+  /// Marquer une demande de course comme traitée
+  void markRideRequestAsHandled(String rideId) {
+    _currentRideRequests.removeWhere((r) =>
+        r['id']?.toString() == rideId || r['rideId']?.toString() == rideId);
+  }
+
+  /// Alias utilisé par certains écrans (compatibilité)
+  void removeRideRequest(String rideId) {
+    markRideRequestAsHandled(rideId);
+  }
+
+  /// Démarrer un appel VOIP (BETA) pour une course donnée
+  Future<void> startVoipCall(String rideId) async {
+    if (!_isConnected || _socket == null) return;
+    await CallService().startCall(rideId, _socket!);
+  }
 }
-
-

@@ -20,11 +20,75 @@ class ApiService {
       if (defaultTargetPlatform == TargetPlatform.android) {
         return 'http://10.0.2.2:3000/api/v1';
       }
-      // iOS/macOS debug: utiliser l'IP publique
-      return 'http://213.154.90.11/api/v1';
+      // iOS/macOS debug: utiliser le backend local (port 3000)
+      return 'http://localhost:3000/api/v1';
     } else {
       // Mode release: IP publique
       return 'http://213.154.90.11/api/v1';
+    }
+  }
+
+  /// Créer une course planifiée (trajet planifié)
+  static Future<ApiResponse<Ride>> scheduleRide({
+    required String pickupAddress,
+    required double pickupLatitude,
+    required double pickupLongitude,
+    required String destinationAddress,
+    required double destinationLatitude,
+    required double destinationLongitude,
+    required String rideType,
+    required int customPrice,
+    required DateTime scheduledFor,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/rides/schedule'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'pickup': {
+            'address': pickupAddress,
+            'latitude': pickupLatitude,
+            'longitude': pickupLongitude,
+          },
+          'destination': {
+            'address': destinationAddress,
+            'latitude': destinationLatitude,
+            'longitude': destinationLongitude,
+          },
+          'rideType': rideType,
+          'customPrice': customPrice,
+          'scheduledFor': scheduledFor.toUtc().toIso8601String(),
+        }),
+      ).timeout(timeout);
+
+      return _handleResponse(response, (data) => Ride.fromJson(data['ride']));
+    } catch (e) {
+      return ApiResponse<Ride>(
+        success: false,
+        message: 'Erreur de planification de course: $e',
+        data: null,
+      );
+    }
+  }
+
+  /// Récupérer les courses planifiées à venir de l'utilisateur
+  static Future<ApiResponse<List<Ride>>> getScheduledRides() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/scheduled-rides'),
+        headers: await _getHeaders(),
+      ).timeout(timeout);
+
+      return _handleResponse(response, (data) {
+        final List<dynamic> list = data['rides'] ?? [];
+        return list.map((e) => Ride.fromJson(e)).toList();
+      });
+    } catch (e) {
+      return ApiResponse<List<Ride>>(
+        success: false,
+        message: 'Erreur de récupération des trajets planifiés: $e',
+        data: null,
+      );
     }
   }
   
@@ -256,6 +320,7 @@ class ApiService {
     required String rideType,
     required int customPrice,
     required double estimatedDistance,
+    required String paymentMethod,
   }) async {
     try {
       final response = await http.post(
@@ -275,6 +340,7 @@ class ApiService {
           'rideType': rideType,
           'customPrice': customPrice,
           'estimatedDistance': estimatedDistance,
+          'paymentMethod': paymentMethod,
         }),
       ).timeout(timeout);
 
