@@ -2,9 +2,9 @@ PODS:
   - Flutter (1.0.0)
   - flutter_local_notifications (0.0.1):
     - Flutter
-  - flutter_webrtc (0.11.3):
+  - flutter_webrtc (0.12.6):
     - Flutter
-    - WebRTC-SDK (= 125.6422.04)
+    - WebRTC-SDK (= 125.6422.06)
   - geolocator_apple (1.2.0):
     - Flutter
     - FlutterMacOS
@@ -29,7 +29,7 @@ PODS:
     - FlutterMacOS
   - url_launcher_ios (0.0.1):
     - Flutter
-  - WebRTC-SDK (125.6422.04)
+  - WebRTC-SDK (125.6422.06)
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
@@ -71,7 +71,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_local_notifications: ad39620c743ea4c15127860f4b5641649a988100
-  flutter_webrtc: 89f078a5050779eaa4a6a4f472954737bb91f39f
+  flutter_webrtc: 57f32415b8744e806f9c2a96ccdb60c6a627ba33
   geolocator_apple: ab36aa0e8b7d7a2d7639b3b4e48308394e8cef5e
   Google-Maps-iOS-Utils: 66d6de12be1ce6d3742a54661e7a79cb317a9321
   google_maps_flutter_ios: 0291eb2aa252298a769b04d075e4a9d747ff7264
@@ -80,7 +80,7 @@ SPEC CHECKSUMS:
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
   url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
-  WebRTC-SDK: c3d69a87e7185fad3568f6f3cff7c9ac5890acf3
+  WebRTC-SDK: 79942c006ea64f6fb48d7da8a4786dfc820bc1db
 
 PODFILE CHECKSUM: e30f02f9d1c72c47bb6344a0a748c9d268180865
 

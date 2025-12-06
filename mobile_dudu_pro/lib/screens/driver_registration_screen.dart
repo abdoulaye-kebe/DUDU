@@ -26,6 +26,10 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
   final _vehicleYearController = TextEditingController(text: DateTime.now().year.toString());
   final _vehicleColorController = TextEditingController();
   final _vehiclePlateController = TextEditingController();
+  final _insuranceController = TextEditingController();
+  final _insuranceExpiryController = TextEditingController();
+  final _technicalInspectionController = TextEditingController();
+  final _technicalInspectionExpiryController = TextEditingController();
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -50,6 +54,10 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
     _vehicleYearController.dispose();
     _vehicleColorController.dispose();
     _vehiclePlateController.dispose();
+    _insuranceController.dispose();
+    _insuranceExpiryController.dispose();
+    _technicalInspectionController.dispose();
+    _technicalInspectionExpiryController.dispose();
     super.dispose();
   }
 
@@ -105,6 +113,12 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
         'maxDistance': 10,
         'minPrice': 1000,
         'acceptSharedRides': _acceptSharedRides,
+      },
+      'documents': {
+        'insurance': _insuranceController.text.trim(),
+        'insuranceExpiryDate': _insuranceExpiryController.text.trim(),
+        'technicalInspection': _technicalInspectionController.text.trim(),
+        'technicalInspectionExpiryDate': _technicalInspectionExpiryController.text.trim(),
       },
     };
 
@@ -213,7 +227,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
               ),
               _buildTextField(
                 _nationalIdController,
-                label: 'CNI (optionnel)',
+                label: 'CNI',
                 icon: Icons.badge_outlined,
               ),
               const SizedBox(height: 16),
@@ -273,6 +287,44 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
               ),
               _buildTextField(_vehicleColorController, label: 'Couleur', icon: Icons.brush_outlined),
               _buildTextField(_vehiclePlateController, label: 'Immatriculation', icon: Icons.confirmation_number),
+              const SizedBox(height: 16),
+              _buildSectionTitle('Assurance et contrôle technique'),
+              _buildTextField(
+                _insuranceController,
+                label: 'Assurance (compagnie / numéro de police)',
+                icon: Icons.description_outlined,
+              ),
+              _buildTextField(
+                _insuranceExpiryController,
+                label: 'Date de validité de l\'assurance (YYYY-MM-DD)',
+                icon: Icons.calendar_today_outlined,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Date de validité requise';
+                  }
+                  final regex = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+                  if (!regex.hasMatch(value)) return 'Format attendu AAAA-MM-JJ';
+                  return null;
+                },
+              ),
+              _buildTextField(
+                _technicalInspectionController,
+                label: 'Contrôle technique (centre / référence)',
+                icon: Icons.garage_outlined,
+              ),
+              _buildTextField(
+                _technicalInspectionExpiryController,
+                label: 'Date d\'expiration du contrôle technique (YYYY-MM-DD)',
+                icon: Icons.calendar_today,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Date d\'expiration requise';
+                  }
+                  final regex = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+                  if (!regex.hasMatch(value)) return 'Format attendu AAAA-MM-JJ';
+                  return null;
+                },
+              ),
               SwitchListTile(
                 title: const Text('Accepter les trajets partagés'),
                 value: _acceptSharedRides,

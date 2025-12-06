@@ -34,7 +34,7 @@ const driverSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'L\'email est requis'],
+    required: false,
     unique: true,
     lowercase: true
   },

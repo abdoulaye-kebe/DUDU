@@ -347,6 +347,11 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
     }
   }
 
+  void _loadDriverData() {
+    _loadTodayStats();
+    _getCurrentLocation();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
