@@ -803,14 +803,15 @@ router.post('/create', [
 
     console.log('✅ Chauffeurs disponibles après filtre distance:', availableDrivers.length);
 
-    // Fallback de TEST: si aucun chauffeur trouvé, inclure automatiquement le chauffeur de test 786205992
+    // Fallback de TEST: si aucun chauffeur trouvé, inclure automatiquement un chauffeur de test
+    // Pour les tests actuels, on utilise le chauffeur Mame Seck (+221781000734)
     if (availableDrivers.length === 0) {
-      const testDriver = await Driver.findOne({ phone: '+221786205992' });
+      const testDriver = await Driver.findOne({ phone: '+221781000734' });
       if (testDriver) {
-        console.log('🧪 Fallback: ajout du chauffeur de test 786205992 comme disponible pour cette course');
+        console.log('🧪 Fallback: ajout du chauffeur de test 781000734 comme disponible pour cette course');
         availableDrivers = [testDriver];
       } else {
-        console.log('❌ Fallback: chauffeur de test 786205992 introuvable en base');
+        console.log('❌ Fallback: chauffeur de test 781000734 introuvable en base');
       }
     }
 
