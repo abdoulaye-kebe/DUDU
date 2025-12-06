@@ -10,6 +10,11 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
+
+// Faire confiance au proxy (X-Forwarded-For) pour les IP clientes
+// nécessaire quand l’app est derrière un reverse proxy (Nginx, etc.)
+app.set('trust proxy', 1);
+
 const server = createServer(app);
 
 // Configuration Socket.io
