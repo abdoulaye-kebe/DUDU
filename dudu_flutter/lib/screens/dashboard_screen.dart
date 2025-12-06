@@ -886,6 +886,18 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      // Bouton flottant Accueil - visible partout
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Retourner au dashboard et rafraîchir
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          _getCurrentLocation();
+        },
+        backgroundColor: primaryGreen,
+        child: const Icon(Icons.home, color: Colors.white),
+        tooltip: 'Accueil',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       body: Stack(
         children: [
           _buildMapBackground(),

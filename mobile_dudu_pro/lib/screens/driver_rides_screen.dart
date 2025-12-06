@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/socket_service.dart';
 
 /// Historique des courses du chauffeur
 class DriverRidesScreen extends StatefulWidget {
@@ -32,6 +33,16 @@ class _DriverRidesScreenState extends State<DriverRidesScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      // Bouton flottant Accueil
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
+        backgroundColor: primaryGreen,
+        child: const Icon(Icons.home, color: Colors.white),
+        tooltip: 'Accueil',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       appBar: AppBar(
         title: const Text('Mon historique'),
         backgroundColor: primaryGreen,
@@ -110,14 +121,15 @@ class _DriverRidesScreenState extends State<DriverRidesScreen>
           itemCount: rides.length,
           itemBuilder: (context, index) {
             final mapped = _mapApiRideToUi(rides[index]);
-            return _buildRideCard(mapped);
+            final rideId = rides[index]['id']?.toString() ?? '';
+            return _buildRideCard(mapped, rideId);
           },
         );
       },
     );
   }
 
-  Widget _buildRideCard(Map<String, dynamic> ride) {
+  Widget _buildRideCard(Map<String, dynamic> ride, String rideId) {
     final statusColors = {
       'in_progress': Colors.blue,
       'completed': primaryGreen,
@@ -235,10 +247,87 @@ class _DriverRidesScreenState extends State<DriverRidesScreen>
                 ),
               ],
             ),
+            
+            // Bouton Terminer pour les courses en cours
+            if (_isInProgressStatus(ride['status']) && rideId.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _confirmCompleteRide(rideId),
+                  icon: const Icon(Icons.check_circle, size: 20),
+                  label: const Text('Terminer la course'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+  
+  bool _isInProgressStatus(String? status) {
+    return ['accepted', 'arriving', 'arrived', 'started', 'in_progress'].contains(status);
+  }
+  
+  void _confirmCompleteRide(String rideId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Terminer la course ?'),
+        content: const Text('Confirmez-vous que cette course est terminée ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _completeRide(rideId);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: primaryGreen),
+            child: const Text('Confirmer', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _completeRide(String rideId) async {
+    try {
+      // Envoyer via socket
+      SocketService().completeRide(rideId);
+      
+      // Aussi via API pour être sûr
+      await ApiService.completeRide(rideId);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Course terminée avec succès !'),
+          backgroundColor: primaryGreen,
+        ),
+      );
+      
+      // Rafraîchir la liste
+      setState(() {});
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildLocationRow(IconData icon, Color color, String text) {
@@ -287,7 +376,8 @@ class _DriverRidesScreenState extends State<DriverRidesScreen>
   String? _mapTabStatusToApiStatus(String status) {
     switch (status) {
       case 'in_progress':
-        return 'started';
+        // Inclure tous les statuts "en cours": accepted, arriving, arrived, started
+        return 'in_progress';
       case 'completed':
         return 'completed';
       case 'cancelled':

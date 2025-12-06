@@ -1,5 +1,6 @@
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'call_service.dart';
+import '../config/app_config.dart';
 
 /// Service Socket.io côté client pour recevoir les mises à jour en temps réel
 class SocketService {
@@ -26,7 +27,7 @@ class SocketService {
     }
 
     _socket = IO.io(
-      'http://localhost:3000',
+      AppConfig.socketUrl,
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .enableAutoConnect()

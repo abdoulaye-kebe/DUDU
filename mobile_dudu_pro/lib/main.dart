@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'screens/new_driver_dashboard.dart';
 import 'screens/login_screen.dart';
 import 'services/notification_service.dart';
+import 'config/app_config.dart';
 
 final GlobalKey<NavigatorState> proNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -10,22 +11,36 @@ void main() async {
   // Initialisation Flutter
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Orientation portrait uniquement
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  // Afficher la config au démarrage
+  AppConfig.printConfig();
   
-  // Initialiser les notifications locales (son + vibration)
-  await NotificationService().initialize();
+  // Orientation portrait uniquement
+  try {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  } catch (e) {
+    debugPrint('⚠️ Erreur orientation: $e');
+  }
+  
+  // Initialiser les notifications locales (avec protection)
+  try {
+    await NotificationService().initialize();
+    debugPrint('✅ Notifications initialisées');
+  } catch (e) {
+    debugPrint('⚠️ Erreur notifications: $e');
+    // Continue sans notifications
+  }
   
   // Gestion des erreurs globales
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    print('Flutter Error: ${details.exception}');
-    print('Stack: ${details.stack}');
+    debugPrint('❌ Flutter Error: ${details.exception}');
+    debugPrint('📍 Stack: ${details.stack}');
   };
   
+  debugPrint('🚀 Démarrage DUDU Pro...');
   runApp(const DUDUProApp());
 }
 

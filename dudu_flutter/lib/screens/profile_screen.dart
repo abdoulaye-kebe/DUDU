@@ -17,6 +17,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Bouton flottant Accueil
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
+        backgroundColor: AppTheme.primaryColor,
+        child: const Icon(Icons.home, color: Colors.white),
+        tooltip: 'Accueil',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       appBar: AppBar(
         title: const Text('Mon Profil'),
         backgroundColor: AppTheme.primaryColor,

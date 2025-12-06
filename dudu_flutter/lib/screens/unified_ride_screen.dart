@@ -348,6 +348,16 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      // Bouton flottant Accueil
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
+        backgroundColor: primaryGreen,
+        child: const Icon(Icons.home, color: Colors.white),
+        tooltip: 'Accueil',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       appBar: AppBar(
         title: Text(
           _selectedMode == 'delivery'
@@ -368,12 +378,13 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           // Points A et B
           _buildLocationInputs(),
           
-          // Carte
+          // Carte - AGRANDIE (flex: 3)
           Expanded(
+            flex: 3,
             child: _buildMap(),
           ),
           
-          // Prix libre et bouton de confirmation
+          // Prix libre et bouton de confirmation - RÉDUIT
           _buildBottomSection(),
         ],
       ),
@@ -619,28 +630,94 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       Navigator.pop(context);
-                      if (_currentPosition != null) {
-                        final address = await PlacesService.reverseGeocode(
-                          _currentPosition!.latitude,
-                          _currentPosition!.longitude,
+                      
+                      // Afficher un indicateur de chargement
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Row(
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              ),
+                              SizedBox(width: 12),
+                              Text('Récupération de votre position...'),
+                            ],
+                          ),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      
+                      try {
+                        // Toujours essayer d'obtenir la position GPS actuelle
+                        Position position = await Geolocator.getCurrentPosition(
+                          desiredAccuracy: LocationAccuracy.high,
+                          timeLimit: const Duration(seconds: 10),
                         );
+                        
+                        print('📍 Position GPS obtenue: ${position.latitude}, ${position.longitude}');
+                        
+                        // Obtenir l'adresse
+                        final address = await PlacesService.reverseGeocode(
+                          position.latitude,
+                          position.longitude,
+                        );
+                        
                         setState(() {
+                          _currentPosition = position;
                           _pickupAddress = address;
-                          _pickupLatLng = LatLng(
-                            _currentPosition!.latitude,
-                            _currentPosition!.longitude,
-                          );
+                          _pickupLatLng = LatLng(position.latitude, position.longitude);
                           _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
                         });
+                        
+                        // Centrer la carte sur la position
+                        _mapController?.animateCamera(
+                          CameraUpdate.newLatLngZoom(
+                            LatLng(position.latitude, position.longitude),
+                            15.0,
+                          ),
+                        );
+                        
                         if (_destinationLatLng != null) {
                           _drawRoute();
                         }
-                      } else {
+                        
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Localisation non disponible'),
+                          SnackBar(
+                            content: Text('Position définie: $address'),
+                            backgroundColor: primaryGreen,
                           ),
                         );
+                      } catch (e) {
+                        print('❌ Erreur position: $e');
+                        // Utiliser la position par défaut si disponible
+                        if (_currentPosition != null) {
+                          final address = await PlacesService.reverseGeocode(
+                            _currentPosition!.latitude,
+                            _currentPosition!.longitude,
+                          );
+                          setState(() {
+                            _pickupAddress = address;
+                            _pickupLatLng = LatLng(
+                              _currentPosition!.latitude,
+                              _currentPosition!.longitude,
+                            );
+                            _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
+                          });
+                          if (_destinationLatLng != null) {
+                            _drawRoute();
+                          }
+                        } else {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Impossible d\'obtenir votre position. Vérifiez que le GPS est activé.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
                       }
                     },
                     icon: const Icon(Icons.my_location),
@@ -763,21 +840,40 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                         itemBuilder: (context, index) {
                           final suggestion = _suggestions[index];
                           return ListTile(
-                            leading: const Icon(Icons.location_on),
+                            leading: Icon(
+                              suggestion.isLocal ? Icons.star : Icons.location_on,
+                              color: suggestion.isLocal ? Colors.amber : null,
+                            ),
                             title: Text(suggestion.mainText),
                             subtitle: Text(suggestion.secondaryText),
                             onTap: () async {
                               Navigator.pop(context);
-                              final details = await PlacesService.getPlaceDetails(suggestion.placeId);
-                              if (details != null) {
+                              
+                              double? lat;
+                              double? lng;
+                              
+                              // Si c'est une suggestion locale, utiliser les coordonnées directement
+                              if (suggestion.isLocal && suggestion.localLat != null && suggestion.localLng != null) {
+                                lat = suggestion.localLat;
+                                lng = suggestion.localLng;
+                              } else {
+                                // Sinon, appeler l'API pour obtenir les coordonnées
+                                final details = await PlacesService.getPlaceDetails(suggestion.placeId);
+                                if (details != null) {
+                                  lat = details.latitude;
+                                  lng = details.longitude;
+                                }
+                              }
+                              
+                              if (lat != null && lng != null) {
                                 setState(() {
                                   if (isPickup) {
                                     _pickupAddress = suggestion.description;
-                                    _pickupLatLng = LatLng(details.latitude, details.longitude);
+                                    _pickupLatLng = LatLng(lat!, lng!);
                                     _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
                                   } else {
                                     _destinationAddress = suggestion.description;
-                                    _destinationLatLng = LatLng(details.latitude, details.longitude);
+                                    _destinationLatLng = LatLng(lat!, lng!);
                                     _addMarker(_destinationLatLng!, 'Destination', Colors.red);
                                   }
                                 });
@@ -937,7 +1033,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
   Widget _buildBottomSection() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -955,17 +1051,17 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
             // Moyen de paiement
             _buildPaymentMethodSelector(),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
-            // Prix libre
+            // Prix libre - COMPACT
             _buildPriceInput(),
             
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             
             // Bouton de confirmation
             SizedBox(
               width: double.infinity,
-              height: 54,
+              height: 50,
               child: ElevatedButton(
                 onPressed: _customPrice > 0 && 
                            _pickupAddress.isNotEmpty && 
@@ -1003,70 +1099,58 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
   Widget _buildPriceInput() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: lightGreen.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: lightGreen.withOpacity(0.3), width: 2),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(Icons.payments_outlined, color: primaryGreen, size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                'Votre prix libre',
-                style: TextStyle(
+          Icon(Icons.payments_outlined, color: primaryGreen, size: 18),
+          const SizedBox(width: 8),
+          const Text(
+            'Votre prix libre',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: accentBlack,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: _priceController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: primaryGreen,
+              ),
+              decoration: InputDecoration(
+                hintText: '0',
+                hintStyle: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[400],
+                ),
+                suffixText: 'FCFA',
+                suffixStyle: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: accentBlack,
                 ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                isDense: true,
               ),
-              const Spacer(),
-              Icon(Icons.info_outline, color: Colors.grey[600], size: 18),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _priceController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: primaryGreen,
-            ),
-            decoration: InputDecoration(
-              hintText: '0',
-              hintStyle: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[400],
-              ),
-              suffixText: 'FCFA',
-              suffixStyle: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: accentBlack,
-              ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-            ),
-            onChanged: (value) {
-              setState(() {
-                _customPrice = int.tryParse(value) ?? 0;
-              });
-            },
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Le chauffeur acceptera ou refusera selon votre offre',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontStyle: FontStyle.italic,
+              onChanged: (value) {
+                setState(() {
+                  _customPrice = int.tryParse(value) ?? 0;
+                });
+              },
             ),
           ),
         ],
@@ -1168,12 +1252,44 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
       if (response.success) {
         if (mounted) {
-          // Garder les voitures autour et l'état de recherche actif
-          // Afficher simplement un message discret
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                response.message ?? 'Demande envoyée, en attente de chauffeur...',
+          // Afficher un dialogue d'attente avec possibilité d'annuler
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: primaryGreen.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const CircularProgressIndicator(color: primaryGreen),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Demande envoyée !',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'En attente d\'un chauffeur...\nPrix proposé: $_customPrice FCFA',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 24),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Fermer le dialogue
+                      Navigator.pop(context); // Retourner au dashboard
+                    },
+                    child: const Text('Annuler la demande', style: TextStyle(color: Colors.red)),
+                  ),
+                ],
               ),
             ),
           );

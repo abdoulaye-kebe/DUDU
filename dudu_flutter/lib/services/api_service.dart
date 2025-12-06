@@ -4,29 +4,11 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import '../models/ride.dart';
+import '../config/app_config.dart';
 
 class ApiService {
-  // Configuration de l'URL selon la plateforme
-  // - Web: localhost (navigateur)
-  // - Web: localhost
-  // - Android Emulator: 10.0.2.2
-  // - Appareil physique: IP publique 213.154.90.11
-  static String get baseUrl {
-    if (kIsWeb) {
-      // Pour le web, utiliser localhost
-      return 'http://localhost:3000/api/v1';
-    } else if (kDebugMode) {
-      // Mode debug: adapter selon la plateforme
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        return 'http://10.0.2.2:3000/api/v1';
-      }
-      // iOS/macOS debug: utiliser le backend local (port 3000)
-      return 'http://localhost:3000/api/v1';
-    } else {
-      // Mode release: IP publique
-      return 'http://213.154.90.11/api/v1';
-    }
-  }
+  // Utiliser la configuration centralisée
+  static String get baseUrl => AppConfig.baseUrl;
 
   /// Créer une course planifiée (trajet planifié)
   static Future<ApiResponse<Ride>> scheduleRide({

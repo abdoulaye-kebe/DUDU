@@ -662,7 +662,12 @@ router.get('/rides', auth, requireDriver, async (req, res) => {
     // Construire le filtre
     const filter = { driver: req.driver._id };
     if (status) {
-      filter.status = status;
+      // Gérer le filtre 'in_progress' qui inclut plusieurs statuts
+      if (status === 'in_progress') {
+        filter.status = { $in: ['accepted', 'arriving', 'arrived', 'started'] };
+      } else {
+        filter.status = status;
+      }
     }
 
     const rides = await Ride.find(filter)

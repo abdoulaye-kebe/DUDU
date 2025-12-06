@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'notification_service.dart';
 import 'call_service.dart';
+import '../config/app_config.dart';
 
 /// Service Socket.io pour communication temps réel
 class SocketService {
@@ -30,7 +31,7 @@ class SocketService {
     }
 
     _socket = IO.io(
-      'http://localhost:3000',
+      AppConfig.socketUrl,
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .enableAutoConnect()
@@ -246,7 +247,7 @@ class SocketService {
   void arrivedAtPickup(String rideId) {
     if (!_isConnected) return;
 
-    _socket!.emit('driver:arrived_pickup', {
+    _socket!.emit('driver-arrived', {
       'rideId': rideId,
     });
 
@@ -257,7 +258,7 @@ class SocketService {
   void startTrip(String rideId) {
     if (!_isConnected) return;
 
-    _socket!.emit('driver:start_trip', {
+    _socket!.emit('start-ride', {
       'rideId': rideId,
     });
 
@@ -268,7 +269,7 @@ class SocketService {
   void completeRide(String rideId) {
     if (!_isConnected) return;
 
-    _socket!.emit('driver:complete_ride', {
+    _socket!.emit('complete-ride', {
       'rideId': rideId,
     });
 

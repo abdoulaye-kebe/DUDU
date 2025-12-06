@@ -8,9 +8,7 @@ class CallService {
   factory CallService() => _instance;
   CallService._internal();
 
-  // TODO: ajouter RTCPeerConnection, MediaStream, etc. plus tard
-
-  dynamic _socket; // socket.io courant
+  dynamic _socket;
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
   MediaStream? _remoteStream;
@@ -36,17 +34,13 @@ class CallService {
   }
 
   Future<void> _createPeerConnection() async {
-    final config = {
+    final config = <String, dynamic>{
       'iceServers': [
         {'urls': 'stun:stun.l.google.com:19302'},
       ],
     };
-    final constraints = {
-      'mandatory': {},
-      'optional': [],
-    };
 
-    _peerConnection = await createPeerConnection(config, constraints);
+    _peerConnection = await createPeerConnection(config);
 
     final mediaConstraints = {
       'audio': true,
@@ -173,7 +167,7 @@ class CallService {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              title: Text(_isCaller ? 'Appel en cours (chauffeur)' : 'Appel en cours'),
+              title: Text(_isCaller ? 'Appel en cours' : 'Appel du chauffeur'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -212,13 +206,11 @@ class CallService {
   }
 
   void _onCallOffer(dynamic data) async {
-    print('📞 call-offer reçu: $data');
+    debugPrint('📞 call-offer reçu: $data');
 
     try {
       final ctx = appNavigatorKey.currentContext;
-      if (ctx == null) {
-        return;
-      }
+      if (ctx == null) return;
 
       final rideId = (data is Map && data['rideId'] != null)
           ? data['rideId'].toString()
@@ -253,8 +245,6 @@ class CallService {
                   Navigator.of(context).pop();
                   if (_socket != null) {
                     answerCall(rideId, sdp, _socket);
-                  } else {
-                    debugPrint('⚠️ Impossible d\'envoyer call-answer: socket null');
                   }
                 },
                 child: const Text('Accepter'),
@@ -264,12 +254,12 @@ class CallService {
         },
       );
     } catch (e) {
-      print('⚠️ Erreur affichage popup appel entrant: $e');
+      debugPrint('⚠️ Erreur affichage popup appel: $e');
     }
   }
 
   void _onCallAnswer(dynamic data) async {
-    print('📞 call-answer reçu: $data');
+    debugPrint('📞 call-answer reçu: $data');
     if (_peerConnection == null) return;
 
     if (data is Map && data['sdp'] is Map) {
@@ -280,7 +270,7 @@ class CallService {
   }
 
   void _onIceCandidate(dynamic data) async {
-    print('❄️ ice-candidate reçu: $data');
+    debugPrint('❄️ ice-candidate reçu: $data');
     if (_peerConnection == null) return;
 
     try {
@@ -294,12 +284,12 @@ class CallService {
         await _peerConnection!.addCandidate(candidate);
       }
     } catch (e) {
-      print('⚠️ Erreur ajout ice-candidate: $e');
+      debugPrint('⚠️ Erreur ajout ice-candidate: $e');
     }
   }
 
   void _onCallEnd(dynamic data) {
-    print('📴 call-end reçu: $data');
+    debugPrint('📴 call-end reçu: $data');
     _disposeCall();
   }
 }

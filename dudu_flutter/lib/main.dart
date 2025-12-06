@@ -5,21 +5,33 @@ import 'providers/auth_provider.dart';
 import 'themes/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'config/app_config.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await NotificationService().initialize();
+  // Afficher la config au démarrage
+  AppConfig.printConfig();
+
+  // Initialiser les notifications (avec protection)
+  try {
+    await NotificationService().initialize();
+    debugPrint('✅ Notifications initialisées');
+  } catch (e) {
+    debugPrint('⚠️ Erreur notifications: $e');
+    // Continue sans notifications
+  }
 
   // Gestionnaire d'erreurs global
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    debugPrint('Flutter Error: ${details.exception}');
-    debugPrint('Stack trace: ${details.stack}');
+    debugPrint('❌ Flutter Error: ${details.exception}');
+    debugPrint('📍 Stack trace: ${details.stack}');
   };
 
+  debugPrint('🚀 Démarrage DUDU Client...');
   runApp(const MyApp());
 }
 

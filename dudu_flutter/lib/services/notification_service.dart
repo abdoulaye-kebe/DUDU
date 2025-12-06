@@ -1,7 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -17,6 +17,13 @@ class NotificationService {
   /// Initialiser les notifications
   Future<void> initialize() async {
     if (_initialized) return;
+
+    // Sur le Web, les notifications locales ne sont pas supportées de la même façon
+    if (kIsWeb) {
+      _initialized = true;
+      print('✅ Notifications initialisées (Web - mode limité)');
+      return;
+    }
 
     // Configuration Android
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -51,20 +58,28 @@ class NotificationService {
 
   /// Demander les permissions
   Future<void> _requestPermissions() async {
-    if (Platform.isIOS) {
-      await _flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>()
-          ?.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
-    } else if (Platform.isAndroid) {
-      await _flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
+    // Sur le Web, pas de permissions à demander via ce plugin
+    if (kIsWeb) return;
+
+    // Essayer iOS d'abord
+    final iosPlugin = _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
+    if (iosPlugin != null) {
+      await iosPlugin.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      return;
+    }
+
+    // Sinon essayer Android
+    final androidPlugin = _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin != null) {
+      await androidPlugin.requestNotificationsPermission();
     }
   }
 
@@ -86,6 +101,14 @@ class NotificationService {
       final token = await getFCMToken();
       if (token == null) return;
 
+      // Déterminer la plateforme
+      String platform = 'web';
+      if (!kIsWeb) {
+        // On ne peut pas utiliser Platform.isIOS sur le web
+        // Donc on utilise une approche différente
+        platform = 'mobile'; // Le backend peut différencier plus tard si besoin
+      }
+
       final response = await http.post(
         Uri.parse('$apiUrl/notifications/register-token'),
         headers: {
@@ -94,7 +117,7 @@ class NotificationService {
         },
         body: jsonEncode({
           'fcmToken': token,
-          'platform': Platform.isIOS ? 'ios' : 'android',
+          'platform': platform,
         }),
       );
 
@@ -112,6 +135,12 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    // Sur le Web, afficher dans la console (les notifications locales ne sont pas supportées)
+    if (kIsWeb) {
+      print('🔔 [Web Notification] $title: $body');
+      return;
+    }
+
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'dudu_channel',

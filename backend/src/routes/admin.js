@@ -82,8 +82,7 @@ router.get('/dashboard', async (req, res) => {
     // Courses récentes
     const recentRides = await Ride.find()
       .populate('passenger', 'firstName lastName phone')
-      .populate('driver', 'user vehicle')
-      .populate('driver.user', 'firstName lastName')
+      .populate('driver', 'firstName lastName phone vehicle')
       .sort({ createdAt: -1 })
       .limit(10);
 
@@ -136,11 +135,10 @@ router.get('/dashboard', async (req, res) => {
             phone: ride.passenger.phone
           } : null,
           driver: ride.driver ? {
-            name: ride.driver.user ? 
-              `${ride.driver.user.firstName} ${ride.driver.user.lastName}` : 
-              'Inconnu',
+            name: `${ride.driver.firstName || ''} ${ride.driver.lastName || ''}`.trim() || 'Chauffeur',
+            phone: ride.driver.phone,
             vehicle: ride.driver.vehicle ? 
-              `${ride.driver.vehicle.make} ${ride.driver.vehicle.plateNumber}` : 
+              `${ride.driver.vehicle.make || ''} ${ride.driver.vehicle.plateNumber || ''}`.trim() : 
               'N/A'
           } : null,
           status: ride.status,

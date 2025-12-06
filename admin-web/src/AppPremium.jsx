@@ -1,0 +1,49 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import Navbar from './components/Navbar';
+import DashboardPremium from './pages/DashboardPremium';
+import DriversPremium from './pages/DriversPremium';
+import ClientsPremium from './pages/ClientsPremium';
+import RidesPremium from './pages/RidesPremium';
+import './styles/admin-premium.css';
+
+function AppPremium() {
+  const [currentPage, setCurrentPage] = useState('dashboard');
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return <DashboardPremium />;
+      case 'drivers':
+        return <DriversPremium />;
+      case 'clients':
+        return <ClientsPremium />;
+      case 'rides':
+        return <RidesPremium />;
+      default:
+        return <DashboardPremium />;
+    }
+  };
+
+  return (
+    <div className="admin-app">
+      <Navbar currentPage={currentPage} onNavigate={setCurrentPage} />
+      
+      <main className="main-content">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentPage}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {renderPage()}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+    </div>
+  );
+}
+
+export default AppPremium;

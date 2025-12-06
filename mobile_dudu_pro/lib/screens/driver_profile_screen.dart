@@ -50,6 +50,16 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      // Bouton flottant Accueil
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
+        backgroundColor: primaryGreen,
+        child: const Icon(Icons.home, color: Colors.white),
+        tooltip: 'Accueil',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       appBar: AppBar(
         title: const Text('Mon profil'),
         backgroundColor: primaryGreen,

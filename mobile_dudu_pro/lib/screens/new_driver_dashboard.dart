@@ -265,6 +265,29 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         },
       );
 
+      // Vérifier si la position est au Sénégal
+      bool isInSenegal = position.latitude >= 12.0 &&
+          position.latitude <= 17.0 &&
+          position.longitude >= -18.0 &&
+          position.longitude <= -11.0;
+
+      // Si hors Sénégal (ex: émulateur aux USA), utiliser Dakar par défaut
+      if (!isInSenegal) {
+        print('📍 Position hors Sénégal détectée, utilisation de Dakar par défaut');
+        position = Position(
+          latitude: 14.6928,
+          longitude: -17.4467,
+          timestamp: DateTime.now(),
+          accuracy: 0,
+          altitude: 0,
+          heading: 0,
+          speed: 0,
+          speedAccuracy: 0,
+          altitudeAccuracy: 0,
+          headingAccuracy: 0,
+        );
+      }
+
       setState(() {
         _currentPosition = position;
       });
@@ -272,13 +295,15 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
       // Envoyer la localisation actuelle au backend pour rendre le chauffeur détectable par la recherche de courses
       try {
         await ApiService.updateLocation(position.latitude, position.longitude);
+        print('✅ Position envoyée au backend: ${position.latitude}, ${position.longitude}');
       } catch (e) {
         print('Erreur envoi localisation backend: $e');
       }
 
       _mapController?.animateCamera(
-        CameraUpdate.newLatLng(
+        CameraUpdate.newLatLngZoom(
           LatLng(position.latitude, position.longitude),
+          14.0,
         ),
       );
     } catch (e) {
@@ -326,6 +351,18 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      // Bouton flottant Accueil - visible partout
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Retourner au dashboard et rafraîchir
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          _loadDriverData();
+        },
+        backgroundColor: primaryGreen,
+        child: const Icon(Icons.home, color: Colors.white),
+        tooltip: 'Accueil',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       appBar: AppBar(
         title: Row(
           children: [

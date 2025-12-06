@@ -16,69 +16,119 @@ class PlacesService {
 
     final encodedInput = Uri.encodeComponent(input);
 
+    // Essayer d'abord avec restriction Sénégal
     final url = Uri.parse(
-      '$_baseUrl/autocomplete/json?input=$encodedInput&key=$_apiKey&language=fr&location=$dakarLat,$dakarLng&radius=$radius&strictbounds=false',
+      '$_baseUrl/autocomplete/json?input=$encodedInput&key=$_apiKey&language=fr&location=$dakarLat,$dakarLng&radius=$radius&components=country:sn',
     );
+
+    print('🔍 Recherche Places API: "$input"');
 
     try {
       final response = await http.get(url);
+      print('📡 Places API response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final status = data['status'];
-        print('Places autocomplete status (SN bias): $status');
+        print('📍 Places autocomplete status: $status');
+        
+        // Afficher l'erreur si présente
+        if (data['error_message'] != null) {
+          print('❌ Places API error: ${data['error_message']}');
+        }
 
         if (status == 'OK') {
           final predictions = data['predictions'] as List;
-          print('Places autocomplete predictions (SN bias) count: ${predictions.length}');
+          print('✅ Trouvé ${predictions.length} suggestions');
           if (predictions.isNotEmpty) {
             final results = <PlaceSuggestion>[];
             for (final p in predictions) {
               try {
                 results.add(PlaceSuggestion.fromJson(p as Map<String, dynamic>));
               } catch (e) {
-                print('Erreur parsing suggestion (SN bias): $e');
+                print('Erreur parsing suggestion: $e');
               }
             }
             return results;
           }
+        } else if (status == 'ZERO_RESULTS') {
+          print('⚠️ Aucun résultat pour "$input"');
+          // Retourner des suggestions locales pour les quartiers connus
+          return _getLocalSuggestions(input);
+        } else if (status == 'REQUEST_DENIED') {
+          print('❌ Clé API invalide ou non activée');
+          return _getLocalSuggestions(input);
         }
       }
 
-      // Fallback : requête globale sans restriction pays / localisation
-      final globalUrl = Uri.parse(
-        '$_baseUrl/autocomplete/json?input=$encodedInput&key=$_apiKey&language=fr',
-      );
-
-      final globalResponse = await http.get(globalUrl);
-      if (globalResponse.statusCode == 200) {
-        final data = json.decode(globalResponse.body);
-        final status = data['status'];
-        print('Places autocomplete status (global): $status');
-
-        if (status == 'OK') {
-          final predictions = data['predictions'] as List;
-          final results = <PlaceSuggestion>[];
-          for (final p in predictions) {
-            try {
-              results.add(PlaceSuggestion.fromJson(p as Map<String, dynamic>));
-            } catch (e) {
-              print('Erreur parsing suggestion (global): $e');
-            }
-          }
-          return results;
-        }
-      }
-
-      return [];
+      // Fallback : suggestions locales
+      return _getLocalSuggestions(input);
     } catch (e) {
-      print('Erreur autocomplete: $e');
-      return [];
+      print('❌ Erreur autocomplete: $e');
+      return _getLocalSuggestions(input);
     }
+  }
+  
+  /// Suggestions locales pour les quartiers de Dakar (fallback)
+  static List<PlaceSuggestion> _getLocalSuggestions(String input) {
+    final query = input.toLowerCase();
+    final localPlaces = [
+      {'name': 'Médina', 'address': 'Médina, Dakar, Sénégal', 'lat': 14.6833, 'lng': -17.4500},
+      {'name': 'Plateau', 'address': 'Plateau, Dakar, Sénégal', 'lat': 14.6697, 'lng': -17.4389},
+      {'name': 'Almadies', 'address': 'Almadies, Dakar, Sénégal', 'lat': 14.7467, 'lng': -17.5167},
+      {'name': 'Mamelles', 'address': 'Mamelles, Dakar, Sénégal', 'lat': 14.7333, 'lng': -17.5000},
+      {'name': 'Ouakam', 'address': 'Ouakam, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.4833},
+      {'name': 'Yoff', 'address': 'Yoff, Dakar, Sénégal', 'lat': 14.7667, 'lng': -17.4667},
+      {'name': 'Ngor', 'address': 'Ngor, Dakar, Sénégal', 'lat': 14.7500, 'lng': -17.5167},
+      {'name': 'Mermoz', 'address': 'Mermoz, Dakar, Sénégal', 'lat': 14.7083, 'lng': -17.4667},
+      {'name': 'Sacré-Cœur', 'address': 'Sacré-Cœur, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.4667},
+      {'name': 'Fann', 'address': 'Fann, Dakar, Sénégal', 'lat': 14.6917, 'lng': -17.4583},
+      {'name': 'Point E', 'address': 'Point E, Dakar, Sénégal', 'lat': 14.6917, 'lng': -17.4667},
+      {'name': 'Liberté', 'address': 'Liberté, Dakar, Sénégal', 'lat': 14.7000, 'lng': -17.4583},
+      {'name': 'Grand Dakar', 'address': 'Grand Dakar, Dakar, Sénégal', 'lat': 14.6833, 'lng': -17.4667},
+      {'name': 'Parcelles Assainies', 'address': 'Parcelles Assainies, Dakar, Sénégal', 'lat': 14.7667, 'lng': -17.4167},
+      {'name': 'Pikine', 'address': 'Pikine, Dakar, Sénégal', 'lat': 14.7500, 'lng': -17.3833},
+      {'name': 'Guédiawaye', 'address': 'Guédiawaye, Dakar, Sénégal', 'lat': 14.7833, 'lng': -17.3833},
+      {'name': 'Rufisque', 'address': 'Rufisque, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.2667},
+      {'name': 'Thiaroye', 'address': 'Thiaroye, Dakar, Sénégal', 'lat': 14.7333, 'lng': -17.3500},
+      {'name': 'Keur Massar', 'address': 'Keur Massar, Dakar, Sénégal', 'lat': 14.7833, 'lng': -17.3167},
+      {'name': 'Diamniadio', 'address': 'Diamniadio, Dakar, Sénégal', 'lat': 14.7000, 'lng': -17.1833},
+      {'name': 'Aéroport AIBD', 'address': 'Aéroport Blaise Diagne, Diass, Sénégal', 'lat': 14.6700, 'lng': -17.0728},
+      {'name': 'Gorée', 'address': 'Île de Gorée, Dakar, Sénégal', 'lat': 14.6667, 'lng': -17.4000},
+      {'name': 'HLM', 'address': 'HLM, Dakar, Sénégal', 'lat': 14.7000, 'lng': -17.4500},
+      {'name': 'Colobane', 'address': 'Colobane, Dakar, Sénégal', 'lat': 14.6917, 'lng': -17.4500},
+      {'name': 'Sandaga', 'address': 'Marché Sandaga, Dakar, Sénégal', 'lat': 14.6667, 'lng': -17.4333},
+      {'name': 'Corniche', 'address': 'Corniche Ouest, Dakar, Sénégal', 'lat': 14.6833, 'lng': -17.4667},
+      {'name': 'Magic Land', 'address': 'Magic Land, Dakar, Sénégal', 'lat': 14.7333, 'lng': -17.5000},
+      {'name': 'Sea Plaza', 'address': 'Sea Plaza, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.4750},
+    ];
+    
+    final filtered = localPlaces.where((place) {
+      final name = (place['name'] as String).toLowerCase();
+      return name.contains(query) || query.contains(name.substring(0, query.length.clamp(0, name.length)));
+    }).toList();
+    
+    print('📍 Suggestions locales pour "$input": ${filtered.length} résultats');
+    
+    return filtered.map((place) => PlaceSuggestion(
+      placeId: 'local_${place['name']}',
+      description: place['address'] as String,
+      mainText: place['name'] as String,
+      secondaryText: 'Dakar, Sénégal',
+      localLat: place['lat'] as double,
+      localLng: place['lng'] as double,
+    )).toList();
   }
 
   /// Obtenir les détails d'un lieu (coordonnées)
   static Future<PlaceDetails?> getPlaceDetails(String placeId) async {
+    // Si c'est un placeId local, on ne peut pas obtenir les détails via l'API
+    // Les coordonnées sont déjà dans PlaceSuggestion
+    if (placeId.startsWith('local_')) {
+      print('⚠️ getPlaceDetails appelé pour un lieu local: $placeId');
+      return null;
+    }
+    
     final url = Uri.parse(
       '$_baseUrl/details/json?place_id=$placeId&key=$_apiKey&language=fr&fields=geometry,formatted_address,name',
     );
@@ -163,13 +213,20 @@ class PlaceSuggestion {
   final String description;
   final String mainText;
   final String secondaryText;
+  final double? localLat;  // Pour les suggestions locales
+  final double? localLng;  // Pour les suggestions locales
 
   PlaceSuggestion({
     required this.placeId,
     required this.description,
     required this.mainText,
     required this.secondaryText,
+    this.localLat,
+    this.localLng,
   });
+  
+  /// Vérifie si c'est une suggestion locale (pas besoin d'appeler l'API)
+  bool get isLocal => placeId.startsWith('local_');
 
   factory PlaceSuggestion.fromJson(Map<String, dynamic> json) {
     final structured = json['structured_formatting'] as Map<String, dynamic>?;

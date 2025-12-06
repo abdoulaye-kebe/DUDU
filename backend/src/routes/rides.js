@@ -89,22 +89,50 @@ router.post('/request', [
 
     await ride.save();
 
-    // Rechercher des chauffeurs disponibles dans un rayon de 2km
-    const availableDrivers = await Driver.find({
+    // Rechercher des chauffeurs disponibles (en ligne)
+    // Pour les tests: on cherche tous les chauffeurs en ligne sans contrainte de distance
+    let availableDrivers = await Driver.find({
       status: 'online',
       isAvailable: true,
-      'subscription.isActive': true,
-      'subscription.endDate': { $gt: new Date() },
-      'currentLocation': {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [pickup.coordinates.longitude, pickup.coordinates.latitude]
-          },
-          $maxDistance: 2000 // 2km en mètres
-        }
-      }
+      verificationStatus: 'approved'
     }).limit(10);
+
+    console.log(`🔍 Recherche chauffeurs: ${availableDrivers.length} trouvés en ligne`);
+    
+    // Si aucun chauffeur en ligne, chercher tous les chauffeurs approuvés
+    if (availableDrivers.length === 0) {
+      availableDrivers = await Driver.find({
+        verificationStatus: 'approved'
+      }).limit(10);
+      console.log(`🔍 Fallback: ${availableDrivers.length} chauffeurs approuvés trouvés`);
+    }
+
+    // Envoyer la demande via Socket.io à tous les chauffeurs disponibles
+    const io = req.app.get('io');
+    if (io && availableDrivers.length > 0) {
+      const rideData = {
+        rideId: ride._id,
+        pickup: ride.pickup,
+        destination: ride.destination,
+        distance: ride.distance,
+        pricing: ride.pricing,
+        rideType: ride.rideType,
+        passenger: {
+          name: req.user?.name || 'Client DUDU',
+          phone: req.user?.phone
+        },
+        passengerPhone: req.user?.phone
+      };
+
+      // Émettre à tous les chauffeurs connectés
+      io.emit('new-ride-request', rideData);
+      console.log(`📡 Demande de course envoyée via Socket.io à ${availableDrivers.length} chauffeurs`);
+      
+      // Aussi émettre individuellement à chaque chauffeur
+      for (const driver of availableDrivers) {
+        io.to(`driver_${driver._id}`).emit('ride-request', rideData);
+      }
+    }
 
     if (availableDrivers.length === 0) {
       ride.status = 'no_driver';

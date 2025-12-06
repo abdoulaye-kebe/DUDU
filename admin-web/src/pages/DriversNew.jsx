@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-const API_URL = 'http://213.154.90.11/api/v1';
+const API_URL = API_BASE_URL;
 
 function DriversNew() {
   const [pending, setPending] = useState([]);

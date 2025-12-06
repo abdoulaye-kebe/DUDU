@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+import { API_BASE_URL } from '../config';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -23,8 +22,8 @@ export const adminAPI = {
   // Auth
   login: (email, password) => api.post('/auth/admin/login', { email, password }),
   
-  // Dashboard Stats
-  getStats: () => api.get('/admin/stats'),
+  // Dashboard Stats - utilise /admin/dashboard (pas /admin/stats)
+  getStats: () => api.get('/admin/dashboard'),
   
   // Drivers
   getDrivers: (params) => api.get('/admin/drivers', { params }),

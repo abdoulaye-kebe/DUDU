@@ -27,6 +27,16 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Bouton flottant Accueil
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
+        backgroundColor: AppTheme.primaryColor,
+        child: const Icon(Icons.home, color: Colors.white),
+        tooltip: 'Accueil',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       appBar: AppBar(
         title: const Text('Mes courses'),
         backgroundColor: AppTheme.primaryColor,
