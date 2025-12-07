@@ -47,6 +47,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   double _estimatedDistance = 0;
   List<PlaceSuggestion> _suggestions = [];
   String _selectedPaymentMethod = '';
+  // Véhicules simulés à proximité (pour affichage liste + markers)
+  List<LatLng> _nearbyVehicles = [];
   
   // Types de courses disponibles
   final List<Map<String, dynamic>> _rideTypes = [
@@ -55,30 +57,28 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       'name': 'Standard',
       'icon': Icons.directions_car,
       'color': Color(0xFF0d5d36),
-      'description': 'Course classique',
+      'description': 'Voiture standard • 1-4 passagers',
+      'capacity': 4,
+      'basePricePerKm': 400,
     },
     {
       'id': 'express',
       'name': 'Express',
       'icon': Icons.flash_on,
       'color': Colors.orange,
-      'description': 'Course rapide',
+      'description': 'Arrivée plus rapide • 1-3 passagers',
       'badge': 'POPULAIRE',
-    },
-    {
-      'id': 'shared',
-      'name': 'Covoiturage',
-      'icon': Icons.people,
-      'color': Colors.blue,
-      'description': 'Partage de trajet',
-      'badge': '-30%',
+      'capacity': 3,
+      'basePricePerKm': 500,
     },
     {
       'id': 'women_only',
       'name': 'Femmes',
       'icon': Icons.woman,
       'color': Colors.pink,
-      'description': 'Femmes uniquement',
+      'description': 'Chauffeuse pour passagères',
+      'capacity': 4,
+      'basePricePerKm': 450,
     },
   ];
 
@@ -86,6 +86,90 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   void initState() {
     super.initState();
     _getCurrentLocation();
+    _selectedPaymentMethod = 'cash';
+  }
+
+  Widget _buildNearbyVehiclesList() {
+    if (_nearbyVehicles.isEmpty || _pickupLatLng == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Véhicules à proximité',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: accentBlack,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Column(
+            children: _nearbyVehicles.asMap().entries.map((entry) {
+              final index = entry.key;
+              final pos = entry.value;
+
+              // Distance entre le véhicule et le point de départ (km)
+              final distanceKm = _calculateDistance(
+                pos.latitude,
+                pos.longitude,
+                _pickupLatLng!.latitude,
+                _pickupLatLng!.longitude,
+              );
+
+              // Vitesse moyenne 25 km/h => ETA en minutes
+              final etaMinutes = (distanceKm / 25 * 60).ceil().clamp(1, 30);
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: const Icon(Icons.directions_car, size: 18, color: primaryGreen),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Véhicule ${index + 1}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: accentBlack,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.access_time, size: 14, color: primaryGreen),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$etaMinutes min',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _getCurrentLocation() async {
@@ -155,7 +239,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     setState(() {
       _currentPosition = dakarPosition;
       _pickupAddress = 'Dakar, Sénégal';
+      _pickupLatLng = const LatLng(14.6928, -17.4467);
       _isLoading = false;
+      _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
     });
 
     _mapController?.animateCamera(
@@ -393,7 +479,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
   Widget _buildRideTypeSelector() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -408,7 +494,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Type de course',
+            'Choisissez votre type de véhicule',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -421,14 +507,18 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
             child: Row(
               children: _rideTypes.map((type) {
                 final isSelected = _selectedRideType == type['id'];
+                final capacity = type['capacity'] as int? ?? 4;
+
                 return Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: _buildRideTypeChip(
-                    type['name'],
-                    type['icon'],
-                    type['color'],
-                    isSelected,
-                    () => setState(() => _selectedRideType = type['id']),
+                    label: type['name'],
+                    icon: type['icon'],
+                    color: type['color'],
+                    description: type['description'],
+                    capacity: capacity,
+                    isSelected: isSelected,
+                    onTap: () => setState(() => _selectedRideType = type['id']),
                     badge: type['badge'],
                   ),
                 );
@@ -440,61 +530,99 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     );
   }
 
-  Widget _buildRideTypeChip(
-    String label,
-    IconData icon,
-    Color color,
-    bool isSelected,
-    VoidCallback onTap, {
+  Widget _buildRideTypeChip({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required String description,
+    required int capacity,
+    required bool isSelected,
+    required VoidCallback onTap,
     String? badge,
   }) {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        width: 220,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? color : Colors.white,
+          color: isSelected ? color.withOpacity(0.08) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? color : Colors.grey[300]!,
-            width: 2,
+            width: isSelected ? 2 : 1,
           ),
-          borderRadius: BorderRadius.circular(25),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.white : color,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : accentBlack,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-            if (badge != null) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withOpacity(0.3) : color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
                 ),
-                child: Text(
-                  badge,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : color,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: accentBlack,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                if (badge != null) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      badge,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.person, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '$capacity places',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -580,20 +708,66 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return GoogleMap(
-      initialCameraPosition: CameraPosition(
-        target: _currentPosition != null
-            ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-            : const LatLng(14.6928, -17.4467), // Dakar
-        zoom: 14.0,
-      ),
-      onMapCreated: (controller) => _mapController = controller,
-      markers: _markers,
-      polylines: _polylines,
-      myLocationEnabled: true,
-      myLocationButtonEnabled: true,
-      zoomControlsEnabled: false,
-      mapType: MapType.normal,
+    // Calcul simple d'un ETA en minutes (distance / 30 km/h)
+    int? etaMinutes;
+    if (_estimatedDistance > 0) {
+      etaMinutes = (_estimatedDistance / 30 * 60).ceil();
+    }
+
+    return Stack(
+      children: [
+        GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: _currentPosition != null
+                ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+                : const LatLng(14.6928, -17.4467), // Dakar
+            zoom: 14.0,
+          ),
+          onMapCreated: (controller) => _mapController = controller,
+          markers: _markers,
+          polylines: _polylines,
+          myLocationEnabled: true,
+          myLocationButtonEnabled: true,
+          zoomControlsEnabled: false,
+          mapType: MapType.normal,
+        ),
+        if (etaMinutes != null && _pickupLatLng != null)
+          Positioned(
+            top: 16,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: primaryGreen,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.access_time, color: Colors.white, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$etaMinutes min',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -621,6 +795,29 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // En-tête "Votre itinéraire" avec bouton fermer
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Votre itinéraire',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
                 ),
               ),
               // Bouton "Ma position actuelle"
@@ -738,7 +935,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                 child: TextField(
                   autofocus: true,
                   decoration: InputDecoration(
-                    hintText: isPickup ? 'Rechercher le point de départ' : 'Rechercher la destination',
+                    hintText: isPickup ? 'Lieu de prise en charge' : 'Lieu d\'arrivée',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: _isSearching 
                         ? const SizedBox(
@@ -915,6 +1112,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
     final random = math.Random();
     final List<Marker> carMarkers = [];
+    final List<LatLng> vehicles = [];
 
     for (int i = 0; i < 5; i++) {
       final dx = (random.nextDouble() - 0.5) / 500; // petit décalage latitude
@@ -923,6 +1121,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         _pickupLatLng!.latitude + dx,
         _pickupLatLng!.longitude + dy,
       );
+
+      vehicles.add(carPosition);
 
       carMarkers.add(
         Marker(
@@ -935,6 +1135,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     }
 
     setState(() {
+      _nearbyVehicles = vehicles;
       _markers.removeWhere((m) => m.markerId.value.startsWith('car_'));
       _markers.addAll(carMarkers);
     });
@@ -1050,6 +1251,41 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           children: [
             // Moyen de paiement
             _buildPaymentMethodSelector(),
+
+            if (_selectedPaymentMethod.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    _selectedPaymentMethod == 'cash'
+                        ? Icons.payments
+                        : _selectedPaymentMethod == 'mobile_money'
+                            ? Icons.phone_iphone
+                            : Icons.credit_card,
+                    size: 18,
+                    color: primaryGreen,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _selectedPaymentMethod == 'cash'
+                        ? 'Paiement en espèces'
+                        : _selectedPaymentMethod == 'mobile_money'
+                            ? 'Mobile money'
+                            : 'Carte bancaire',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: accentBlack,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            const SizedBox(height: 8),
+
+            // Liste des véhicules avec temps d'arrivée estimé
+            _buildNearbyVehiclesList(),
 
             const SizedBox(height: 8),
 

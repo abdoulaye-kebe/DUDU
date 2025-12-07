@@ -10,6 +10,11 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
+
+// Faire confiance au proxy (X-Forwarded-For) pour les IP clientes
+// nécessaire quand l’app est derrière un reverse proxy (Nginx, etc.)
+app.set('trust proxy', 1);
+
 const server = createServer(app);
 
 // Configuration Socket.io
@@ -103,6 +108,15 @@ app.set('io', io);
 
 // Configuration Socket.io
 require('./socket/socketHandler')(io);
+
+// Scheduler pour les courses planifiées
+try {
+  const startScheduledRidesDispatcher = require('./jobs/scheduledRidesDispatcher');
+  startScheduledRidesDispatcher(io);
+  console.log('⏰ Scheduler des courses planifiées initialisé');
+} catch (err) {
+  console.error('❌ Impossible d\'initialiser le scheduler des courses planifiées:', err);
+}
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0'; // Écouter sur toutes les interfaces

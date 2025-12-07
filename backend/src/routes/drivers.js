@@ -203,14 +203,18 @@ router.post('/apply', [
   body('password').isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
   body('dateOfBirth').optional().isISO8601().withMessage('Date de naissance invalide'),
   body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Genre invalide'),
-  body('nationalId').optional().trim(),
+  body('nationalId').notEmpty().withMessage('La CNI est requise'),
   body('driverLicense.number').notEmpty().withMessage('Le numéro de permis est requis'),
   body('driverLicense.expiryDate').isISO8601().withMessage('La date d\'expiration du permis est requise'),
   body('vehicle.make').notEmpty().withMessage('La marque du véhicule est requise'),
   body('vehicle.model').notEmpty().withMessage('Le modèle du véhicule est requis'),
   body('vehicle.year').isInt({ min: 1990, max: new Date().getFullYear() + 1 }).withMessage('Année du véhicule invalide'),
   body('vehicle.color').notEmpty().withMessage('La couleur du véhicule est requise'),
-  body('vehicle.plateNumber').notEmpty().withMessage('Le numéro de plaque est requis')
+  body('vehicle.plateNumber').notEmpty().withMessage('Le numéro de plaque est requis'),
+  body('documents.insurance').notEmpty().withMessage("L'assurance est requise"),
+  body('documents.insuranceExpiryDate').isISO8601().withMessage("La date de validité de l'assurance est invalide"),
+  body('documents.technicalInspection').notEmpty().withMessage('Le contrôle technique est requis'),
+  body('documents.technicalInspectionExpiryDate').isISO8601().withMessage("La date d'expiration du contrôle technique est invalide"),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -235,7 +239,8 @@ router.post('/apply', [
       driverLicense,
       vehicle,
       rideTypes = {},
-      preferences = {}
+      preferences = {},
+      documents = {},
     } = req.body;
 
     const normalizedPhone = normalizePhoneNumber(phone);
@@ -288,6 +293,15 @@ router.post('/apply', [
         capacity: vehicle.capacity || 4,
         hasAirConditioning: vehicle.hasAirConditioning || false,
         features: vehicle.features || []
+      },
+      documents: {
+        insurance: documents.insurance,
+        insuranceExpiryDate: new Date(documents.insuranceExpiryDate),
+        technicalInspection: documents.technicalInspection,
+        technicalInspectionExpiryDate: new Date(documents.technicalInspectionExpiryDate),
+        driverLicensePhoto: documents.driverLicensePhoto,
+        vehicleRegistration: documents.vehicleRegistration,
+        criminalRecord: documents.criminalRecord,
       },
       rideTypes: {
         standard: rideTypes.standard ?? true,

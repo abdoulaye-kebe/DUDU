@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:url_launcher/url_launcher.dart';
 import '../services/socket_service.dart';
+import '../services/api_service.dart';
 
 /// Écran de suivi de course en temps réel
 /// Affiche le véhicule (voiture ou moto) qui se déplace vers le client
@@ -226,6 +227,26 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                   : 'Merci d\'avoir utilisé DUDU',
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildSummaryChip(
+                  icon: Icons.route,
+                  label: '${_distance.toStringAsFixed(1)} km',
+                ),
+                _buildSummaryChip(
+                  icon: Icons.access_time,
+                  label: '$_estimatedTime min',
+                ),
+                _buildSummaryChip(
+                  icon: widget.vehicleType == 'moto'
+                      ? Icons.motorcycle
+                      : Icons.directions_car,
+                  label: widget.vehicleType == 'moto' ? 'Moto' : 'Voiture',
+                ),
+              ],
+            ),
             const SizedBox(height: 20),
             const Text(
               'Notez votre expérience',
@@ -254,6 +275,34 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
               Navigator.of(context).pop();
             },
             child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryChip({
+    required IconData icon,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF00A651)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -701,9 +750,81 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                 label: const Text('Appel VOIP (BETA)'),
               ),
             ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: _showCancelConfirmation,
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red,
+                ),
+                child: const Text('Annuler le trajet'),
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  void _showCancelConfirmation() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Êtes-vous sûr(e) ?',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Vous devrez peut-être attendre plus longtemps si vous annulez.\nLa modification de la réservation peut ne pas vous conduire à destination plus rapidement.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Attendre le chauffeur'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+
+                // Appeler l’API d’annulation
+                final response = await ApiService.cancelRide(
+                  widget.rideId,
+                  'Client a annulé la course',
+                );
+
+                if (!mounted) return;
+
+                if (response.success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Course annulée'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(response.message ?? 'Impossible d\'annuler la course'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+
+                // Retourner à l'écran principal
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              child: const Text(
+                'Annuler le trajet',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -34,7 +34,7 @@ const driverSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'L\'email est requis'],
+    required: false,
     unique: true,
     lowercase: true
   },
@@ -316,8 +316,22 @@ const driverSchema = new mongoose.Schema({
   documents: {
     driverLicensePhoto: String,
     vehicleRegistration: String,
-    insurance: String,
-    technicalInspection: String,
+    insurance: {
+      type: String,
+      required: [true, "L'assurance est requise"],
+    },
+    insuranceExpiryDate: {
+      type: Date,
+      required: [true, "La date de validité de l'assurance est requise"],
+    },
+    technicalInspection: {
+      type: String,
+      required: [true, 'Le contrôle technique est requis'],
+    },
+    technicalInspectionExpiryDate: {
+      type: Date,
+      required: [true, "La date d'expiration du contrôle technique est requise"],
+    },
     criminalRecord: String
   },
   
