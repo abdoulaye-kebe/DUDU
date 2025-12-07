@@ -34,6 +34,18 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    final dynamic rawAddress = json['address'];
+    final UserAddress? address =
+        rawAddress is Map<String, dynamic>
+            ? UserAddress.fromJson(rawAddress)
+            : null;
+
+    final dynamic rawBudget = json['budgetSettings'];
+    final BudgetSettings? budgetSettings =
+        rawBudget is Map<String, dynamic>
+            ? BudgetSettings.fromJson(rawBudget)
+            : null;
+
     return User(
       id: json['id'] ?? '',
       firstName: json['firstName'] ?? '',
@@ -44,14 +56,12 @@ class User {
       referralCode: json['referralCode'] ?? '',
       language: json['language'] ?? 'fr',
       currency: json['currency'] ?? 'XOF',
-      address: json['address'] != null ? UserAddress.fromJson(json['address']) : null,
+      address: address,
       profilePicture: json['profilePicture'],
       totalRides: json['totalRides'] ?? 0,
       totalSpent: (json['totalSpent'] ?? 0).toDouble(),
       averageRating: (json['averageRating'] ?? 0).toDouble(),
-      budgetSettings: json['budgetSettings'] != null 
-          ? BudgetSettings.fromJson(json['budgetSettings']) 
-          : null,
+      budgetSettings: budgetSettings,
     );
   }
 
@@ -92,11 +102,17 @@ class UserAddress {
   });
 
   factory UserAddress.fromJson(Map<String, dynamic> json) {
+    final dynamic rawCoordinates = json['coordinates'];
+    final Coordinates coordinates =
+        rawCoordinates is Map<String, dynamic>
+            ? Coordinates.fromJson(rawCoordinates)
+            : Coordinates(latitude: 0, longitude: 0);
+
     return UserAddress(
       street: json['street'] ?? '',
       city: json['city'] ?? 'Dakar',
       neighborhood: json['neighborhood'],
-      coordinates: Coordinates.fromJson(json['coordinates']),
+      coordinates: coordinates,
     );
   }
 

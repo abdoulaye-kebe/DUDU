@@ -59,18 +59,23 @@ router.post('/login', async (req, res) => {
     // Vérifier que le chauffeur existe
     let driver = await Driver.findOne({ phone });
 
-    // Création AUTOMATIQUE d'un chauffeur de test sur le backend local
-    if (!driver && phone === '+221786205992') {
-      console.log('🧪 Création d\'un chauffeur de test pour +221786205992');
+    // Création AUTOMATIQUE de comptes de test sur le backend local
+    if (!driver && (phone === '+221786205992' || phone === '+221781000734')) {
+      const isMotoCourier = phone === '+221781000734';
+
+      console.log(
+        `🧪 Création d'un ${isMotoCourier ? 'livreur moto' : 'chauffeur voiture'} de test pour ${phone}`
+      );
+
       driver = new Driver({
-        firstName: 'Test',
-        lastName: 'Driver',
+        firstName: isMotoCourier ? 'Test' : 'Test',
+        lastName: isMotoCourier ? 'Courier' : 'Driver',
         phone,
-        email: 'driver.test@example.com',
+        email: isMotoCourier ? 'courier.test@example.com' : 'driver.test@example.com',
         password: '123456',
         dateOfBirth: new Date('1990-01-01'),
         gender: 'male',
-        nationalId: 'TEST-CNI-786205992',
+        nationalId: isMotoCourier ? 'TEST-CNI-781000734' : 'TEST-CNI-786205992',
         address: {
           street: 'Rue de test',
           city: 'Dakar',
@@ -79,25 +84,25 @@ router.post('/login', async (req, res) => {
           postalCode: '10000'
         },
         driverLicense: {
-          number: 'PERMIS-TEST-786205992',
+          number: isMotoCourier ? 'PERMIS-TEST-781000734' : 'PERMIS-TEST-786205992',
           expiryDate: new Date('2030-12-31'),
           issueDate: new Date('2020-01-01'),
-          category: 'B'
+          category: isMotoCourier ? 'A' : 'B'
         },
         vehicle: {
-          make: 'Toyota',
-          model: 'Yaris',
+          make: isMotoCourier ? 'Moto' : 'Toyota',
+          model: isMotoCourier ? 'Delivery' : 'Yaris',
           year: 2018,
-          color: 'Noir',
-          plateNumber: 'DK-TEST-786',
-          category: 'car',
-          type: 'sedan',
-          capacity: 4,
-          hasAirConditioning: true,
-          features: ['ac']
+          color: isMotoCourier ? 'Rouge' : 'Noir',
+          plateNumber: isMotoCourier ? 'DK-LIV-781' : 'DK-TEST-786',
+          category: isMotoCourier ? 'moto' : 'car',
+          type: isMotoCourier ? 'moto_delivery' : 'sedan',
+          capacity: isMotoCourier ? 1 : 4,
+          hasAirConditioning: !isMotoCourier,
+          features: isMotoCourier ? ['large_cargo'] : ['ac']
         },
         rideTypes: {
-          standard: true,
+          standard: !isMotoCourier,
           express: true,
           shared: false,
           womenOnly: false
@@ -116,9 +121,9 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Bypass TEMPORAIRE pour tests: autoriser un mot de passe fixe pour le numéro 786205992
+    // Bypass TEMPORAIRE pour tests: autoriser un mot de passe fixe pour les numéros de test
     let isPasswordValid = false;
-    if (phone === '+221786205992' && password === '123456') {
+    if ((phone === '+221786205992' || phone === '+221781000734') && password === '123456') {
       isPasswordValid = true;
     } else {
       // Comportement normal pour tous les autres chauffeurs

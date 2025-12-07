@@ -117,7 +117,7 @@ const subscriptionSchema = new mongoose.Schema({
     },
     allowedPlans: [{
       type: String,
-      enum: ['daily'] // Seul le journalier pour moto
+      enum: ['daily', 'weekly', 'monthly'] // Moto: daily, Voiture: daily/weekly/monthly
     }]
   }
 }, {
@@ -136,7 +136,7 @@ subscriptionSchema.statics.getAvailablePlans = function() {
     {
       type: 'daily',
       name: 'Forfait Journalier',
-      price: 2000,
+      price: 1000,
       currency: 'XOF',
       duration: 1,
       features: ['Courses illimitées', 'Support 24/7', 'Statistiques de base'],
@@ -145,7 +145,7 @@ subscriptionSchema.statics.getAvailablePlans = function() {
     {
       type: 'weekly',
       name: 'Forfait Hebdomadaire',
-      price: 12000,
+      price: 5000,
       currency: 'XOF',
       duration: 7,
       features: ['Courses illimitées', 'Support prioritaire', 'Statistiques avancées', 'Réduction 15%'],
@@ -154,19 +154,10 @@ subscriptionSchema.statics.getAvailablePlans = function() {
     {
       type: 'monthly',
       name: 'Forfait Mensuel',
-      price: 45000,
+      price: 21000,
       currency: 'XOF',
       duration: 30,
       features: ['Courses illimitées', 'Support prioritaire', 'Statistiques avancées', 'Réduction 25%', 'Formation gratuite'],
-      vehicleTypes: ['car'] // Seulement pour voiture
-    },
-    {
-      type: 'yearly',
-      name: 'Forfait Annuel',
-      price: 450000,
-      currency: 'XOF',
-      duration: 365,
-      features: ['Courses illimitées', 'Support prioritaire', 'Statistiques avancées', 'Réduction 40%', 'Formation gratuite', 'Assurance incluse'],
       vehicleTypes: ['car'] // Seulement pour voiture
     }
   ];

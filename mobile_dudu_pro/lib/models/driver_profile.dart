@@ -34,13 +34,45 @@ class DriverProfile {
   });
 
   factory DriverProfile.fromJson(Map<String, dynamic> json) {
-    // Gérer les deux formats: direct ou imbriqué
-    final vehicle = json['vehicle'] ?? {};
-    final stats = json['stats'] ?? {};
+    // Gérer les différents formats et éviter les erreurs de type
+    final dynamic rawVehicle = json['vehicle'];
+    final Map<String, dynamic> vehicle =
+        rawVehicle is Map<String, dynamic> ? rawVehicle : <String, dynamic>{};
+
+    final dynamic rawStats = json['stats'];
+    final Map<String, dynamic> stats =
+        rawStats is Map<String, dynamic> ? rawStats : <String, dynamic>{};
+
     final rawDriverType = (json['driverType'] ?? '') as String;
     final computedType = (vehicle['category'] == 'moto' || vehicle['type'] == 'moto_delivery')
         ? 'courier'
         : 'driver';
+
+    final dynamic rawSubscription = json['subscription'];
+    final SubscriptionInfo? subscription =
+        rawSubscription is Map<String, dynamic>
+            ? SubscriptionInfo.fromJson(rawSubscription)
+            : null;
+
+    final dynamic rawCurrentLocation = json['currentLocation'];
+    final LocationInfo? currentLocation =
+        rawCurrentLocation is Map<String, dynamic>
+            ? LocationInfo.fromJson(rawCurrentLocation)
+            : null;
+
+    final dynamic rawRideTypes = json['rideTypes'];
+    final Map<String, bool>? rideTypes =
+        rawRideTypes is Map
+            ? Map<String, bool>.from(rawRideTypes.map(
+                (key, value) => MapEntry(key.toString(), value == true),
+              ))
+            : null;
+
+    final dynamic rawPreferences = json['preferences'];
+    final DriverPreferences? preferences =
+        rawPreferences is Map<String, dynamic>
+            ? DriverPreferences.fromJson(rawPreferences)
+            : null;
 
     return DriverProfile(
       id: json['id'] ?? json['_id'] ?? '',
@@ -50,21 +82,13 @@ class DriverProfile {
       email: json['email'] ?? '',
       vehicleType: VehicleType.fromString(vehicle['type'] ?? 'car'),
       vehicle: VehicleInfo.fromJson(vehicle),
-      subscription: json['subscription'] != null 
-          ? SubscriptionInfo.fromJson(json['subscription']) 
-          : null,
+      subscription: subscription,
       stats: DriverStats.fromJson(stats),
       isOnline: json['status'] == 'online' || json['isOnline'] == true,
       isAvailable: json['isAvailable'] ?? false,
-      currentLocation: json['currentLocation'] != null 
-          ? LocationInfo.fromJson(json['currentLocation']) 
-          : null,
-      rideTypes: json['rideTypes'] != null 
-          ? Map<String, bool>.from(json['rideTypes'])
-          : null,
-      preferences: json['preferences'] != null
-          ? DriverPreferences.fromJson(json['preferences'])
-          : null,
+      currentLocation: currentLocation,
+      rideTypes: rideTypes,
+      preferences: preferences,
       driverType: rawDriverType.isNotEmpty ? rawDriverType : computedType,
     );
   }
@@ -239,24 +263,37 @@ class SubscriptionInfo {
   });
 
   factory SubscriptionInfo.fromJson(Map<String, dynamic> json) {
+    // Certains endpoints renvoient les infos du plan imbriquées dans json['plan']
+    final dynamic rawPlan = json['plan'];
+    final Map<String, dynamic> plan =
+        rawPlan is Map<String, dynamic> ? rawPlan : json;
+
     return SubscriptionInfo(
       id: json['id'] ?? json['_id'] ?? '',
-      type: json['type'] ?? 'daily',
-      name: json['name'] ?? 'Forfait',
-      price: (json['price'] ?? 0).toDouble(),
-      currency: json['currency'] ?? 'FCFA',
-      duration: json['duration'] ?? 1,
-      features: json['features'] != null ? List<String>.from(json['features']) : [],
+      type: plan['type'] ?? json['type'] ?? 'daily',
+      name: plan['name'] ?? json['name'] ?? 'Forfait',
+      price: ((plan['price'] ?? json['price']) ?? 0).toDouble(),
+      currency: plan['currency'] ?? json['currency'] ?? 'FCFA',
+      duration: plan['duration'] ?? json['duration'] ?? 1,
+      features: plan['features'] != null
+          ? List<String>.from(plan['features'])
+          : (json['features'] != null
+              ? List<String>.from(json['features'])
+              : <String>[]),
       status: json['status'] ?? 'active',
-      startDate: json['startDate'] != null ? DateTime.parse(json['startDate']) : DateTime.now(),
-      endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : DateTime.now().add(Duration(days: 1)),
+      startDate: json['startDate'] != null
+          ? DateTime.parse(json['startDate'])
+          : DateTime.now(),
+      endDate: json['endDate'] != null
+          ? DateTime.parse(json['endDate'])
+          : DateTime.now().add(Duration(days: 1)),
       isActive: json['isActive'] ?? true,
       isExpiringSoon: json['isExpiringSoon'] ?? false,
-      weeklyBonus: json['weeklyBonus'] != null 
-          ? WeeklyBonus.fromJson(json['weeklyBonus']) 
+      weeklyBonus: json['weeklyBonus'] is Map<String, dynamic>
+          ? WeeklyBonus.fromJson(json['weeklyBonus'] as Map<String, dynamic>)
           : null,
-      restrictions: json['restrictions'] != null 
-          ? SubscriptionRestrictions.fromJson(json['restrictions']) 
+      restrictions: json['restrictions'] is Map<String, dynamic>
+          ? SubscriptionRestrictions.fromJson(json['restrictions'] as Map<String, dynamic>)
           : null,
     );
   }

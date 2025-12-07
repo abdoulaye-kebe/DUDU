@@ -36,6 +36,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
   String _gender = 'male';
   bool _acceptSharedRides = false;
   bool _acceptTerms = false;
+  bool _isMotoCourier = false; // true = livreur moto, false = chauffeur voiture
 
   @override
   void dispose() {
@@ -91,7 +92,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
       'driverLicense': {
         'number': _licenseNumberController.text.trim(),
         'expiryDate': _licenseExpiryController.text.trim(),
-        'category': 'B',
+        'category': _isMotoCourier ? 'A' : 'B',
       },
       'vehicle': {
         'make': _vehicleMakeController.text.trim(),
@@ -99,20 +100,20 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
         'year': int.tryParse(_vehicleYearController.text.trim()) ?? DateTime.now().year,
         'color': _vehicleColorController.text.trim(),
         'plateNumber': _vehiclePlateController.text.trim(),
-        'category': 'car',
-        'type': 'sedan',
-        'capacity': 4,
+        'category': _isMotoCourier ? 'moto' : 'car',
+        'type': _isMotoCourier ? 'moto_delivery' : 'sedan',
+        'capacity': _isMotoCourier ? 1 : 4,
       },
       'rideTypes': {
-        'standard': true,
-        'express': false,
-        'shared': _acceptSharedRides,
+        'standard': !_isMotoCourier,
+        'express': true,
+        'shared': _isMotoCourier ? false : _acceptSharedRides,
         'womenOnly': false,
       },
       'preferences': {
-        'maxDistance': 10,
-        'minPrice': 1000,
-        'acceptSharedRides': _acceptSharedRides,
+        'maxDistance': _isMotoCourier ? 20 : 10,
+        'minPrice': _isMotoCourier ? 500 : 1000,
+        'acceptSharedRides': _isMotoCourier ? false : _acceptSharedRides,
       },
       'documents': {
         'insurance': _insuranceController.text.trim(),
@@ -164,7 +165,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inscription chauffeur'),
+        title: const Text('Inscription chauffeur / livreur'),
         backgroundColor: const Color(0xFF0d5d36),
         foregroundColor: Colors.white,
       ),
@@ -179,6 +180,66 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
               const Text(
                 'Complétez les informations ci-dessous.\nNous validerons votre profil sous 24h.',
                 style: TextStyle(fontSize: 14, color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
+              // Sélection du type de profil
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Type de profil',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0d5d36),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ChoiceChip(
+                            label: const Text('Chauffeur voiture'),
+                            selected: !_isMotoCourier,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setState(() {
+                                  _isMotoCourier = false;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ChoiceChip(
+                            label: const Text('Livreur moto'),
+                            selected: _isMotoCourier,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setState(() {
+                                  _isMotoCourier = true;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _isMotoCourier
+                          ? 'Profil livreur moto : accès au forfait journalier 500 FCFA et livraisons.'
+                          : 'Profil chauffeur voiture : accès à tous les forfaits et types de courses.',
+                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               _buildSectionTitle('Informations personnelles'),
@@ -268,9 +329,17 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              _buildSectionTitle('Véhicule'),
-              _buildTextField(_vehicleMakeController, label: 'Marque', icon: Icons.directions_car),
-              _buildTextField(_vehicleModelController, label: 'Modèle', icon: Icons.directions_car_filled),
+              _buildSectionTitle(_isMotoCourier ? 'Moto de livraison' : 'Véhicule'),
+              _buildTextField(
+                _vehicleMakeController,
+                label: _isMotoCourier ? 'Marque de la moto' : 'Marque',
+                icon: Icons.directions_bike,
+              ),
+              _buildTextField(
+                _vehicleModelController,
+                label: _isMotoCourier ? 'Modèle de la moto' : 'Modèle',
+                icon: _isMotoCourier ? Icons.motorcycle : Icons.directions_car_filled,
+              ),
               _buildTextField(
                 _vehicleYearController,
                 label: 'Année',

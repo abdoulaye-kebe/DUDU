@@ -5,13 +5,14 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import '../models/driver_profile.dart';
 import 'ride_requests_screen.dart';
 import 'driver_profile_screen.dart';
 import 'driver_rides_screen.dart';
 import 'settings_screen.dart';
 import 'login_screen.dart';
 import 'subscription_widget.dart';
-import 'subscription_plans_screen.dart';
+import 'subscription_screen.dart';
 
 /// Dashboard chauffeur moderne avec design cohérent au client
 class NewDriverDashboard extends StatefulWidget {
@@ -48,6 +49,9 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
 
   // Type de profil: chauffeur (voiture) ou livreur (moto)
   String _driverTypeLabel = '';
+
+  // Profil complet du chauffeur/livreur
+  DriverProfile? _driverProfile;
 
   @override
   void initState() {
@@ -330,6 +334,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
     try {
       final profile = await ApiService.getDriverProfile();
       setState(() {
+        _driverProfile = profile;
         _todayRides = profile.stats.todayRides;
         _todayEarnings = profile.stats.todayEarnings;
         _rating = profile.stats.averageRating;
@@ -340,6 +345,15 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         if (profile.rideTypes != null) {
           _carpoolEnabled = profile.rideTypes!['shared'] ?? false;
           _womenOnlyEnabled = profile.rideTypes!['women_only'] ?? false;
+        }
+
+        // Charger l'abonnement courant à partir du profil si disponible
+        if (profile.subscription != null) {
+          _currentPlan = profile.subscription!.type;
+          _subscriptionExpiry = profile.subscription!.endDate;
+        } else {
+          _currentPlan = 'free';
+          _subscriptionExpiry = null;
         }
       });
     } catch (e) {
@@ -500,28 +514,95 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
               currentPlan: _currentPlan,
               expiryDate: _subscriptionExpiry,
               onUpgrade: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SubscriptionPlansScreen(),
-                  ),
-                );
-                if (result != null) {
-                  setState(() {
-                    _currentPlan = result;
-                    // Calculer la nouvelle date d'expiration
-                    switch (result) {
-                      case 'daily':
-                        _subscriptionExpiry = DateTime.now().add(const Duration(days: 1));
-                        break;
-                      case 'weekly':
-                        _subscriptionExpiry = DateTime.now().add(const Duration(days: 7));
-                        break;
-                      case 'monthly':
-                        _subscriptionExpiry = DateTime.now().add(const Duration(days: 30));
-                        break;
+                try {
+                  if (_driverProfile == null) {
+                    // Construire le profil à partir des données du login si disponibles
+                    final driverJson = ApiService.lastDriverData;
+
+                    if (driverJson != null) {
+                      final dynamic rawVehicle = driverJson['vehicle'];
+                      final Map<String, dynamic> vehicle =
+                          rawVehicle is Map<String, dynamic> ? rawVehicle : <String, dynamic>{};
+
+                      final String firstName = driverJson['firstName']?.toString() ?? '';
+                      final String lastName = driverJson['lastName']?.toString() ?? '';
+                      final String phone = driverJson['phone']?.toString() ?? '';
+                      final String email = driverJson['email']?.toString() ?? '';
+
+                      final String vehicleTypeStr = vehicle['type']?.toString() ?? 'car';
+                      final vehicleType = VehicleType.fromString(vehicleTypeStr);
+                      final bool isMoto =
+                          (vehicle['category']?.toString() == 'moto' || vehicleTypeStr == 'moto_delivery');
+
+                      final String driverType = driverJson['driverType']?.toString() ??
+                          (isMoto ? 'courier' : 'driver');
+
+                      final fallbackProfile = DriverProfile(
+                        id: driverJson['id']?.toString() ?? driverJson['_id']?.toString() ?? '',
+                        firstName: firstName,
+                        lastName: lastName,
+                        phone: phone,
+                        email: email,
+                        vehicleType: vehicleType,
+                        vehicle: VehicleInfo(
+                          make: vehicle['make']?.toString() ?? '',
+                          model: vehicle['model']?.toString() ?? '',
+                          year: int.tryParse(vehicle['year']?.toString() ?? '') ?? 2020,
+                          color: vehicle['color']?.toString() ?? '',
+                          plateNumber: vehicle['plateNumber']?.toString() ?? '',
+                          type: vehicleTypeStr,
+                          capacity: int.tryParse(vehicle['capacity']?.toString() ?? '') ?? 4,
+                          features: vehicle['features'] is Map<String, dynamic>
+                              ? vehicle['features'] as Map<String, dynamic>
+                              : const {},
+                        ),
+                        subscription: null,
+                        stats: DriverStats(
+                          totalRides: 0,
+                          completedRides: 0,
+                          cancelledRides: 0,
+                          averageRating: 0.0,
+                          totalEarnings: 0.0,
+                          totalDistance: 0.0,
+                          todayRides: 0,
+                          todayEarnings: 0.0,
+                          weeklyRides: 0,
+                          weeklyEarnings: 0.0,
+                          bonusEarned: 0.0,
+                        ),
+                        isOnline: _isOnline,
+                        isAvailable: true,
+                        currentLocation: null,
+                        rideTypes: null,
+                        preferences: null,
+                        driverType: driverType,
+                      );
+
+                      setState(() {
+                        _driverProfile = fallbackProfile;
+                      });
                     }
-                  });
+                  }
+
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SubscriptionScreen(
+                        driverProfile: _driverProfile!,
+                      ),
+                    ),
+                  );
+
+                  // Après retour, recharger les infos d'abonnement réelles (ignore les erreurs)
+                  _loadTodayStats();
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Erreur lors de l\'ouverture des abonnements. Veuillez réessayer.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
               },
             ),
@@ -629,53 +710,55 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
           ),
           
           const SizedBox(height: 12),
-          
+
           // Boutons Convoiturage et Femmes uniquement
-          Row(
-            children: [
-              Expanded(
-                child: _buildModeButton(
-                  icon: Icons.people_outline,
-                  label: 'Convoiturage',
-                  isEnabled: _carpoolEnabled,
-                  onTap: () {
-                    setState(() => _carpoolEnabled = !_carpoolEnabled);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          _carpoolEnabled 
-                              ? '🚗 Mode convoiturage activé' 
-                              : 'Mode convoiturage désactivé',
+          // Masqués pour les livreurs (courier/moto)
+          if (!(_driverProfile?.isCourier ?? false))
+            Row(
+              children: [
+                Expanded(
+                  child: _buildModeButton(
+                    icon: Icons.people_outline,
+                    label: 'Convoiturage',
+                    isEnabled: _carpoolEnabled,
+                    onTap: () {
+                      setState(() => _carpoolEnabled = !_carpoolEnabled);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            _carpoolEnabled 
+                                ? '🚗 Mode convoiturage activé' 
+                                : 'Mode convoiturage désactivé',
+                          ),
+                          duration: const Duration(seconds: 2),
                         ),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildModeButton(
-                  icon: Icons.woman,
-                  label: 'Femmes uniquement',
-                  isEnabled: _womenOnlyEnabled,
-                  onTap: () {
-                    setState(() => _womenOnlyEnabled = !_womenOnlyEnabled);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          _womenOnlyEnabled 
-                              ? '👩 Mode femmes uniquement activé' 
-                              : 'Mode femmes uniquement désactivé',
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildModeButton(
+                    icon: Icons.woman,
+                    label: 'Femmes uniquement',
+                    isEnabled: _womenOnlyEnabled,
+                    onTap: () {
+                      setState(() => _womenOnlyEnabled = !_womenOnlyEnabled);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            _womenOnlyEnabled 
+                                ? '👩 Mode femmes uniquement activé' 
+                                : 'Mode femmes uniquement désactivé',
+                          ),
+                          duration: const Duration(seconds: 2),
                         ),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );

@@ -228,8 +228,28 @@ class ApiService {
         Uri.parse('$baseUrl/auth/me'),
         headers: await _getHeaders(),
       ).timeout(timeout);
+      return _handleResponse(response, (data) {
+        dynamic userJson;
 
-      return _handleResponse(response, (data) => User.fromJson(data));
+        if (data is Map<String, dynamic>) {
+          final dynamic inner = data['user'] ?? data['profile'];
+          if (inner is Map<String, dynamic>) {
+            userJson = inner;
+          } else if (inner is List && inner.isNotEmpty) {
+            userJson = inner.first;
+          } else {
+            userJson = data;
+          }
+        } else if (data is List && data.isNotEmpty) {
+          userJson = data.first;
+        }
+
+        if (userJson is Map<String, dynamic>) {
+          return User.fromJson(userJson);
+        }
+
+        throw Exception('Format de réponse profil utilisateur inattendu');
+      });
     } catch (e) {
       return ApiResponse<User>(
         success: false,

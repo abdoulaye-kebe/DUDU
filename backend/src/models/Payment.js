@@ -4,8 +4,7 @@ const paymentSchema = new mongoose.Schema({
   // Informations de base
   paymentId: {
     type: String,
-    unique: true,
-    required: true
+    unique: true
   },
   
   // Participants
@@ -106,7 +105,7 @@ const paymentSchema = new mongoose.Schema({
   subscription: {
     plan: {
       type: String,
-      enum: ['daily', 'weekly', 'monthly', 'yearly']
+      enum: ['daily', 'weekly', 'monthly']
     },
     duration: Number, // en jours
     startDate: Date,

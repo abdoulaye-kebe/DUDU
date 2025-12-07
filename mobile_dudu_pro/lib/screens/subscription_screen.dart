@@ -36,6 +36,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       // Charger les plans disponibles depuis le backend
       _availablePlans = await ApiService.getAvailablePlans(widget.driverProfile.vehicleType);
 
+      // Si c'est un livreur moto, ne garder que le forfait journalier
+      if (widget.driverProfile.isMoto || widget.driverProfile.isCourier) {
+        _availablePlans = _availablePlans
+            .where((plan) => plan.type == 'daily' && plan.isAvailable)
+            .toList();
+      }
+
       // Charger l'abonnement actuel s'il existe
       _currentSubscription = await ApiService.getCurrentSubscription();
 
@@ -293,7 +300,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        ..._availablePlans.map((plan) => _buildPlanCard(plan)),
+        if (_availablePlans.isEmpty)
+          Text(
+            widget.driverProfile.isMoto || widget.driverProfile.isCourier
+                ? 'Aucun forfait journalier disponible pour le moment.'
+                : 'Aucun plan disponible pour le moment.',
+            style: TextStyle(color: Colors.grey[600]),
+          )
+        else
+          ..._availablePlans.map((plan) => _buildPlanCard(plan)),
       ],
     );
   }
@@ -539,7 +554,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       await ApiService.purchaseSubscription(
         planType: plan.type,
         paymentMethod: paymentMethod,
-        phone: widget.driverProfile.phone,
+        phone: (widget.driverProfile.phone.isNotEmpty
+                ? widget.driverProfile.phone
+                : null),
         autoRenew: false,
       );
 

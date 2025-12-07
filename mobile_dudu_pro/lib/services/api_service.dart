@@ -9,6 +9,7 @@ class ApiService {
   static String get baseUrl => AppConfig.baseUrl;
   
   static String? _authToken;
+  static Map<String, dynamic>? _lastDriverData;
 
   // Gestion du token d'authentification
   static void setAuthToken(String token) {
@@ -16,6 +17,12 @@ class ApiService {
   }
 
   static String? get authToken => _authToken;
+
+  static void setLastDriverData(Map<String, dynamic> driver) {
+    _lastDriverData = driver;
+  }
+
+  static Map<String, dynamic>? get lastDriverData => _lastDriverData;
 
   static Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -62,8 +69,14 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['success'] == true && data['token'] != null) {
-          _authToken = data['token'];
+        if (data['success'] == true) {
+          if (data['token'] != null) {
+            _authToken = data['token'];
+          }
+          final driver = data['driver'];
+          if (driver is Map<String, dynamic>) {
+            _lastDriverData = driver;
+          }
         }
         return data;
       } else {
@@ -105,9 +118,90 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success']) {
-          return DriverProfile.fromJson(data['data']['driver']);
+        final dynamic decoded = jsonDecode(response.body);
+
+        if (decoded is Map<String, dynamic>) {
+          final success = decoded['success'] == true;
+          if (!success) {
+            throw Exception(decoded['message'] ?? 'Erreur de récupération du profil');
+          }
+
+          dynamic driverJson;
+          final dynamic data = decoded['data'];
+
+          if (data is Map<String, dynamic>) {
+            final dynamic driverField = data['driver'] ?? data['profile'];
+            if (driverField is List && driverField.isNotEmpty) {
+              driverJson = driverField.first;
+            } else {
+              driverJson = driverField ?? data;
+            }
+          } else if (data is List && data.isNotEmpty) {
+            driverJson = data.first;
+          } else {
+            // Fallback: essayer au niveau racine
+            final dynamic rootDriver = decoded['driver'];
+            if (rootDriver != null) {
+              driverJson = rootDriver;
+            }
+          }
+
+          if (driverJson is Map<String, dynamic>) {
+            // Construction manuelle d'un profil "sûr" sans fromJson imbriqués
+            final dynamic rawVehicle = driverJson['vehicle'];
+            final Map<String, dynamic> vehicle =
+                rawVehicle is Map<String, dynamic> ? rawVehicle : <String, dynamic>{};
+
+            final String driverId =
+                driverJson['id'] ?? driverJson['_id'] ?? '';
+            final String firstName = driverJson['firstName'] ?? '';
+            final String lastName = driverJson['lastName'] ?? '';
+            final String phone = driverJson['phone'] ?? '';
+            final String email = driverJson['email'] ?? '';
+
+            final String vehicleTypeStr = vehicle['type'] ?? 'car';
+            final vehicleType = VehicleType.fromString(vehicleTypeStr);
+
+            final computedType =
+                (vehicle['category'] == 'moto' || vehicle['type'] == 'moto_delivery')
+                    ? 'courier'
+                    : 'driver';
+
+            // Stats par défaut pour éviter toute erreur de parsing
+            final stats = DriverStats(
+              totalRides: 0,
+              completedRides: 0,
+              cancelledRides: 0,
+              averageRating: 0.0,
+              totalEarnings: 0.0,
+              totalDistance: 0.0,
+              todayRides: 0,
+              todayEarnings: 0.0,
+              weeklyRides: 0,
+              weeklyEarnings: 0.0,
+              bonusEarned: 0.0,
+            );
+
+            return DriverProfile(
+              id: driverId,
+              firstName: firstName,
+              lastName: lastName,
+              phone: phone,
+              email: email,
+              vehicleType: vehicleType,
+              vehicle: VehicleInfo.fromJson(vehicle),
+              subscription: null,
+              stats: stats,
+              isOnline: driverJson['status'] == 'online' || driverJson['isOnline'] == true,
+              isAvailable: driverJson['isAvailable'] ?? false,
+              currentLocation: null,
+              rideTypes: null,
+              preferences: null,
+              driverType: (driverJson['driverType'] ?? computedType) as String,
+            );
+          }
+
+          throw Exception('Format de réponse profil chauffeur inattendu');
         }
         throw Exception('Erreur de récupération du profil');
       } else {
@@ -197,7 +291,7 @@ class ApiService {
         body: jsonEncode({
           'planType': planType,
           'paymentMethod': paymentMethod,
-          'phone': phone,
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
           'autoRenew': autoRenew,
         }),
       );

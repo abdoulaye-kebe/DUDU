@@ -70,7 +70,7 @@ router.get('/plans', (req, res) => {
 router.post('/purchase', [
   auth,
   requireDriver,
-  body('planType').isIn(['daily', 'weekly', 'monthly', 'yearly']).withMessage('Type de plan invalide'),
+  body('planType').isIn(['daily', 'weekly', 'monthly']).withMessage('Type de plan invalide'),
   body('paymentMethod').isIn(['orange_money', 'wave', 'free_money', 'cash']).withMessage('Méthode de paiement invalide'),
   body('phone').optional().matches(/^(\+221|221)?[0-9]{9}$/).withMessage('Format de téléphone invalide'),
   body('autoRenew').optional().isBoolean()
@@ -158,7 +158,7 @@ router.post('/purchase', [
         allowedPlans: ['daily']
       } : {
         maxDailyRides: 50,
-        allowedPlans: ['daily', 'weekly', 'monthly', 'yearly']
+        allowedPlans: ['daily', 'weekly', 'monthly']
       }
     });
 
@@ -196,6 +196,7 @@ router.post('/purchase', [
     await subscription.save();
 
     // Initier le paiement
+    // Pour l’instant, on active immédiatement l’abonnement pour tous les modes de paiement
     if (paymentMethod === 'cash') {
       payment.status = 'completed';
       payment.cash = {
@@ -203,71 +204,41 @@ router.post('/purchase', [
         collectedAt: null,
         verified: false
       };
-      await payment.save();
-
-      // Activer l'abonnement
-      subscription.activate();
-      await subscription.save();
-
-      // Mettre à jour le chauffeur
-      const driver = await Driver.findById(req.driver._id);
-      driver.subscription = {
-        type: plan.type,
-        startDate,
-        endDate,
-        isActive: true,
-        autoRenew
-      };
-      await driver.save();
-
-      res.json({
-        success: true,
-        message: 'Abonnement acheté avec succès',
-        data: {
-          subscription: subscription.getSummary(),
-          payment: payment.getSummary()
-        }
-      });
     } else {
-      // Initier le paiement mobile money
+      // Simuler un paiement mobile money réussi immédiatement
       payment.initiateMobileMoneyPayment(phone, paymentMethod.split('_')[0]);
-      await payment.save();
-
-      // TODO: Intégrer avec les APIs de paiement mobile money
-      // Pour l'instant, on simule
-      setTimeout(async () => {
-        payment.confirmPayment(
-          Math.random().toString(36).substr(2, 8),
-          `TXN_${Date.now()}`
-        );
-        await payment.save();
-
-        // Activer l'abonnement
-        subscription.activate();
-        await subscription.save();
-
-        // Mettre à jour le chauffeur
-        const driver = await Driver.findById(req.driver._id);
-        driver.subscription = {
-          type: plan.type,
-          startDate,
-          endDate,
-          isActive: true,
-          autoRenew
-        };
-        await driver.save();
-      }, 5000);
-
-      res.json({
-        success: true,
-        message: 'Paiement initié. Votre abonnement sera activé après confirmation.',
-        data: {
-          subscription: subscription.getSummary(),
-          payment: payment.getSummary(),
-          transactionCode: payment.mobileMoney.transactionCode
-        }
-      });
+      payment.confirmPayment(
+        Math.random().toString(36).substr(2, 8),
+        `TXN_${Date.now()}`
+      );
     }
+
+    await payment.save();
+
+    // Activer l'abonnement tout de suite
+    subscription.activate();
+    await subscription.save();
+
+    // Mettre à jour le chauffeur avec l'abonnement actif
+    const driverToUpdate = await Driver.findById(req.driver._id);
+    driverToUpdate.subscription = {
+      ...(driverToUpdate.subscription || {}),
+      plan: plan.type,
+      startDate,
+      endDate,
+      isActive: true,
+      autoRenew
+    };
+    await driverToUpdate.save();
+
+    res.json({
+      success: true,
+      message: 'Abonnement acheté avec succès',
+      data: {
+        subscription: subscription.getSummary(),
+        payment: payment.getSummary()
+      }
+    });
 
   } catch (error) {
     console.error('Erreur lors de l\'achat de l\'abonnement:', error);
