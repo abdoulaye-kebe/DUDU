@@ -72,8 +72,8 @@ echo - Client:    backend\public\downloads\dudu-client.apk
 echo - Chauffeur: backend\public\downloads\dudu-driver.apk
 echo.
 echo Telechargement:
-echo - Client:    http://41.208.146.203:3000/download-client.html
-echo - Chauffeur: http://41.208.146.203:3000/download-driver.html
+echo - Client:    http://213.154.90.11:3000/download-client.html
+echo - Chauffeur: http://213.154.90.11:3000/download-driver.html
 echo.
 echo Demarrer backend: cd backend ^&^& npm run dev
 echo.

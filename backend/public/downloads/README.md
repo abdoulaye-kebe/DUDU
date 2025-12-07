@@ -31,8 +31,8 @@ flutter build apk --release
 
 Une fois le backend démarré:
 
-- **Client:** http://41.208.146.203:3000/download-client.html
-- **Chauffeur:** http://41.208.146.203:3000/download-driver.html
+- **Client:** http://213.154.90.11:3000/download-client.html
+- **Chauffeur:** http://213.154.90.11:3000/download-driver.html
 
 ## Notes
 

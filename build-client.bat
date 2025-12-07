@@ -32,7 +32,7 @@ if %ERRORLEVEL% EQU 0 (
     copy /Y "dudu_flutter\build\app\outputs\flutter-apk\app-release.apk" "backend\public\downloads\dudu-client.apk"
     
     echo APK copie vers: backend\public\downloads\dudu-client.apk
-    echo Telechargement: http://41.208.146.203:3000/download-client.html
+    echo Telechargement: http://213.154.90.11:3000/download-client.html
 ) else (
     echo.
     echo ERREUR: Build client echoue!

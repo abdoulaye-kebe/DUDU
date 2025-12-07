@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'api_service.dart';
+import '../config/app_config.dart';
 
 /// Service pour surveiller la disponibilité des chauffeurs en covoiturage
 class CarpoolMonitorService {
@@ -99,7 +100,7 @@ class CarpoolMonitorService {
     
     try {
       // Appel API réel
-      final url = 'http://127.0.0.1:8000/api/v1/carpool/drivers/available'
+      final url = '${AppConfig.baseUrl}/carpool/drivers/available'
           '?latitude=${_lastPosition!.latitude}'
           '&longitude=${_lastPosition!.longitude}'
           '&radius=1'; // 1km de rayon
