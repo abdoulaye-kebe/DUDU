@@ -32,7 +32,7 @@ if %ERRORLEVEL% EQU 0 (
     copy /Y "mobile_dudu_pro\build\app\outputs\flutter-apk\app-release.apk" "backend\public\downloads\dudu-driver.apk"
     
     echo APK copie vers: backend\public\downloads\dudu-driver.apk
-    echo Telechargement: http://41.208.146.203:3000/download-driver.html
+    echo Telechargement: http://213.154.90.11:3000/download-driver.html
 ) else (
     echo.
     echo ERREUR: Build chauffeur echoue!

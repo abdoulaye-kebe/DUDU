@@ -375,7 +375,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         onPressed: () {
           // Retourner au dashboard et rafraîchir
           Navigator.of(context).popUntil((route) => route.isFirst);
-          _loadDriverData();
+          _loadTodayStats();
         },
         backgroundColor: primaryGreen,
         child: const Icon(Icons.home, color: Colors.white),
