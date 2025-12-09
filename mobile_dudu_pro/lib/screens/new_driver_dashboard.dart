@@ -368,6 +368,23 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
   void _loadDriverData() {
     _loadTodayStats();
     _getCurrentLocation();
+    _loadCurrentSubscription();
+  }
+
+  Future<void> _loadCurrentSubscription() async {
+    try {
+      final subscription = await ApiService.getCurrentSubscription();
+      if (!mounted) return;
+
+      if (subscription != null && subscription.isActive) {
+        setState(() {
+          _currentPlan = subscription.type;
+          _subscriptionExpiry = subscription.endDate;
+        });
+      }
+    } catch (_) {
+      // On ignore les erreurs ici pour ne pas bloquer le dashboard
+    }
   }
 
   /// Affiche le menu utilisateur en bottom sheet (comme l'app client)

@@ -113,16 +113,6 @@ router.post('/purchase', [
       status: 'active'
     });
 
-    if (existingSubscription) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vous avez déjà un abonnement actif',
-        data: {
-          currentSubscription: existingSubscription.getSummary()
-        }
-      });
-    }
-
     // Obtenir les détails du plan
     const plans = Subscription.getAvailablePlans();
     let plan = plans.find(p => p.type === planType);
@@ -134,9 +124,23 @@ router.post('/purchase', [
       });
     }
 
-    // Calculer les dates
+    // Calculer les dates (en ajoutant les jours restants de l'abonnement actuel s'il existe)
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
     const startDate = new Date();
-    const endDate = new Date(startDate.getTime() + (plan.duration * 24 * 60 * 60 * 1000));
+
+    let additionalDays = 0;
+    if (existingSubscription && existingSubscription.endDate && existingSubscription.endDate > startDate) {
+      const diffMs = existingSubscription.endDate.getTime() - startDate.getTime();
+      additionalDays = Math.ceil(diffMs / MS_PER_DAY);
+
+      // Marquer l'ancien abonnement comme expiré pour garder l'historique cohérent
+      existingSubscription.status = 'expired';
+      existingSubscription.expiredAt = startDate;
+      await existingSubscription.save();
+    }
+
+    const totalDurationDays = plan.duration + additionalDays;
+    const endDate = new Date(startDate.getTime() + (totalDurationDays * MS_PER_DAY));
 
     // Créer l'abonnement avec type de véhicule
     const subscription = new Subscription({
@@ -216,8 +220,7 @@ router.post('/purchase', [
     await payment.save();
 
     // Activer l'abonnement tout de suite
-    subscription.activate();
-    await subscription.save();
+    await subscription.activate();
 
     // Mettre à jour le chauffeur avec l'abonnement actif
     const driverToUpdate = await Driver.findById(req.driver._id);
