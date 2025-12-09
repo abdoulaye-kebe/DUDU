@@ -292,6 +292,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         );
       }
 
+      if (!mounted) return;
+      
       setState(() {
         _currentPosition = position;
       });
@@ -313,6 +315,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
     } catch (e) {
       print('Erreur géolocalisation: $e');
       // Position par défaut en cas d'erreur
+      if (!mounted) return;
       setState(() {
         _currentPosition = Position(
           latitude: 14.6928,
@@ -333,6 +336,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
   Future<void> _loadTodayStats() async {
     try {
       final profile = await ApiService.getDriverProfile();
+      if (!mounted) return;
       setState(() {
         _driverProfile = profile;
         _todayRides = profile.stats.todayRides;
@@ -364,6 +368,121 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
   void _loadDriverData() {
     _loadTodayStats();
     _getCurrentLocation();
+  }
+
+  /// Affiche le menu utilisateur en bottom sheet (comme l'app client)
+  void _showDriverMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildMenuOption(
+              icon: Icons.person_outline,
+              title: 'Mon profil',
+              color: primaryGreen,
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DriverProfileScreen()),
+                );
+              },
+            ),
+            _buildMenuOption(
+              icon: Icons.history,
+              title: 'Mon historique',
+              color: lightGreen,
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DriverRidesScreen()),
+                );
+              },
+            ),
+            _buildMenuOption(
+              icon: Icons.settings_outlined,
+              title: 'Paramètres',
+              color: Colors.grey[700]!,
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Paramètres - Bientôt disponible')),
+                );
+              },
+            ),
+            _buildMenuOption(
+              icon: Icons.help_outline,
+              title: 'Aide & Support',
+              color: Colors.blue,
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Support - Bientôt disponible')),
+                );
+              },
+            ),
+            const Divider(),
+            _buildMenuOption(
+              icon: Icons.logout,
+              title: 'Se déconnecter',
+              color: Colors.red,
+              onTap: () {
+                Navigator.pop(context);
+                _logout();
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Construit une option de menu
+  Widget _buildMenuOption({
+    required IconData icon,
+    required String title,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: color, size: 24),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
+      onTap: onTap,
+    );
   }
 
   @override
@@ -428,81 +547,10 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // Bouton Menu
-          PopupMenuButton<String>(
+          // Bouton Menu - Ouvre un bottom sheet comme l'app client
+          IconButton(
             icon: const Icon(Icons.menu, color: Colors.white),
-            onSelected: (value) {
-              switch (value) {
-                case 'profile':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const DriverProfileScreen(),
-                    ),
-                  );
-                  break;
-                case 'history':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const DriverRidesScreen(),
-                    ),
-                  );
-                  break;
-                case 'settings':
-                  // TODO: Passer le vrai profil
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Paramètres - En développement')),
-                  );
-                  break;
-                case 'logout':
-                  _logout();
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    Icon(Icons.person, color: primaryGreen),
-                    SizedBox(width: 12),
-                    Text('Mon profil'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'history',
-                child: Row(
-                  children: [
-                    Icon(Icons.history, color: primaryGreen),
-                    SizedBox(width: 12),
-                    Text('Mon historique'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings, color: primaryGreen),
-                    SizedBox(width: 12),
-                    Text('Paramètres'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, color: Colors.red),
-                    SizedBox(width: 12),
-                    Text('Se déconnecter', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
+            onPressed: _showDriverMenu,
           ),
         ],
       ),
@@ -552,9 +600,9 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                           plateNumber: vehicle['plateNumber']?.toString() ?? '',
                           type: vehicleTypeStr,
                           capacity: int.tryParse(vehicle['capacity']?.toString() ?? '') ?? 4,
-                          features: vehicle['features'] is Map<String, dynamic>
-                              ? vehicle['features'] as Map<String, dynamic>
-                              : const {},
+                          features: vehicle['features'] is List
+                              ? (vehicle['features'] as List).map((e) => e.toString()).toList()
+                              : const <String>[],
                         ),
                         subscription: null,
                         stats: DriverStats(
@@ -569,7 +617,9 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                           weeklyRides: 0,
                           weeklyEarnings: 0.0,
                           bonusEarned: 0.0,
+                          acceptanceRate: 0.0,
                         ),
+                        earnings: EarningsInfo.empty(),
                         isOnline: _isOnline,
                         isAvailable: true,
                         currentLocation: null,

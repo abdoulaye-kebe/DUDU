@@ -52,19 +52,32 @@ function DriversPremium() {
     }
   };
 
-  const handleDecision = async (driverId, decision) => {
-    const confirmMessage = decision === 'approved'
-      ? 'Confirmer l\'approbation de cette candidature ?'
-      : 'Êtes-vous sûr de vouloir rejeter cette candidature ?';
-
-    if (!window.confirm(confirmMessage)) return;
+  const handleDecision = async (driverId, decision, validationData = null) => {
+    // Si c'est un rejet, demander confirmation
+    if (decision === 'rejected') {
+      if (!window.confirm('Êtes-vous sûr de vouloir rejeter cette candidature ?')) return;
+    }
 
     try {
-      await axios.put(`${API_BASE_URL}/admin/drivers/${driverId}/verify`, {
+      const payload = {
         status: decision,
-        notes: ''
-      });
+        notes: validationData?.notes || ''
+      };
+
+      // Si approuvé, ajouter les données de validation
+      if (decision === 'approved' && validationData) {
+        payload.serviceLevel = validationData.serviceLevel;
+        payload.vehicleCondition = validationData.vehicleCondition;
+        payload.vehicleInspected = validationData.vehicleInspected;
+        payload.documentsVerified = validationData.documentsVerified;
+      }
+
+      await axios.put(`${API_BASE_URL}/admin/drivers/${driverId}/verify`, payload);
       await loadData();
+      
+      if (decision === 'approved') {
+        alert(`Chauffeur validé avec succès en tant que "${validationData?.serviceLevel === 'express' ? 'Express' : 'Standard'}"`);
+      }
     } catch (err) {
       console.error('Erreur décision:', err);
       alert(err.response?.data?.message || 'Erreur lors de la mise à jour');
@@ -104,6 +117,22 @@ function DriversPremium() {
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Car size={14} style={{ color: 'var(--gray-400)' }} />
           {value?.make} {value?.model}
+        </span>
+      )
+    },
+    {
+      key: 'serviceLevel',
+      label: 'Niveau',
+      render: (value) => (
+        <span 
+          className={`badge ${value === 'express' ? 'badge-warning' : 'badge-info'}`}
+          style={{
+            background: value === 'express' ? '#FF9800' : '#00A651',
+            color: '#fff',
+            fontWeight: 600
+          }}
+        >
+          {value === 'express' ? '⚡ Express' : '🚗 Standard'}
         </span>
       )
     },
@@ -319,7 +348,7 @@ function DriversPremium() {
                   <DriverApplicationCard
                     key={driver._id}
                     driver={driver}
-                    onApprove={(id) => handleDecision(id, 'approved')}
+                    onApprove={(id, validationData) => handleDecision(id, 'approved', validationData)}
                     onReject={(id) => handleDecision(id, 'rejected')}
                     delay={index * 0.1}
                   />

@@ -66,19 +66,10 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       'name': 'Express',
       'icon': Icons.flash_on,
       'color': Colors.orange,
-      'description': 'Arrivée plus rapide • 1-3 passagers',
-      'badge': 'POPULAIRE',
-      'capacity': 3,
-      'basePricePerKm': 500,
-    },
-    {
-      'id': 'women_only',
-      'name': 'Femmes',
-      'icon': Icons.woman,
-      'color': Colors.pink,
-      'description': 'Chauffeuse pour passagères',
+      'description': 'Véhicule haut de gamme • Confort premium',
+      'badge': 'CONFORT',
       'capacity': 4,
-      'basePricePerKm': 450,
+      'basePricePerKm': 600,
     },
   ];
 

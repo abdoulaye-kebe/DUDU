@@ -299,8 +299,7 @@ router.get('/rides', auth, async (req, res) => {
     }
 
     const rides = await Ride.find(filter)
-      .populate('driver', 'user vehicle')
-      .populate('driver.user', 'firstName lastName phone')
+      .populate('driver', 'firstName lastName phone vehicle')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -320,12 +319,11 @@ router.get('/rides', auth, async (req, res) => {
           pricing: ride.pricing,
           status: ride.status,
           rideType: ride.rideType,
+          createdAt: ride.createdAt,
           driver: ride.driver ? {
             id: ride.driver._id,
-            name: ride.driver.user ? 
-              `${ride.driver.user.firstName} ${ride.driver.user.lastName}` : 
-              'Chauffeur inconnu',
-            phone: ride.driver.user ? ride.driver.user.phone : null,
+            name: `${ride.driver.firstName || ''} ${ride.driver.lastName || ''}`.trim() || 'Chauffeur',
+            phone: ride.driver.phone,
             vehicle: ride.driver.vehicle ? {
               make: ride.driver.vehicle.make,
               model: ride.driver.vehicle.model,

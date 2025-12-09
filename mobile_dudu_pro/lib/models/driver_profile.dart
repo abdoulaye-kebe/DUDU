@@ -8,6 +8,7 @@ class DriverProfile {
   final VehicleInfo vehicle;
   final SubscriptionInfo? subscription;
   final DriverStats stats;
+  final EarningsInfo earnings;
   final bool isOnline;
   final bool isAvailable;
   final LocationInfo? currentLocation;
@@ -25,6 +26,7 @@ class DriverProfile {
     required this.vehicle,
     this.subscription,
     required this.stats,
+    required this.earnings,
     required this.isOnline,
     required this.isAvailable,
     this.currentLocation,
@@ -74,6 +76,12 @@ class DriverProfile {
             ? DriverPreferences.fromJson(rawPreferences)
             : null;
 
+    // Parser les earnings
+    final dynamic rawEarnings = json['earnings'];
+    final EarningsInfo earnings = rawEarnings is Map<String, dynamic>
+        ? EarningsInfo.fromJson(rawEarnings)
+        : EarningsInfo.empty();
+
     return DriverProfile(
       id: json['id'] ?? json['_id'] ?? '',
       firstName: json['firstName'] ?? '',
@@ -84,6 +92,7 @@ class DriverProfile {
       vehicle: VehicleInfo.fromJson(vehicle),
       subscription: subscription,
       stats: DriverStats.fromJson(stats),
+      earnings: earnings,
       isOnline: json['status'] == 'online' || json['isOnline'] == true,
       isAvailable: json['isAvailable'] ?? false,
       currentLocation: currentLocation,
@@ -104,6 +113,7 @@ class DriverProfile {
       'vehicle': vehicle.toJson(),
       'subscription': subscription?.toJson(),
       'stats': stats.toJson(),
+      'earnings': earnings.toJson(),
       'isOnline': isOnline,
       'isAvailable': isAvailable,
       'currentLocation': currentLocation?.toJson(),
@@ -186,7 +196,7 @@ class VehicleInfo {
   final String plateNumber;
   final String type; // 'standard', 'cargo', 'premium', 'moto_delivery'
   final int capacity;
-  final Map<String, dynamic>? features;
+  final List<String> features;
 
   VehicleInfo({
     required this.make,
@@ -196,10 +206,17 @@ class VehicleInfo {
     required this.plateNumber,
     required this.type,
     required this.capacity,
-    this.features,
+    this.features = const [],
   });
 
   factory VehicleInfo.fromJson(Map<String, dynamic> json) {
+    // features peut être une List ou null
+    final dynamic rawFeatures = json['features'];
+    List<String> featuresList = [];
+    if (rawFeatures is List) {
+      featuresList = rawFeatures.map((e) => e.toString()).toList();
+    }
+    
     return VehicleInfo(
       make: json['make'] ?? '',
       model: json['model'] ?? '',
@@ -208,7 +225,7 @@ class VehicleInfo {
       plateNumber: json['plateNumber'] ?? '',
       type: json['type'] ?? 'standard',
       capacity: json['capacity'] ?? 4,
-      features: json['features'],
+      features: featuresList,
     );
   }
 
@@ -227,6 +244,15 @@ class VehicleInfo {
 
   String get displayName => '$make $model ($year)';
   String get fullInfo => '$displayName - $color - $plateNumber';
+}
+
+/// Helper pour parser les features de manière robuste
+List<String>? _parseFeatures(dynamic rawFeatures) {
+  if (rawFeatures == null) return null;
+  if (rawFeatures is List) {
+    return rawFeatures.map((e) => e.toString()).toList();
+  }
+  return null;
 }
 
 class SubscriptionInfo {
@@ -275,11 +301,7 @@ class SubscriptionInfo {
       price: ((plan['price'] ?? json['price']) ?? 0).toDouble(),
       currency: plan['currency'] ?? json['currency'] ?? 'FCFA',
       duration: plan['duration'] ?? json['duration'] ?? 1,
-      features: plan['features'] != null
-          ? List<String>.from(plan['features'])
-          : (json['features'] != null
-              ? List<String>.from(json['features'])
-              : <String>[]),
+      features: _parseFeatures(plan['features']) ?? _parseFeatures(json['features']) ?? <String>[],
       status: json['status'] ?? 'active',
       startDate: json['startDate'] != null
           ? DateTime.parse(json['startDate'])
@@ -349,15 +371,22 @@ class WeeklyBonus {
   });
 
   factory WeeklyBonus.fromJson(Map<String, dynamic> json) {
-    return WeeklyBonus(
-      type: json['type'],
-      amount: json['amount'].toDouble(),
-      lastBonusDate: json['lastBonusDate'] != null 
-          ? DateTime.parse(json['lastBonusDate']) 
-          : null,
-      bonusHistory: (json['bonusHistory'] as List)
+    final dynamic rawHistory = json['bonusHistory'];
+    List<BonusHistory> history = [];
+    if (rawHistory is List) {
+      history = rawHistory
+          .whereType<Map<String, dynamic>>()
           .map((item) => BonusHistory.fromJson(item))
-          .toList(),
+          .toList();
+    }
+    
+    return WeeklyBonus(
+      type: json['type'] ?? 'none',
+      amount: (json['amount'] ?? 0).toDouble(),
+      lastBonusDate: json['lastBonusDate'] != null 
+          ? DateTime.tryParse(json['lastBonusDate'].toString()) 
+          : null,
+      bonusHistory: history,
     );
   }
 
@@ -451,6 +480,7 @@ class DriverStats {
   final int weeklyRides;
   final double weeklyEarnings;
   final double bonusEarned;
+  final double acceptanceRate;
 
   DriverStats({
     required this.totalRides,
@@ -464,12 +494,17 @@ class DriverStats {
     required this.weeklyRides,
     required this.weeklyEarnings,
     required this.bonusEarned,
+    required this.acceptanceRate,
   });
 
   factory DriverStats.fromJson(Map<String, dynamic> json) {
+    final total = json['totalRides'] ?? 0;
+    final completed = json['completedRides'] ?? 0;
+    final rate = json['acceptanceRate']?.toDouble() ?? (total > 0 ? completed / total : 0.0);
+    
     return DriverStats(
-      totalRides: json['totalRides'] ?? 0,
-      completedRides: json['completedRides'] ?? 0,
+      totalRides: total,
+      completedRides: completed,
       cancelledRides: json['cancelledRides'] ?? 0,
       averageRating: json['averageRating']?.toDouble() ?? 0.0,
       totalEarnings: json['totalEarnings']?.toDouble() ?? 0.0,
@@ -479,6 +514,7 @@ class DriverStats {
       weeklyRides: json['weeklyRides'] ?? 0,
       weeklyEarnings: json['weeklyEarnings']?.toDouble() ?? 0.0,
       bonusEarned: json['bonusEarned']?.toDouble() ?? 0.0,
+      acceptanceRate: rate,
     );
   }
 
@@ -495,6 +531,7 @@ class DriverStats {
       'weeklyRides': weeklyRides,
       'weeklyEarnings': weeklyEarnings,
       'bonusEarned': bonusEarned,
+      'acceptanceRate': acceptanceRate,
     };
   }
 
@@ -570,4 +607,51 @@ class DriverPreferences {
       'maxDistance': maxDistance,
     };
   }
+}
+
+/// Informations sur les gains du chauffeur
+class EarningsInfo {
+  final double today;
+  final double thisWeek;
+  final double thisMonth;
+  final double total;
+
+  EarningsInfo({
+    required this.today,
+    required this.thisWeek,
+    required this.thisMonth,
+    required this.total,
+  });
+
+  factory EarningsInfo.fromJson(Map<String, dynamic> json) {
+    return EarningsInfo(
+      today: (json['today'] ?? 0).toDouble(),
+      thisWeek: (json['thisWeek'] ?? 0).toDouble(),
+      thisMonth: (json['thisMonth'] ?? 0).toDouble(),
+      total: (json['total'] ?? 0).toDouble(),
+    );
+  }
+
+  factory EarningsInfo.empty() {
+    return EarningsInfo(
+      today: 0,
+      thisWeek: 0,
+      thisMonth: 0,
+      total: 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'today': today,
+      'thisWeek': thisWeek,
+      'thisMonth': thisMonth,
+      'total': total,
+    };
+  }
+
+  String get todayFormatted => '${today.toStringAsFixed(0)} FCFA';
+  String get thisWeekFormatted => '${thisWeek.toStringAsFixed(0)} FCFA';
+  String get thisMonthFormatted => '${thisMonth.toStringAsFixed(0)} FCFA';
+  String get totalFormatted => '${total.toStringAsFixed(0)} FCFA';
 }

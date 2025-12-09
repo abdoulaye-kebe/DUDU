@@ -255,10 +255,12 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                 _emailController,
                 label: 'Email (optionnel)',
                 icon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
+                keyboardType: TextInputType.text,
                 validator: (value) {
                   if (value == null || value.isEmpty) return null;
-                  if (!value.contains('@')) return 'Email invalide';
+                  if (!value.contains('@') || !value.contains('.')) {
+                    return 'Email invalide (ex: nom@domaine.com)';
+                  }
                   return null;
                 },
               ),

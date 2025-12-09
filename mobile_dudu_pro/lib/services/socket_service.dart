@@ -139,6 +139,19 @@ class SocketService {
       }
     });
 
+    // Écouter quand une course est acceptée par un autre chauffeur
+    _socket!.on('ride-taken', (data) {
+      print('🚫 Course prise par un autre chauffeur: ${data['rideId']}');
+      final rideId = data is Map ? data['rideId']?.toString() : null;
+      if (rideId != null) {
+        // Retirer la course de la liste des demandes en cours
+        _currentRideRequests.removeWhere((r) =>
+            r['id']?.toString() == rideId || r['rideId']?.toString() == rideId);
+        // Notifier les écrans que cette course n'est plus disponible
+        _rideClosedController.add(rideId);
+      }
+    });
+
     _socket!.on('ride-accepted-success', (data) {
       final rideId = data is Map ? data['rideId']?.toString() : null;
       if (rideId != null && _pendingAccepts.containsKey(rideId)) {

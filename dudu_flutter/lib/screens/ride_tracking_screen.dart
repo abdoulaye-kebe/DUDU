@@ -203,80 +203,119 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
 
   /// Afficher le dialogue de fin de course
   void _showCompletionDialog() {
+    int selectedRating = 0;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Text('🎉', style: TextStyle(fontSize: 32)),
-            const SizedBox(width: 12),
-            Text(
-              widget.vehicleType == 'moto' 
-                ? 'Livraison terminée !' 
-                : 'Course terminée !',
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.vehicleType == 'moto'
-                  ? 'Votre colis a été livré avec succès'
-                  : 'Merci d\'avoir utilisé DUDU',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildSummaryChip(
-                  icon: Icons.route,
-                  label: '${_distance.toStringAsFixed(1)} km',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              const Text('🎉', style: TextStyle(fontSize: 32)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  widget.vehicleType == 'moto' 
+                    ? 'Livraison terminée !' 
+                    : 'Course terminée !',
+                  style: const TextStyle(fontSize: 18),
                 ),
-                _buildSummaryChip(
-                  icon: Icons.access_time,
-                  label: '$_estimatedTime min',
-                ),
-                _buildSummaryChip(
-                  icon: widget.vehicleType == 'moto'
-                      ? Icons.motorcycle
-                      : Icons.directions_car,
-                  label: widget.vehicleType == 'moto' ? 'Moto' : 'Voiture',
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Notez votre expérience',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) {
-                return IconButton(
-                  onPressed: () {
-                    // TODO: Envoyer la note
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pop(); // Retour à l'écran principal
-                  },
-                  icon: const Icon(Icons.star, color: Colors.amber, size: 32),
-                );
-              }),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
-            },
-            child: const Text('Fermer'),
+              ),
+            ],
           ),
-        ],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.vehicleType == 'moto'
+                    ? 'Votre colis a été livré avec succès'
+                    : 'Merci d\'avoir utilisé DUDU',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildSummaryChip(
+                    icon: Icons.route,
+                    label: '${_distance.toStringAsFixed(1)} km',
+                  ),
+                  _buildSummaryChip(
+                    icon: Icons.access_time,
+                    label: '$_estimatedTime min',
+                  ),
+                  _buildSummaryChip(
+                    icon: widget.vehicleType == 'moto'
+                        ? Icons.motorcycle
+                        : Icons.directions_car,
+                    label: widget.vehicleType == 'moto' ? 'Moto' : 'Voiture',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Notez votre expérience',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  final starIndex = index + 1;
+                  return IconButton(
+                    onPressed: () {
+                      setDialogState(() {
+                        selectedRating = starIndex;
+                      });
+                    },
+                    icon: Icon(
+                      starIndex <= selectedRating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 32,
+                    ),
+                  );
+                }),
+              ),
+              if (selectedRating > 0)
+                Text(
+                  selectedRating == 5 ? 'Excellent !' :
+                  selectedRating == 4 ? 'Très bien' :
+                  selectedRating == 3 ? 'Correct' :
+                  selectedRating == 2 ? 'Peut mieux faire' : 'Décevant',
+                  style: TextStyle(
+                    color: selectedRating >= 4 ? Colors.green : 
+                           selectedRating >= 3 ? Colors.orange : Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            // Bouton Accueil
+            ElevatedButton.icon(
+              onPressed: () async {
+                if (selectedRating > 0) {
+                  // Envoyer la note à l'API
+                  try {
+                    await ApiService.rateRide(widget.rideId, selectedRating);
+                  } catch (e) {
+                    print('Erreur envoi note: $e');
+                  }
+                }
+                Navigator.of(dialogContext).pop();
+                // Retourner à l'écran d'accueil
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              icon: const Icon(Icons.home),
+              label: const Text('Accueil'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00A651),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

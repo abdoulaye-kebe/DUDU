@@ -79,29 +79,6 @@ class RideTypeSelectionScreen extends StatelessWidget {
                   multiplier: 1.5,
                 ),
                 
-                _buildRideTypeCard(
-                  context,
-                  'Covoiturage',
-                  'Partage avec d\'autres passagers',
-                  Icons.people,
-                  'shared',
-                  Colors.blue,
-                  'Économisez 30% sur votre trajet',
-                  multiplier: 0.7,
-                  discount: '-30%',
-                ),
-                
-                _buildRideTypeCard(
-                  context,
-                  'Femmes uniquement',
-                  'Chauffeuse femme, passagères femmes',
-                  Icons.woman,
-                  'women_only',
-                  Colors.pink,
-                  'Sécurité et confort pour les femmes',
-                  multiplier: 1.0,
-                ),
-                
                 const Divider(height: 32, thickness: 2),
                 
                 _buildRideTypeCard(

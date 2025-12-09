@@ -309,24 +309,59 @@ class _DriverRidesScreenState extends State<DriverRidesScreen>
       SocketService().completeRide(rideId);
       
       // Aussi via API pour être sûr
-      await ApiService.completeRide(rideId);
+      final result = await ApiService.completeRide(rideId);
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Course terminée avec succès !'),
-          backgroundColor: primaryGreen,
-        ),
-      );
+      // Vérifier si la réponse indique un succès
+      final success = result['success'] == true;
       
-      // Rafraîchir la liste
+      if (success || result['data'] != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Course terminée avec succès !'),
+            backgroundColor: primaryGreen,
+          ),
+        );
+      } else {
+        // Si le message indique que la course est déjà terminée, c'est OK
+        final message = result['message'] ?? '';
+        if (message.contains('completed') || message.contains('terminée')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Course déjà terminée'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message.isNotEmpty ? message : 'Erreur lors de la finalisation'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+      
+      // Rafraîchir la liste dans tous les cas
       setState(() {});
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Ignorer les erreurs si le socket a déjà terminé la course
+      final errorMsg = e.toString();
+      if (errorMsg.contains('completed') || errorMsg.contains('terminée')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Course terminée !'),
+            backgroundColor: primaryGreen,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $errorMsg'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      setState(() {});
     }
   }
 

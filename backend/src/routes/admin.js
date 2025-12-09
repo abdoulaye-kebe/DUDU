@@ -68,13 +68,15 @@ router.get('/dashboard', async (req, res) => {
     // Top chauffeurs (par nombre de courses)
     const topDrivers = await Driver.aggregate([
       { $lookup: { from: 'rides', localField: '_id', foreignField: 'driver', as: 'rides' } },
-      { $match: { 'rides.status': 'completed' } },
+      { $addFields: { completedRides: { $filter: { input: '$rides', as: 'ride', cond: { $eq: ['$$ride.status', 'completed'] } } } } },
       { $project: { 
-        user: 1, 
+        firstName: 1,
+        lastName: 1,
         vehicle: 1, 
-        totalRides: { $size: '$rides' },
-        totalEarnings: { $sum: '$rides.pricing.totalPrice' }
+        totalRides: { $size: '$completedRides' },
+        totalEarnings: { $sum: '$completedRides.pricing.totalPrice' }
       }},
+      { $match: { totalRides: { $gt: 0 } } },
       { $sort: { totalRides: -1 } },
       { $limit: 5 }
     ]);
@@ -122,7 +124,7 @@ router.get('/dashboard', async (req, res) => {
         },
         topDrivers: topDrivers.map(driver => ({
           id: driver._id,
-          name: driver.user ? `${driver.user.firstName} ${driver.user.lastName}` : 'Inconnu',
+          name: `${driver.firstName || ''} ${driver.lastName || ''}`.trim() || 'Chauffeur',
           vehicle: driver.vehicle ? `${driver.vehicle.make} ${driver.vehicle.model}` : 'N/A',
           totalRides: driver.totalRides,
           totalEarnings: driver.totalEarnings
@@ -223,10 +225,14 @@ router.get('/users', async (req, res) => {
 });
 
 // @route   PUT /api/v1/admin/drivers/:id/verify
-// @desc    Vérifier un chauffeur
+// @desc    Vérifier et valider un chauffeur (définir niveau de service Standard/Express)
 // @access  Private (admin)
 router.put('/drivers/:id/verify', [
   body('status').isIn(['approved', 'rejected']).withMessage('Statut de vérification invalide'),
+  body('serviceLevel').optional().isIn(['standard', 'express']).withMessage('Niveau de service invalide'),
+  body('vehicleCondition').optional().isIn(['excellent', 'good', 'acceptable', 'rejected']),
+  body('vehicleInspected').optional().isBoolean(),
+  body('documentsVerified').optional().isBoolean(),
   body('notes').optional().isString()
 ], async (req, res) => {
   try {
@@ -239,7 +245,14 @@ router.put('/drivers/:id/verify', [
       });
     }
 
-    const { status, notes = '' } = req.body;
+    const { 
+      status, 
+      serviceLevel = 'standard',
+      vehicleCondition,
+      vehicleInspected = false,
+      documentsVerified = false,
+      notes = '' 
+    } = req.body;
 
     const driver = await Driver.findById(req.params.id);
     if (!driver) {
@@ -249,12 +262,35 @@ router.put('/drivers/:id/verify', [
       });
     }
 
+    // Mise à jour du statut de vérification
     driver.verificationStatus = status;
     driver.verificationNotes = notes;
     driver.isVerified = status === 'approved';
     driver.isActive = status === 'approved';
     driver.status = status === 'approved' ? 'offline' : 'pending';
     driver.isAvailable = false;
+
+    // Si approuvé, définir le niveau de service
+    if (status === 'approved') {
+      driver.serviceLevel = serviceLevel;
+      
+      // Définir les types de courses autorisés selon le niveau de service
+      driver.rideTypes = {
+        standard: true,  // Tous les chauffeurs approuvés peuvent faire du standard
+        express: serviceLevel === 'express',  // Seuls les "express" peuvent faire de l'express
+        delivery: driver.vehicle?.category === 'moto'  // Livraison pour les motos
+      };
+    }
+
+    // Informations de validation par l'admin
+    driver.adminValidation = {
+      validatedBy: req.userId,
+      validatedAt: new Date(),
+      vehicleInspected,
+      vehicleCondition,
+      documentsVerified,
+      notes
+    };
 
     await driver.save();
 
@@ -266,7 +302,10 @@ router.put('/drivers/:id/verify', [
           id: driver._id,
           verificationStatus: driver.verificationStatus,
           isVerified: driver.isVerified,
-          isActive: driver.isActive
+          isActive: driver.isActive,
+          serviceLevel: driver.serviceLevel,
+          rideTypes: driver.rideTypes,
+          adminValidation: driver.adminValidation
         }
       }
     });

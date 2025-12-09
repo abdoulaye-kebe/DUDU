@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Car, 
   FileText, 
@@ -10,12 +10,45 @@ import {
   X,
   Calendar,
   Palette,
-  Hash
+  Hash,
+  Star,
+  Zap,
+  ClipboardCheck,
+  MessageSquare
 } from 'lucide-react';
 
 function DriverApplicationCard({ driver, onApprove, onReject, delay = 0 }) {
+  const [showValidationForm, setShowValidationForm] = useState(false);
+  const [validationData, setValidationData] = useState({
+    serviceLevel: 'standard',
+    vehicleCondition: 'good',
+    vehicleInspected: false,
+    documentsVerified: false,
+    notes: ''
+  });
+
   const getInitials = (firstName, lastName) => {
     return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+  };
+
+  const handleApproveClick = () => {
+    setShowValidationForm(true);
+  };
+
+  const handleConfirmApproval = () => {
+    onApprove(driver._id, validationData);
+    setShowValidationForm(false);
+  };
+
+  const handleCancelValidation = () => {
+    setShowValidationForm(false);
+    setValidationData({
+      serviceLevel: 'standard',
+      vehicleCondition: 'good',
+      vehicleInspected: false,
+      documentsVerified: false,
+      notes: ''
+    });
   };
 
   return (
@@ -131,27 +164,223 @@ function DriverApplicationCard({ driver, onApprove, onReject, delay = 0 }) {
         </div>
       </div>
 
+      {/* Formulaire de validation */}
+      <AnimatePresence>
+        {showValidationForm && (
+          <motion.div
+            className="validation-form"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{
+              background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+              padding: '20px',
+              borderTop: '2px solid #00A651',
+              borderRadius: '0 0 12px 12px'
+            }}
+          >
+            <h4 style={{ 
+              marginBottom: '16px', 
+              color: '#00A651',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <ClipboardCheck size={20} />
+              Formulaire de validation
+            </h4>
+
+            {/* Niveau de service */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontWeight: '600',
+                color: '#333'
+              }}>
+                Niveau de service *
+              </label>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 20px',
+                  border: validationData.serviceLevel === 'standard' ? '2px solid #00A651' : '2px solid #ddd',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  background: validationData.serviceLevel === 'standard' ? '#e8f5e9' : '#fff',
+                  flex: 1
+                }}>
+                  <input
+                    type="radio"
+                    name="serviceLevel"
+                    value="standard"
+                    checked={validationData.serviceLevel === 'standard'}
+                    onChange={(e) => setValidationData({...validationData, serviceLevel: e.target.value})}
+                    style={{ display: 'none' }}
+                  />
+                  <Car size={24} color={validationData.serviceLevel === 'standard' ? '#00A651' : '#666'} />
+                  <div>
+                    <div style={{ fontWeight: '600' }}>Standard</div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>Véhicule normal</div>
+                  </div>
+                </label>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 20px',
+                  border: validationData.serviceLevel === 'express' ? '2px solid #FF9800' : '2px solid #ddd',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  background: validationData.serviceLevel === 'express' ? '#fff3e0' : '#fff',
+                  flex: 1
+                }}>
+                  <input
+                    type="radio"
+                    name="serviceLevel"
+                    value="express"
+                    checked={validationData.serviceLevel === 'express'}
+                    onChange={(e) => setValidationData({...validationData, serviceLevel: e.target.value})}
+                    style={{ display: 'none' }}
+                  />
+                  <Zap size={24} color={validationData.serviceLevel === 'express' ? '#FF9800' : '#666'} />
+                  <div>
+                    <div style={{ fontWeight: '600' }}>Express</div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>Véhicule haut de gamme</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* État du véhicule */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontWeight: '600',
+                color: '#333'
+              }}>
+                État du véhicule
+              </label>
+              <select
+                value={validationData.vehicleCondition}
+                onChange={(e) => setValidationData({...validationData, vehicleCondition: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: '2px solid #ddd',
+                  fontSize: '14px'
+                }}
+              >
+                <option value="excellent">Excellent - Comme neuf</option>
+                <option value="good">Bon - Bien entretenu</option>
+                <option value="acceptable">Acceptable - Quelques défauts</option>
+                <option value="rejected">Rejeté - Non conforme</option>
+              </select>
+            </div>
+
+            {/* Checkboxes */}
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={validationData.vehicleInspected}
+                  onChange={(e) => setValidationData({...validationData, vehicleInspected: e.target.checked})}
+                  style={{ width: '18px', height: '18px' }}
+                />
+                <span>Véhicule inspecté physiquement</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={validationData.documentsVerified}
+                  onChange={(e) => setValidationData({...validationData, documentsVerified: e.target.checked})}
+                  style={{ width: '18px', height: '18px' }}
+                />
+                <span>Documents vérifiés</span>
+              </label>
+            </div>
+
+            {/* Notes */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '8px', 
+                fontWeight: '600',
+                color: '#333'
+              }}>
+                <MessageSquare size={16} />
+                Notes (optionnel)
+              </label>
+              <textarea
+                value={validationData.notes}
+                onChange={(e) => setValidationData({...validationData, notes: e.target.value})}
+                placeholder="Remarques sur le véhicule, le chauffeur..."
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: '2px solid #ddd',
+                  fontSize: '14px',
+                  minHeight: '80px',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            {/* Boutons de confirmation */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <motion.button
+                className="btn"
+                onClick={handleCancelValidation}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                style={{ background: '#6c757d', color: '#fff' }}
+              >
+                Annuler
+              </motion.button>
+              <motion.button
+                className="btn btn-success"
+                onClick={handleConfirmApproval}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Check size={18} />
+                Confirmer la validation
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Footer */}
-      <div className="application-card-footer">
-        <motion.button 
-          className="btn btn-danger"
-          onClick={() => onReject(driver._id)}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <X size={18} />
-          Refuser
-        </motion.button>
-        <motion.button 
-          className="btn btn-success"
-          onClick={() => onApprove(driver._id)}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <Check size={18} />
-          Valider
-        </motion.button>
-      </div>
+      {!showValidationForm && (
+        <div className="application-card-footer">
+          <motion.button 
+            className="btn btn-danger"
+            onClick={() => onReject(driver._id)}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <X size={18} />
+            Refuser
+          </motion.button>
+          <motion.button 
+            className="btn btn-success"
+            onClick={handleApproveClick}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Check size={18} />
+            Valider
+          </motion.button>
+        </div>
+      )}
     </motion.div>
   );
 }

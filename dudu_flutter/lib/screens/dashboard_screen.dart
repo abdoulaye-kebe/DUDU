@@ -127,6 +127,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         return;
       }
 
+      if (!mounted) return;
+      
       setState(() {
         _currentPosition = position;
       });
@@ -140,11 +142,13 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         ),
       );
     } catch (e) {
-      _useDakarAsDefault();
+      if (mounted) _useDakarAsDefault();
     }
   }
 
   void _useDakarAsDefault() {
+    if (!mounted) return;
+    
     final dakarPosition = Position(
       latitude: 14.6928,
       longitude: -17.4467,

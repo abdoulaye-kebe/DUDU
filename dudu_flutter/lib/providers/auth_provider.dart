@@ -58,6 +58,7 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> register({
     required String firstName,
     required String lastName,
+    String? email,
     required String phone,
     required String password,
     String language = 'fr',
@@ -70,6 +71,7 @@ class AuthProvider extends ChangeNotifier {
       final response = await ApiService.register(
         firstName: firstName,
         lastName: lastName,
+        email: email,
         phone: phone,
         password: password,
         language: language,

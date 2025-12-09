@@ -141,12 +141,6 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
         case 'premium':
           multiplier = 2.0;
           break;
-        case 'shared':
-          multiplier = 0.7;
-          break;
-        case 'women_only':
-          multiplier = 1.2;
-          break;
         case 'cargo':
           multiplier = 1.8;
           break;
@@ -410,12 +404,6 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
               _buildRideTypeChip('standard', 'Standard', Icons.directions_car),
               const SizedBox(width: 8),
               _buildRideTypeChip('express', 'Express', Icons.flash_on),
-              const SizedBox(width: 8),
-              _buildRideTypeChip('premium', 'Premium', Icons.star),
-              const SizedBox(width: 8),
-              _buildRideTypeChip('shared', 'Partagé', Icons.people),
-              const SizedBox(width: 8),
-              _buildRideTypeChip('women_only', 'Femmes', Icons.female),
               const SizedBox(width: 8),
               _buildRideTypeChip('delivery', 'Livraison', Icons.motorcycle),
             ],

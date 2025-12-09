@@ -180,6 +180,7 @@ class ApiService {
               weeklyRides: 0,
               weeklyEarnings: 0.0,
               bonusEarned: 0.0,
+              acceptanceRate: 0.0,
             );
 
             return DriverProfile(
@@ -192,6 +193,7 @@ class ApiService {
               vehicle: VehicleInfo.fromJson(vehicle),
               subscription: null,
               stats: stats,
+              earnings: EarningsInfo.empty(),
               isOnline: driverJson['status'] == 'online' || driverJson['isOnline'] == true,
               isAvailable: driverJson['isAvailable'] ?? false,
               currentLocation: null,

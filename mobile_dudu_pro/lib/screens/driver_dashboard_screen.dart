@@ -76,9 +76,17 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
           weeklyRides: 20,
           weeklyEarnings: 100000,
           bonusEarned: 0,
+          acceptanceRate: 0.95,
+        ),
+        earnings: EarningsInfo(
+          today: 25000,
+          thisWeek: 100000,
+          thisMonth: 400000,
+          total: 500000,
         ),
         isOnline: false,
         isAvailable: false,
+        driverType: 'driver',
       );
       
       setState(() {

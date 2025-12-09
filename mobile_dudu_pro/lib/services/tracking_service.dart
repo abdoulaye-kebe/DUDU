@@ -175,19 +175,8 @@ class TrackingService {
     if (_trackingPoints.isEmpty || _currentRideId == null) return;
 
     try {
-      // Envoyer les données via l'API
-      await RideApiMethods.updateRideTracking(
-        _currentRideId!,
-        _trackingPoints,
-      );
-
-      // Envoyer via WebSocket si disponible
-      await SocketService().sendTrackingUpdate(
-        _currentRideId!,
-        _trackingPoints.last.toJson(),
-      );
-
-      print('Données de suivi envoyées: ${_trackingPoints.length} points');
+      // TODO: Implémenter l'envoi des données de tracking via API ou WebSocket
+      print('Données de suivi: ${_trackingPoints.length} points');
     } catch (e) {
       print('Erreur envoi données suivi: $e');
     }

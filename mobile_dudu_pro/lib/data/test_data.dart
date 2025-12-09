@@ -50,9 +50,17 @@ class TestData {
         weeklyRides: 45,
         weeklyEarnings: 180000,
         bonusEarned: 0,
+        acceptanceRate: 0.97,
+      ),
+      earnings: EarningsInfo(
+        today: 48000,
+        thisWeek: 180000,
+        thisMonth: 720000,
+        total: 1250000,
       ),
       isOnline: false,
       isAvailable: false,
+      driverType: 'driver',
     ),
     
     '221771234568': DriverProfile(
@@ -124,9 +132,17 @@ class TestData {
         weeklyRides: 35,
         weeklyEarnings: 70000,
         bonusEarned: 15000,
+        acceptanceRate: 0.97,
+      ),
+      earnings: EarningsInfo(
+        today: 16000,
+        thisWeek: 70000,
+        thisMonth: 280000,
+        total: 450000,
       ),
       isOnline: false,
       isAvailable: false,
+      driverType: 'courier',
     ),
   };
 

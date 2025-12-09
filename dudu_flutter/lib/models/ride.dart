@@ -71,7 +71,9 @@ class Ride {
       specialMode: json['specialMode'],
       driver: json['driver'] != null ? User.fromJson(json['driver']) : null,
       passenger: json['passenger'] != null ? User.fromJson(json['passenger']) : null,
-      requestedAt: DateTime.parse(json['requestedAt']),
+      requestedAt: json['requestedAt'] != null 
+          ? DateTime.parse(json['requestedAt']) 
+          : (json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now()),
       scheduledFor: json['scheduledFor'] != null ? DateTime.parse(json['scheduledFor']) : null,
       acceptedAt: json['acceptedAt'] != null ? DateTime.parse(json['acceptedAt']) : null,
       arrivedAt: json['arrivedAt'] != null ? DateTime.parse(json['arrivedAt']) : null,

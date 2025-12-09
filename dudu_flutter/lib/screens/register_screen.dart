@@ -16,6 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -56,11 +57,23 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     _animationController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
+    _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _referralCodeController.dispose();
     super.dispose();
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return null; // Email optionnel
+    }
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'Format d\'email invalide';
+    }
+    return null;
   }
 
   String? _validateName(String? value, String fieldName) {
@@ -117,6 +130,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       final success = await authProvider.register(
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
+        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
         phone: _phoneController.text,
         password: _passwordController.text,
         language: _selectedLanguage,
@@ -353,6 +367,29 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                             ),
                           ),
                         ],
+                      ),
+                      
+                      // Email (optionnel)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: InputDecoration(
+                            labelText: 'Email (optionnel)',
+                            labelStyle: TextStyle(color: AppTheme.textColor),
+                            hintText: 'exemple@email.com',
+                            prefixIcon: Icon(Icons.email_outlined, color: AppTheme.textColor),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          ),
+                          validator: _validateEmail,
+                        ),
                       ),
                       
                       // Téléphone

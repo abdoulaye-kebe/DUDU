@@ -212,7 +212,7 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
   Widget _buildStatusTimeline() {
     final statuses = [
       {'key': 'searching', 'label': 'Recherche livreur', 'icon': Icons.search},
-      {'key': 'accepted', 'label': 'Livreur trouvé', 'icon': Icons.person_check},
+      {'key': 'accepted', 'label': 'Livreur trouvé', 'icon': Icons.person_pin},
       {'key': 'picked_up', 'label': 'Colis récupéré', 'icon': Icons.inventory},
       {'key': 'in_transit', 'label': 'En cours de livraison', 'icon': Icons.two_wheeler},
       {'key': 'delivered', 'label': 'Livré', 'icon': Icons.done_all},

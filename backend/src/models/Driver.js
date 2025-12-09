@@ -134,21 +134,47 @@ const driverSchema = new mongoose.Schema({
     photos: [String] // URLs des photos du véhicule
   },
   
-  // Types de courses acceptées
+  // Niveau de service du chauffeur (défini par l'admin après vérification du véhicule)
+  serviceLevel: {
+    type: String,
+    enum: ['standard', 'express'],  // standard = véhicule normal, express = véhicule haut de gamme
+    default: 'standard'
+  },
+  
+  // Types de courses acceptées (basé sur serviceLevel)
   rideTypes: {
     standard: {
       type: Boolean,
-      default: true
+      default: true  // Tous les chauffeurs peuvent faire du standard
     },
     express: {
       type: Boolean,
-      default: false
+      default: false  // Seuls les chauffeurs "express" peuvent faire de l'express
     },
-    shared: {
+    delivery: {
+      type: Boolean,
+      default: false  // Pour les motos uniquement
+    }
+  },
+  
+  // Informations de validation par l'admin
+  adminValidation: {
+    validatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    validatedAt: Date,
+    vehicleInspected: {
       type: Boolean,
       default: false
     },
-    womenOnly: {
+    vehicleCondition: {
+      type: String,
+      enum: ['excellent', 'good', 'acceptable', 'rejected'],
+      default: null
+    },
+    notes: String,  // Notes de l'admin sur le véhicule
+    documentsVerified: {
       type: Boolean,
       default: false
     }
@@ -312,25 +338,25 @@ const driverSchema = new mongoose.Schema({
     }
   },
   
-  // Documents et vérifications
+  // Documents et vérifications (tous optionnels pour permettre création progressive)
   documents: {
     driverLicensePhoto: String,
     vehicleRegistration: String,
     insurance: {
       type: String,
-      required: [true, "L'assurance est requise"],
+      required: false,
     },
     insuranceExpiryDate: {
       type: Date,
-      required: [true, "La date de validité de l'assurance est requise"],
+      required: false,
     },
     technicalInspection: {
       type: String,
-      required: [true, 'Le contrôle technique est requis'],
+      required: false,
     },
     technicalInspectionExpiryDate: {
       type: Date,
-      required: [true, "La date d'expiration du contrôle technique est requise"],
+      required: false,
     },
     criminalRecord: String
   },

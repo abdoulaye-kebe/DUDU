@@ -73,6 +73,39 @@ class ApiService {
       );
     }
   }
+
+  /// Récupérer l'historique des courses de l'utilisateur
+  static Future<ApiResponse<Map<String, dynamic>>> getUserRides({
+    int page = 1,
+    int limit = 20,
+    String? status,
+  }) async {
+    try {
+      String url = '$baseUrl/users/rides?page=$page&limit=$limit';
+      if (status != null) {
+        url += '&status=$status';
+      }
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: await _getHeaders(),
+      ).timeout(timeout);
+
+      return _handleResponse(response, (data) {
+        final List<dynamic> ridesList = data['rides'] ?? [];
+        return {
+          'rides': ridesList.map((e) => Ride.fromJson(e)).toList(),
+          'pagination': data['pagination'] ?? {},
+        };
+      });
+    } catch (e) {
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        message: 'Erreur de récupération des courses: $e',
+        data: null,
+      );
+    }
+  }
   
   static const Duration timeout = Duration(seconds: 10);
 
@@ -148,6 +181,7 @@ class ApiService {
   static Future<ApiResponse<AuthData>> register({
     required String firstName,
     required String lastName,
+    String? email,
     required String phone,
     required String password,
     String language = 'fr',
@@ -160,7 +194,8 @@ class ApiService {
         'phone': phone,
         'password': password,
         'language': language,
-        'referralCode': referralCode,
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (referralCode != null) 'referralCode': referralCode,
       };
       
       print('🔍 Données d\'inscription envoyées: $requestData');
@@ -383,6 +418,28 @@ class ApiService {
       return ApiResponse<Ride>(
         success: false,
         message: 'Erreur d\'annulation de la course: $e',
+        data: null,
+      );
+    }
+  }
+
+  /// Noter une course terminée
+  static Future<ApiResponse<bool>> rateRide(String rideId, int rating, {String? comment}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/rides/$rideId/rate'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'rating': rating,
+          if (comment != null) 'comment': comment,
+        }),
+      ).timeout(timeout);
+
+      return _handleResponse(response, (data) => true);
+    } catch (e) {
+      return ApiResponse<bool>(
+        success: false,
+        message: 'Erreur lors de la notation: $e',
         data: null,
       );
     }

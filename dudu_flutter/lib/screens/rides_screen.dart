@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../themes/app_theme.dart';
+import '../services/api_service.dart';
+import '../models/ride.dart';
 
 class RidesScreen extends StatefulWidget {
   const RidesScreen({super.key});
@@ -11,17 +13,64 @@ class RidesScreen extends StatefulWidget {
 class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   String _selectedFilter = 'all';
+  
+  // Données réelles depuis l'API
+  List<Ride> _ongoingRides = [];
+  List<Ride> _completedRides = [];
+  List<Ride> _cancelledRides = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadRides();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRides() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Charger les courses en cours (in_progress, accepted, started)
+      final ongoingResponse = await ApiService.getUserRides(status: 'in_progress', limit: 50);
+      final acceptedResponse = await ApiService.getUserRides(status: 'accepted', limit: 50);
+      final startedResponse = await ApiService.getUserRides(status: 'started', limit: 50);
+      
+      // Charger les courses terminées
+      final completedResponse = await ApiService.getUserRides(status: 'completed', limit: 50);
+      
+      // Charger les courses annulées
+      final cancelledResponse = await ApiService.getUserRides(status: 'cancelled', limit: 50);
+
+      if (!mounted) return;
+      setState(() {
+        _ongoingRides = [
+          ...(ongoingResponse.data?['rides'] as List<Ride>? ?? []),
+          ...(acceptedResponse.data?['rides'] as List<Ride>? ?? []),
+          ...(startedResponse.data?['rides'] as List<Ride>? ?? []),
+        ];
+        _completedRides = completedResponse.data?['rides'] as List<Ride>? ?? [];
+        _cancelledRides = cancelledResponse.data?['rides'] as List<Ride>? ?? [];
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -134,7 +183,42 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
   }
 
   Widget _buildRidesList(String status) {
-    final rides = _getRidesForStatus(status);
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('Erreur: $_error'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadRides,
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    final List<Ride> rides;
+    switch (status) {
+      case 'ongoing':
+        rides = _ongoingRides;
+        break;
+      case 'completed':
+        rides = _completedRides;
+        break;
+      case 'cancelled':
+        rides = _cancelledRides;
+        break;
+      default:
+        rides = [];
+    }
     
     if (rides.isEmpty) {
       return Container(
@@ -194,7 +278,11 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildRideCard(Map<String, dynamic> ride) {
+  Widget _buildRideCard(Ride ride) {
+    final statusStr = ride.status.name;
+    final dateStr = _formatDate(ride.requestedAt);
+    final driverName = ride.driver?.firstName ?? 'Chauffeur';
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -215,7 +303,7 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _getStatusColor(ride['status']).withOpacity(0.1),
+              color: _getStatusColorFromRide(ride.status).withOpacity(0.1),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
@@ -227,11 +315,11 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: _getStatusColor(ride['status']),
+                    color: _getStatusColorFromRide(ride.status),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Icon(
-                    _getStatusIcon(ride['status']),
+                    _getStatusIconFromRide(ride.status),
                     color: Colors.white,
                     size: 20,
                   ),
@@ -242,14 +330,14 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Course #${ride['id']}',
+                        driverName,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
                       Text(
-                        ride['date'],
+                        dateStr,
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 12,
@@ -261,11 +349,11 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(ride['status']),
+                    color: _getStatusColorFromRide(ride.status),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    _getStatusText(ride['status']),
+                    _getStatusTextFromRide(ride.status),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -296,7 +384,7 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        ride['pickup'],
+                        ride.pickup.address,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -326,7 +414,7 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        ride['destination'],
+                        ride.destination.address,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -342,94 +430,32 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
                   children: [
                     _buildInfoItem(
                       'Distance',
-                      '${ride['distance']} km',
+                      '${ride.distance.toStringAsFixed(1)} km',
                       Icons.straighten,
                     ),
                     _buildInfoItem(
                       'Durée',
-                      '${ride['duration']} min',
+                      '${ride.estimatedDuration} min',
                       Icons.access_time,
                     ),
                     _buildInfoItem(
                       'Prix',
-                      '${ride['price']} FCFA',
+                      '${ride.pricing.totalPrice.toStringAsFixed(0)} FCFA',
                       Icons.monetization_on,
                     ),
                   ],
                 ),
-                if (ride['driver'] != null) ...[
-                  const SizedBox(height: 16),
-                  // Informations du chauffeur
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: AppTheme.primaryColor,
-                          child: Text(
-                            ride['driver']['name'][0].toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                ride['driver']['name'],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              Text(
-                                ride['driver']['car'],
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${ride['driver']['rating']} ⭐',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                // Actions
-                if (ride['status'] == 'ongoing') ...[
+                // Actions pour courses en cours
+                if (ride.status == RideStatus.started || 
+                    ride.status == RideStatus.accepted ||
+                    ride.status == RideStatus.started) ...[
                   const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {
-                            // Action pour suivre la course
-                            _showTrackRideDialog(ride);
+                            _showTrackRideDialogNew(ride);
                           },
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.primaryColor,
@@ -443,7 +469,7 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
                         child: ElevatedButton(
                           onPressed: () {
                             // Action pour annuler la course
-                            _showCancelRideDialog(ride);
+                            _showCancelRideDialogNew(ride);
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
@@ -486,96 +512,61 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
     );
   }
 
-  Color _getStatusColor(String status) {
+  String _formatDate(DateTime date) {
+    final months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+    return '${date.day} ${months[date.month - 1]} ${date.year}, ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Color _getStatusColorFromRide(RideStatus status) {
     switch (status) {
-      case 'ongoing':
+      case RideStatus.accepted:
+      case RideStatus.started:
+      case RideStatus.arriving:
+      case RideStatus.arrived:
         return Colors.blue;
-      case 'completed':
+      case RideStatus.completed:
         return Colors.green;
-      case 'cancelled':
+      case RideStatus.cancelled:
         return Colors.red;
       default:
-        return Colors.grey;
+        return Colors.orange;
     }
   }
 
-  IconData _getStatusIcon(String status) {
+  IconData _getStatusIconFromRide(RideStatus status) {
     switch (status) {
-      case 'ongoing':
+      case RideStatus.accepted:
+      case RideStatus.started:
+      case RideStatus.arriving:
+      case RideStatus.arrived:
         return Icons.directions_car;
-      case 'completed':
+      case RideStatus.completed:
         return Icons.check_circle;
-      case 'cancelled':
+      case RideStatus.cancelled:
         return Icons.cancel;
       default:
-        return Icons.help;
+        return Icons.schedule;
     }
   }
 
-  String _getStatusText(String status) {
+  String _getStatusTextFromRide(RideStatus status) {
     switch (status) {
-      case 'ongoing':
+      case RideStatus.requested:
+        return 'Demandée';
+      case RideStatus.accepted:
+        return 'Acceptée';
+      case RideStatus.started:
         return 'En cours';
-      case 'completed':
+      case RideStatus.completed:
         return 'Terminée';
-      case 'cancelled':
+      case RideStatus.cancelled:
         return 'Annulée';
       default:
         return 'Inconnue';
     }
   }
 
-  List<Map<String, dynamic>> _getRidesForStatus(String status) {
-    // Données simulées
-    final allRides = [
-      {
-        'id': '001',
-        'status': 'ongoing',
-        'date': '21 Sept 2024, 21:45',
-        'pickup': 'Centre de Dakar',
-        'destination': 'Aéroport Léopold Sédar Senghor',
-        'distance': 12.5,
-        'duration': 25,
-        'price': 3500,
-        'driver': {
-          'name': 'Moussa Diallo',
-          'car': 'Toyota Corolla - DK 1234 AB',
-          'rating': 4.8,
-        },
-      },
-      {
-        'id': '002',
-        'status': 'completed',
-        'date': '20 Sept 2024, 14:30',
-        'pickup': 'SICAP',
-        'destination': 'Plage de Yoff',
-        'distance': 8.2,
-        'duration': 18,
-        'price': 2800,
-        'driver': {
-          'name': 'Fatou Sarr',
-          'car': 'Hyundai Accent - DK 5678 CD',
-          'rating': 4.9,
-        },
-      },
-      {
-        'id': '003',
-        'status': 'cancelled',
-        'date': '19 Sept 2024, 09:15',
-        'pickup': 'Université Cheikh Anta Diop',
-        'destination': 'Centre de Dakar',
-        'distance': 6.8,
-        'duration': 15,
-        'price': 2200,
-        'driver': null,
-      },
-    ];
-
-    if (status == 'all') return allRides;
-    return allRides.where((ride) => ride['status'] == status).toList();
-  }
-
-  void _showTrackRideDialog(Map<String, dynamic> ride) {
+  void _showTrackRideDialogNew(Ride ride) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -583,7 +574,7 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Course #${ride['id']}'),
+            Text('Course ${ride.rideId}'),
             const SizedBox(height: 16),
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
@@ -600,7 +591,7 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
     );
   }
 
-  void _showCancelRideDialog(Map<String, dynamic> ride) {
+  void _showCancelRideDialogNew(Ride ride) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -612,14 +603,34 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
             child: const Text('Non'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Course annulée avec succès'),
-                  backgroundColor: Colors.red,
-                ),
-              );
+              try {
+                final result = await ApiService.cancelRide(ride.id, 'Annulé par le client');
+                if (result.success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Course annulée avec succès'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  _loadRides(); // Recharger les courses
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(result.message),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Erreur: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Oui, annuler'),

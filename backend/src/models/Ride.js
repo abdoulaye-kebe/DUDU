@@ -145,10 +145,8 @@ const rideSchema = new mongoose.Schema({
   rideType: {
     type: String,
     enum: [
-      'standard',        // Course standard - Tarif normal
-      'express',         // Course express - Prise en charge immédiate (+30%)
-      'shared',          // Covoiturage - Partagé avec d'autres (-40%)
-      'women_only',      // Femmes uniquement - Chauffeur et passagers femmes
+      'standard',        // Course standard - Véhicule normal, tarif de base
+      'express',         // Course express - Véhicule haut de gamme, confort premium (+50%)
       'delivery'         // Livraison - Moto uniquement
     ],
     default: 'standard'

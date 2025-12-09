@@ -31,7 +31,7 @@ router.post('/request', [
   body('destination.coordinates.latitude').isFloat().withMessage('Latitude invalide'),
   body('destination.coordinates.longitude').isFloat().withMessage('Longitude invalide'),
   body('pricing.totalPrice').isFloat({ min: 0 }).withMessage('Le prix doit être positif'),
-  body('rideType').optional().isIn(['standard', 'express', 'shared', 'premium', 'women_only'])
+  body('rideType').optional().isIn(['standard', 'express', 'delivery'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -231,7 +231,33 @@ router.post('/:id/accept', [
     driver.isAvailable = false;
     await driver.save();
 
-    // TODO: Notifier le passager via Socket.io
+    // ============================================================
+    // NOTIFIER TOUS LES AUTRES CHAUFFEURS QUE LA COURSE EST PRISE
+    // ============================================================
+    const io = req.app.get('io');
+    if (io) {
+      // Notifier le passager que sa course a été acceptée
+      io.to(`user_${ride.passenger}`).emit('ride-accepted', {
+        rideId: ride._id,
+        driver: {
+          id: driver._id,
+          firstName: driver.firstName,
+          lastName: driver.lastName,
+          phone: driver.phone,
+          vehicle: driver.vehicle,
+          rating: driver.rating
+        }
+      });
+
+      // Notifier TOUS les chauffeurs que cette course n'est plus disponible
+      // Cela permet de retirer la course de leur liste
+      io.emit('ride-taken', {
+        rideId: ride._id,
+        message: 'Cette course a été acceptée par un autre chauffeur'
+      });
+
+      console.log(`📢 Course ${ride._id} acceptée par ${driver.phone} - Notification envoyée à tous`);
+    }
 
     res.json({
       success: true,
@@ -410,10 +436,12 @@ router.post('/:id/complete', [
       });
     }
 
-    if (ride.status !== 'started') {
+    // Permettre de terminer une course qui est en cours (started, in_progress, accepted, arriving, arrived)
+    const validStatuses = ['started', 'in_progress', 'accepted', 'arriving', 'arrived'];
+    if (!validStatuses.includes(ride.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Statut de course invalide'
+        message: `Statut de course invalide: ${ride.status}. La course doit être en cours pour être terminée.`
       });
     }
 
@@ -561,6 +589,101 @@ router.post('/:id/cancel', [
   }
 });
 
+// @route   POST /api/v1/rides/:id/rate
+// @desc    Noter une course terminée
+// @access  Private (passager uniquement)
+router.post('/:id/rate', [
+  auth,
+  body('rating').isInt({ min: 1, max: 5 }).withMessage('La note doit être entre 1 et 5')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const ride = await Ride.findById(req.params.id);
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course non trouvée'
+      });
+    }
+
+    // Vérifier que c'est le passager qui note
+    if (ride.passenger.toString() !== req.userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Seul le passager peut noter cette course'
+      });
+    }
+
+    // Vérifier que la course est terminée
+    if (ride.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Seules les courses terminées peuvent être notées'
+      });
+    }
+
+    // Vérifier que la course n'a pas déjà été notée
+    if (ride.rating && ride.rating.score) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cette course a déjà été notée'
+      });
+    }
+
+    const { rating, comment } = req.body;
+
+    // Enregistrer la note
+    ride.rating = {
+      score: rating,
+      comment: comment || '',
+      ratedAt: new Date()
+    };
+    await ride.save();
+
+    // Mettre à jour la note moyenne du chauffeur
+    if (ride.driver) {
+      const driver = await Driver.findById(ride.driver);
+      if (driver) {
+        const completedRides = await Ride.find({
+          driver: driver._id,
+          status: 'completed',
+          'rating.score': { $exists: true }
+        });
+
+        const totalRatings = completedRides.length;
+        const sumRatings = completedRides.reduce((sum, r) => sum + (r.rating?.score || 0), 0);
+        driver.rating = totalRatings > 0 ? sumRatings / totalRatings : 0;
+        driver.totalRides = await Ride.countDocuments({ driver: driver._id, status: 'completed' });
+        await driver.save();
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Merci pour votre note !',
+      data: {
+        rating: ride.rating
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la notation de la course:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
 // @route   GET /api/v1/rides/:id
 // @desc    Obtenir les détails d'une course
 // @access  Private (passager ou chauffeur assigné)
@@ -657,7 +780,7 @@ router.post('/create', [
   body('destination.latitude').isFloat().withMessage('Latitude de destination invalide'),
   body('destination.longitude').isFloat().withMessage('Longitude de destination invalide'),
   body('destination.address').notEmpty().withMessage('Adresse de destination requise'),
-  body('rideType').isIn(['standard', 'express', 'shared', 'women_only']).withMessage('Type de course invalide'),
+  body('rideType').isIn(['standard', 'express', 'delivery']).withMessage('Type de course invalide'),
   body('customPrice').isInt({ min: 500 }).withMessage('Le prix minimum est 500 FCFA'),
   body('estimatedDistance').isFloat({ min: 0 }).withMessage('Distance invalide')
 ], async (req, res) => {
@@ -734,31 +857,27 @@ router.post('/create', [
     // Définir le rayon de recherche selon le type de course
     const SEARCH_RADIUS = {
       standard: 5000,    // 5 km
-      express: 7000,     // 7 km
-      shared: 5000,      // 5 km
-      women_only: 5000   // 5 km
+      express: 7000,     // 7 km - Plus grand rayon pour trouver des véhicules premium
+      delivery: 3000     // 3 km - Motos plus proches
     };
     
-    const searchRadius = SEARCH_RADIUS[rideType] || 3000;
+    const searchRadius = SEARCH_RADIUS[rideType] || 5000;
     
-    // Critères de base
-    const driverQuery = {
+    // Critères de base pour tous les chauffeurs
+    const baseDriverQuery = {
       status: 'online',
       isAvailable: true,
       'subscription.isActive': true,
       'subscription.endDate': { $gt: new Date() },
-      [`rideTypes.${rideType}`]: true, // Le chauffeur doit accepter ce type
       'preferences.minPrice': { $lte: customPrice }, // Prix proposé >= prix min du chauffeur
       'location.latitude': { $exists: true, $ne: null },
       'location.longitude': { $exists: true, $ne: null }
     };
     
-    // Filtre spécial pour "Femmes uniquement"
-    if (rideType === 'women_only') {
-      // Récupérer les IDs des chauffeurs femmes
-      const femaleUsers = await User.find({ gender: 'female' }).select('_id');
-      const femaleUserIds = femaleUsers.map(u => u._id);
-      driverQuery.user = { $in: femaleUserIds };
+    // Pour les livraisons, ne chercher que les motos
+    if (rideType === 'delivery') {
+      baseDriverQuery['vehicle.category'] = 'moto';
+      baseDriverQuery['rideTypes.delivery'] = true;
     }
     
     // Rechercher des chauffeurs disponibles
@@ -769,7 +888,7 @@ router.post('/create', [
       pickup,
     });
 
-    const allDrivers = await Driver.find(driverQuery)
+    const allDrivers = await Driver.find(baseDriverQuery)
       .populate('user', 'firstName lastName gender')
       .limit(50);
 
@@ -829,8 +948,23 @@ router.post('/create', [
       });
     }
 
+    // ============================================================
+    // LOGIQUE DE NOTIFICATION DES CHAUFFEURS
+    // ============================================================
+    // - Course STANDARD → Notifier TOUS les chauffeurs (Standard + Express) en même temps
+    // - Course EXPRESS → Notifier UNIQUEMENT les chauffeurs Express
+    // - Un chauffeur EXPRESS peut prendre des courses standard ET express
+    // - Un chauffeur STANDARD ne peut prendre que des courses standard
+    // - Quand une course est acceptée, elle disparaît pour tous les autres
+    // ============================================================
+    
+    // Séparer les chauffeurs par niveau de service
+    const expressDrivers = availableDrivers.filter(d => d.serviceLevel === 'express');
+    const standardDrivers = availableDrivers.filter(d => d.serviceLevel !== 'express');
+    
+    console.log(`📊 Répartition: ${expressDrivers.length} Express, ${standardDrivers.length} Standard`);
+
     // Notifier les chauffeurs via Socket.IO
-    // Le chauffeur peut ACCEPTER ou REFUSER selon le prix proposé
     const io = req.app.get('io');
     if (io) {
       const firstName = req.user && req.user.firstName ? req.user.firstName : 'Client';
@@ -838,25 +972,33 @@ router.post('/create', [
       const passengerName = `${firstName} ${lastName}`;
       const passengerPhone = req.user && req.user.phone ? req.user.phone : null;
 
-      console.log('📣 Notification envoyée aux chauffeurs:', availableDrivers.map(d => ({
-        id: d._id.toString(),
-        phone: d.phone,
-      })));
+      const rideNotification = {
+        rideId: ride._id,
+        pickup: pickup.address,
+        destination: destination.address,
+        distance: estimatedDistance,
+        rideType,
+        customPrice,
+        estimatedDuration: ride.estimatedDuration,
+        passengerName,
+        passengerPhone,
+      };
 
-      availableDrivers.forEach(driver => {
-        // IMPORTANT: utiliser le même nom d’événement que le client chauffeur: 'new-ride-request'
-        io.to(`driver_${driver._id}`).emit('new-ride-request', {
-          rideId: ride._id,
-          pickup: pickup.address,
-          destination: destination.address,
-          distance: estimatedDistance,
-          rideType,
-          customPrice, // Le chauffeur voit le prix proposé
-          estimatedDuration: ride.estimatedDuration,
-          passengerName,
-          passengerPhone,
+      if (rideType === 'express') {
+        // Course EXPRESS: notifier UNIQUEMENT les chauffeurs Express
+        console.log('🎯 Course EXPRESS: notification aux chauffeurs Express uniquement');
+        expressDrivers.forEach(driver => {
+          io.to(`driver_${driver._id}`).emit('new-ride-request', rideNotification);
         });
-      });
+        console.log(`📣 ${expressDrivers.length} chauffeur(s) Express notifié(s)`);
+      } else {
+        // Course STANDARD: notifier TOUS les chauffeurs (Standard + Express) en même temps
+        console.log('📢 Course STANDARD: notification à TOUS les chauffeurs disponibles');
+        availableDrivers.forEach(driver => {
+          io.to(`driver_${driver._id}`).emit('new-ride-request', rideNotification);
+        });
+        console.log(`📣 ${availableDrivers.length} chauffeur(s) notifié(s) (${expressDrivers.length} Express + ${standardDrivers.length} Standard)`);
+      }
     }
 
     res.status(201).json({
@@ -894,7 +1036,7 @@ router.post('/schedule', [
   body('destination.address').notEmpty().withMessage('Adresse de destination requise'),
   body('destination.latitude').isFloat().withMessage('Latitude de destination invalide'),
   body('destination.longitude').isFloat().withMessage('Longitude de destination invalide'),
-  body('rideType').isIn(['standard', 'express', 'shared', 'women_only', 'delivery']).withMessage('Type de course invalide'),
+  body('rideType').isIn(['standard', 'express', 'delivery']).withMessage('Type de course invalide'),
   body('customPrice').isInt({ min: 500 }).withMessage('Le prix minimum est 500 FCFA'),
   body('scheduledFor').notEmpty().withMessage('Date de programmation requise')
 ], async (req, res) => {
