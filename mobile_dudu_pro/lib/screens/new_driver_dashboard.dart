@@ -56,8 +56,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
-    _loadTodayStats();
+    _loadDriverData();
     _subscribeToRideRequests();
   }
 
@@ -662,6 +661,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
 
                   // Après retour, recharger les infos d'abonnement réelles (ignore les erreurs)
                   _loadTodayStats();
+                  _loadCurrentSubscription();
                 } catch (e) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
