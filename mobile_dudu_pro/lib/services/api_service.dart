@@ -301,8 +301,14 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body);
       } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Erreur d\'achat d\'abonnement');
+        Map<String, dynamic>? error;
+        try {
+          error = jsonDecode(response.body);
+        } catch (_) {}
+        final message = error != null && error['message'] != null
+            ? error['message'].toString()
+            : 'Erreur d\'achat d\'abonnement (code ${response.statusCode})';
+        throw Exception(message);
       }
     } catch (e) {
       throw Exception('Erreur achat abonnement: $e');
@@ -539,15 +545,42 @@ class SubscriptionPlan {
   });
 
   factory SubscriptionPlan.fromJson(Map<String, dynamic> json) {
+    final String rawType = json['type'] ?? 'daily';
+
+    // Prix renvoyé par le backend (fallback)
+    double backendPrice = 0;
+    try {
+      backendPrice = (json['price'] ?? 0).toDouble();
+    } catch (_) {}
+
+    // Forcer les prix officiels pour les chauffeurs
+    double forcedPrice;
+    switch (rawType) {
+      case 'daily':
+        forcedPrice = AppConfig.dailySubscriptionPrice.toDouble();
+        break;
+      case 'weekly':
+        forcedPrice = AppConfig.weeklySubscriptionPrice.toDouble();
+        break;
+      case 'monthly':
+        forcedPrice = AppConfig.monthlySubscriptionPrice.toDouble();
+        break;
+      default:
+        forcedPrice = backendPrice;
+        break;
+    }
+
     return SubscriptionPlan(
-      type: json['type'],
-      name: json['name'],
-      price: json['price'].toDouble(),
-      currency: json['currency'],
-      duration: json['duration'],
-      features: List<String>.from(json['features']),
+      type: rawType,
+      name: json['name'] ?? 'Forfait',
+      price: forcedPrice,
+      currency: json['currency'] ?? 'XOF',
+      duration: json['duration'] ?? 1,
+      features: json['features'] is List
+          ? List<String>.from(json['features'])
+          : <String>[],
       savings: json['savings'],
-      isAvailable: json['isAvailable'],
+      isAvailable: json['isAvailable'] ?? true,
     );
   }
 

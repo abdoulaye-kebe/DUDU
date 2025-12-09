@@ -241,7 +241,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             _buildRestrictionItem(
               '🏍️',
               'Forfait journalier uniquement',
-              '500 FCFA/jour',
+              '1000 FCFA/jour',
             ),
             _buildRestrictionItem(
               '📦',
@@ -308,7 +308,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             style: TextStyle(color: Colors.grey[600]),
           )
         else
-          ..._availablePlans.map((plan) => _buildPlanCard(plan)),
+          ..._availablePlans
+              .where((plan) => plan.type != 'yearly')
+              .map((plan) => _buildPlanCard(plan)),
       ],
     );
   }

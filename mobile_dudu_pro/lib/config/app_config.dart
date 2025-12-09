@@ -29,39 +29,14 @@ class AppConfig {
 
   /// Obtenir l'URL de base selon la plateforme et le mode
   static String get baseUrl {
-    if (kIsWeb) {
-      // Web: toujours localhost en dev
-      return '$localServerUrl/api/$apiVersion';
-    }
-    
-    if (kDebugMode) {
-      // Mode debug sur mobile
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        // Android Emulator: utiliser 10.0.2.2
-        return '$androidEmulatorUrl/api/$apiVersion';
-      }
-      // iOS Simulator ou macOS: localhost fonctionne
-      return '$localServerUrl/api/$apiVersion';
-    }
-    
-    // Mode release: serveur de production
+    // Toujours utiliser le serveur de production, même en debug et sur simulateur
     return '$productionServerUrl/api/$apiVersion';
   }
 
   /// Obtenir l'URL du serveur Socket.io
   static String get socketUrl {
-    if (kIsWeb) {
-      return localServerUrl;
-    }
-    
-    if (kDebugMode) {
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        return androidEmulatorUrl;
-      }
-      return localServerUrl;
-    }
-    
-    return productionServerUrl;
+    // Toujours utiliser le serveur de production, même en debug et sur simulateur, avec le port configuré
+    return '$productionServerUrl:$serverPort';
   }
 
   /// URL de l'API pour les appels HTTP
@@ -115,7 +90,7 @@ class AppConfig {
   static const int weeklySubscriptionPrice = 5000;
   
   /// Prix abonnement mensuel (FCFA)
-  static const int monthlySubscriptionPrice = 15000;
+  static const int monthlySubscriptionPrice = 21000;
 
   // ============================================
   // DEBUG
