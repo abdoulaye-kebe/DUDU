@@ -107,7 +107,7 @@ class ApiService {
     }
   }
   
-  static const Duration timeout = Duration(seconds: 10);
+  static const Duration timeout = Duration(seconds: 30);
 
   // Headers par défaut
   static Future<Map<String, String>> _getHeaders() async {

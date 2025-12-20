@@ -235,6 +235,7 @@ class ApiService {
   }
 
   // Mise à jour localisation
+  static const Duration timeout = Duration(seconds: 30);
   static Future<void> updateLocation(double latitude, double longitude, {String? address}) async {
     try {
       final response = await http.put(

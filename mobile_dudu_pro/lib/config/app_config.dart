@@ -29,14 +29,42 @@ class AppConfig {
 
   /// Obtenir l'URL de base selon la plateforme et le mode
   static String get baseUrl {
-    // Toujours utiliser le serveur de production, même en debug et sur simulateur
-    return '$productionServerUrl/api/$apiVersion';
+    if (kDebugMode) {
+      // En mode DEBUG, utiliser le serveur local
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        // Émulateur Android: 10.0.2.2 = localhost de la machine hôte
+        return '$androidEmulatorUrl/api/$apiVersion';
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        // Simulateur iOS: localhost fonctionne
+        return '$localServerUrl/api/$apiVersion';
+      } else {
+        // Web ou autre: localhost
+        return '$localServerUrl/api/$apiVersion';
+      }
+    } else {
+      // En mode RELEASE, toujours utiliser la production
+      return '$productionServerUrl/api/$apiVersion';
+    }
   }
 
   /// Obtenir l'URL du serveur Socket.io
   static String get socketUrl {
-    // Toujours utiliser le serveur de production, même en debug et sur simulateur, avec le port configuré
-    return '$productionServerUrl:$serverPort';
+    if (kDebugMode) {
+      // En mode DEBUG, utiliser le serveur local
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        // Émulateur Android: 10.0.2.2 = localhost de la machine hôte
+        return androidEmulatorUrl;
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        // Simulateur iOS: localhost fonctionne
+        return localServerUrl;
+      } else {
+        // Web ou autre: localhost
+        return localServerUrl;
+      }
+    } else {
+      // En mode RELEASE, toujours utiliser la production avec le port
+      return '$productionServerUrl:$serverPort';
+    }
   }
 
   /// URL de l'API pour les appels HTTP
