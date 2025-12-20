@@ -131,7 +131,24 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
         await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Demande envoyée'),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0d5d36).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: Color(0xFF0d5d36),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text('Demande envoyée'),
+              ],
+            ),
             content: const Text(
               'Votre candidature a été envoyée.\n'
               'Notre équipe l\'examinera prochainement et vous serez notifié(e) par SMS ou email.',
@@ -139,7 +156,10 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF0d5d36),
+                ),
+                child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -164,85 +184,132 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Inscription chauffeur / livreur'),
+        title: const Text('Inscription Chauffeur'),
         backgroundColor: const Color(0xFF0d5d36),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 8),
-              const Text(
-                'Complétez les informations ci-dessous.\nNous validerons votre profil sous 24h.',
-                style: TextStyle(fontSize: 14, color: Colors.black54),
-              ),
-              const SizedBox(height: 12),
-              // Sélection du type de profil
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
-                  borderRadius: BorderRadius.circular(12),
+        child: Column(
+          children: [
+            // En-tête avec icône
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0d5d36),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
                 ),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.person_add,
+                      size: 48,
+                      color: Color(0xFF0d5d36),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Rejoignez DUDU PRO',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Complétez votre profil\nValidation sous 24h',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Formulaire
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'Type de profil',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0d5d36),
+                    const SizedBox(height: 8),
+                    // Sélection du type de profil
+                    _buildCard(
+                      icon: Icons.badge,
+                      title: 'Type de profil',
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildProfileTypeCard(
+                                  icon: Icons.directions_car,
+                                  label: 'Chauffeur\nVoiture',
+                                  isSelected: !_isMotoCourier,
+                                  onTap: () => setState(() => _isMotoCourier = false),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildProfileTypeCard(
+                                  icon: Icons.motorcycle,
+                                  label: 'Livreur\nMoto',
+                                  isSelected: _isMotoCourier,
+                                  onTap: () => setState(() => _isMotoCourier = true),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F8F4),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 20,
+                                  color: const Color(0xFF0d5d36),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _isMotoCourier
+                                        ? 'Livraisons rapides et forfait journalier 500 FCFA'
+                                        : 'Tous types de courses et forfaits disponibles',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF0d5d36),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ChoiceChip(
-                            label: const Text('Chauffeur voiture'),
-                            selected: !_isMotoCourier,
-                            onSelected: (selected) {
-                              if (selected) {
-                                setState(() {
-                                  _isMotoCourier = false;
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ChoiceChip(
-                            label: const Text('Livreur moto'),
-                            selected: _isMotoCourier,
-                            onSelected: (selected) {
-                              if (selected) {
-                                setState(() {
-                                  _isMotoCourier = true;
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _isMotoCourier
-                          ? 'Profil livreur moto : accès au forfait journalier 500 FCFA et livraisons.'
-                          : 'Profil chauffeur voiture : accès à tous les forfaits et types de courses.',
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildSectionTitle('Informations personnelles'),
+                    const SizedBox(height: 20),
+                    _buildSectionHeader('Informations personnelles', Icons.person),
               _buildTextField(_firstNameController, label: 'Prénom', icon: Icons.person_outline),
               _buildTextField(_lastNameController, label: 'Nom', icon: Icons.person),
               _buildTextField(
@@ -255,7 +322,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                 _emailController,
                 label: 'Email (optionnel)',
                 icon: Icons.email_outlined,
-                keyboardType: TextInputType.text,
+                keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value == null || value.isEmpty) return null;
                   if (!value.contains('@') || !value.contains('.')) {
@@ -293,8 +360,8 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                 label: 'CNI',
                 icon: Icons.badge_outlined,
               ),
-              const SizedBox(height: 16),
-              _buildSectionTitle('Sécurité du compte'),
+                    const SizedBox(height: 20),
+                    _buildSectionHeader('Sécurité du compte', Icons.security),
               _buildTextField(
                 _passwordController,
                 label: 'Mot de passe',
@@ -316,8 +383,8 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
-              _buildSectionTitle('Permis de conduire'),
+                    const SizedBox(height: 20),
+                    _buildSectionHeader('Permis de conduire', Icons.credit_card),
               _buildTextField(_licenseNumberController, label: 'Numéro de permis', icon: Icons.credit_card),
               _buildTextField(
                 _licenseExpiryController,
@@ -330,8 +397,11 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
-              _buildSectionTitle(_isMotoCourier ? 'Moto de livraison' : 'Véhicule'),
+                    const SizedBox(height: 20),
+                    _buildSectionHeader(
+                      _isMotoCourier ? 'Moto de livraison' : 'Véhicule',
+                      _isMotoCourier ? Icons.motorcycle : Icons.directions_car,
+                    ),
               _buildTextField(
                 _vehicleMakeController,
                 label: _isMotoCourier ? 'Marque de la moto' : 'Marque',
@@ -358,8 +428,8 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
               ),
               _buildTextField(_vehicleColorController, label: 'Couleur', icon: Icons.brush_outlined),
               _buildTextField(_vehiclePlateController, label: 'Immatriculation', icon: Icons.confirmation_number),
-              const SizedBox(height: 16),
-              _buildSectionTitle('Assurance et contrôle technique'),
+                    const SizedBox(height: 20),
+                    _buildSectionHeader('Documents', Icons.description),
               _buildTextField(
                 _insuranceController,
                 label: 'Assurance (compagnie / numéro de police)',
@@ -396,58 +466,232 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                   return null;
                 },
               ),
-              SwitchListTile(
-                title: const Text('Accepter les trajets partagés'),
-                value: _acceptSharedRides,
-                onChanged: (value) => setState(() => _acceptSharedRides = value),
-              ),
-              CheckboxListTile(
-                value: _acceptTerms,
-                onChanged: (value) => setState(() => _acceptTerms = value ?? false),
-                title: const Text('J\'accepte les conditions d\'utilisation DUDU Chauffeur'),
-              ),
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
-                ),
-              ],
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0d5d36),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text(
-                        'Envoyer ma candidature',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    const SizedBox(height: 20),
+                    if (!_isMotoCourier)
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFF0d5d36).withOpacity(0.3)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: SwitchListTile(
+                          title: const Text('Accepter les trajets partagés'),
+                          subtitle: const Text('Augmentez vos revenus', style: TextStyle(fontSize: 12)),
+                          value: _acceptSharedRides,
+                          activeColor: const Color(0xFF0d5d36),
+                          onChanged: (value) => setState(() => _acceptSharedRides = value),
+                        ),
                       ),
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F8F4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _acceptTerms ? const Color(0xFF0d5d36) : Colors.grey.shade300,
+                          width: 2,
+                        ),
+                      ),
+                      child: CheckboxListTile(
+                        value: _acceptTerms,
+                        activeColor: const Color(0xFF0d5d36),
+                        onChanged: (value) => setState(() => _acceptTerms = value ?? false),
+                        title: const Text(
+                          'J\'accepte les conditions d\'utilisation',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: const Text(
+                          'Conditions DUDU Chauffeur',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                    if (_errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red.shade700),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: TextStyle(
+                                  color: Colors.red.shade700,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0d5d36),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 4,
+                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(Icons.send, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Envoyer ma candidature',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0d5d36)),
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F8F4),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0d5d36),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0d5d36),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCard({required IconData icon, required String title, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF0d5d36).withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0d5d36).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: const Color(0xFF0d5d36), size: 24),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0d5d36),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileTypeCard({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF0d5d36) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF0d5d36) : Colors.grey.shade300,
+            width: 2,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 40,
+              color: isSelected ? Colors.white : const Color(0xFF0d5d36),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? Colors.white : const Color(0xFF0d5d36),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -468,10 +712,27 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
         obscureText: obscureText,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: icon != null ? Icon(icon) : null,
+          prefixIcon: icon != null
+              ? Icon(icon, color: const Color(0xFF0d5d36))
+              : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
           ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF0d5d36), width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.red.shade300),
+          ),
+          filled: true,
+          fillColor: Colors.grey.shade50,
         ),
         validator: validator ??
             (value) {

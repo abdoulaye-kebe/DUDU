@@ -101,9 +101,9 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
 
   void _onTextChanged() {
     final query = _controller.text.trim();
-    if (query.length >= 1) {
-      // Rechercher dès la première lettre tapée avec un délai très court
-      Future.delayed(const Duration(milliseconds: 150), () {
+    if (query.length >= 3) {
+      // Rechercher à partir de 3 caractères pour de meilleurs résultats
+      Future.delayed(const Duration(milliseconds: 200), () {
         if (_controller.text.trim() == query && mounted) {
           _searchPlaces(query);
         }
@@ -123,7 +123,7 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
       _showOverlay();
     }
     // Si on prend le focus et qu'on a déjà du texte, rechercher
-    if (_focusNode.hasFocus && _controller.text.trim().length >= 1) {
+    if (_focusNode.hasFocus && _controller.text.trim().length >= 3) {
       _searchPlaces(_controller.text.trim());
     }
   }

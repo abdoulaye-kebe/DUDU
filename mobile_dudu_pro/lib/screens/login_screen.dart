@@ -217,19 +217,19 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         const Text(
           'DUDU PRO',
           style: TextStyle(
-            fontSize: 32,
+            fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
-            letterSpacing: 4,
+            color: primaryGreen,
+            letterSpacing: 2,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           'Espace Chauffeur',
           style: TextStyle(
-            fontSize: 16,
-            color: Colors.white.withOpacity(0.9),
-            fontWeight: FontWeight.w500,
+            fontSize: 15,
+            color: Colors.grey[700],
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],
@@ -455,20 +455,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               _buildLogo(),
-                              const SizedBox(height: 30),
-                              Container(
-                                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 30),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [primaryGreen, darkGreen],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                child: _buildTitle(),
-                              ),
-                              const SizedBox(height: 40),
+                              const SizedBox(height: 24),
+                              _buildTitle(),
+                              const SizedBox(height: 32),
                               _buildErrorMessage(),
                               _buildPhoneField(),
                               const SizedBox(height: 20),

@@ -73,40 +73,99 @@ class PlacesService {
   static List<PlaceSuggestion> _getLocalSuggestions(String input) {
     final query = input.toLowerCase();
     final localPlaces = [
-      {'name': 'Médina', 'address': 'Médina, Dakar, Sénégal', 'lat': 14.6833, 'lng': -17.4500},
-      {'name': 'Plateau', 'address': 'Plateau, Dakar, Sénégal', 'lat': 14.6697, 'lng': -17.4389},
-      {'name': 'Almadies', 'address': 'Almadies, Dakar, Sénégal', 'lat': 14.7467, 'lng': -17.5167},
-      {'name': 'Mamelles', 'address': 'Mamelles, Dakar, Sénégal', 'lat': 14.7333, 'lng': -17.5000},
-      {'name': 'Ouakam', 'address': 'Ouakam, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.4833},
-      {'name': 'Yoff', 'address': 'Yoff, Dakar, Sénégal', 'lat': 14.7667, 'lng': -17.4667},
-      {'name': 'Ngor', 'address': 'Ngor, Dakar, Sénégal', 'lat': 14.7500, 'lng': -17.5167},
-      {'name': 'Mermoz', 'address': 'Mermoz, Dakar, Sénégal', 'lat': 14.7083, 'lng': -17.4667},
-      {'name': 'Sacré-Cœur', 'address': 'Sacré-Cœur, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.4667},
-      {'name': 'Fann', 'address': 'Fann, Dakar, Sénégal', 'lat': 14.6917, 'lng': -17.4583},
-      {'name': 'Point E', 'address': 'Point E, Dakar, Sénégal', 'lat': 14.6917, 'lng': -17.4667},
-      {'name': 'Liberté', 'address': 'Liberté, Dakar, Sénégal', 'lat': 14.7000, 'lng': -17.4583},
-      {'name': 'Grand Dakar', 'address': 'Grand Dakar, Dakar, Sénégal', 'lat': 14.6833, 'lng': -17.4667},
-      {'name': 'Parcelles Assainies', 'address': 'Parcelles Assainies, Dakar, Sénégal', 'lat': 14.7667, 'lng': -17.4167},
-      {'name': 'Pikine', 'address': 'Pikine, Dakar, Sénégal', 'lat': 14.7500, 'lng': -17.3833},
-      {'name': 'Guédiawaye', 'address': 'Guédiawaye, Dakar, Sénégal', 'lat': 14.7833, 'lng': -17.3833},
-      {'name': 'Rufisque', 'address': 'Rufisque, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.2667},
-      {'name': 'Thiaroye', 'address': 'Thiaroye, Dakar, Sénégal', 'lat': 14.7333, 'lng': -17.3500},
-      {'name': 'Keur Massar', 'address': 'Keur Massar, Dakar, Sénégal', 'lat': 14.7833, 'lng': -17.3167},
-      {'name': 'Diamniadio', 'address': 'Diamniadio, Dakar, Sénégal', 'lat': 14.7000, 'lng': -17.1833},
-      {'name': 'Aéroport AIBD', 'address': 'Aéroport Blaise Diagne, Diass, Sénégal', 'lat': 14.6700, 'lng': -17.0728},
-      {'name': 'Gorée', 'address': 'Île de Gorée, Dakar, Sénégal', 'lat': 14.6667, 'lng': -17.4000},
-      {'name': 'HLM', 'address': 'HLM, Dakar, Sénégal', 'lat': 14.7000, 'lng': -17.4500},
-      {'name': 'Colobane', 'address': 'Colobane, Dakar, Sénégal', 'lat': 14.6917, 'lng': -17.4500},
-      {'name': 'Sandaga', 'address': 'Marché Sandaga, Dakar, Sénégal', 'lat': 14.6667, 'lng': -17.4333},
-      {'name': 'Corniche', 'address': 'Corniche Ouest, Dakar, Sénégal', 'lat': 14.6833, 'lng': -17.4667},
-      {'name': 'Magic Land', 'address': 'Magic Land, Dakar, Sénégal', 'lat': 14.7333, 'lng': -17.5000},
-      {'name': 'Sea Plaza', 'address': 'Sea Plaza, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.4750},
+      // Quartiers résidentiels
+      {'name': 'Almadies', 'address': 'Almadies, Dakar, Sénégal', 'lat': 14.7467, 'lng': -17.5167, 'type': 'quartier'},
+      {'name': 'Almadies Zone 1', 'address': 'Almadies Zone 1, Dakar, Sénégal', 'lat': 14.7450, 'lng': -17.5150, 'type': 'quartier'},
+      {'name': 'Almadies Zone 2', 'address': 'Almadies Zone 2, Dakar, Sénégal', 'lat': 14.7480, 'lng': -17.5180, 'type': 'quartier'},
+      {'name': 'Ngor', 'address': 'Ngor, Dakar, Sénégal', 'lat': 14.7500, 'lng': -17.5167, 'type': 'quartier'},
+      {'name': 'Ouakam', 'address': 'Ouakam, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.4833, 'type': 'quartier'},
+      {'name': 'Yoff', 'address': 'Yoff, Dakar, Sénégal', 'lat': 14.7667, 'lng': -17.4667, 'type': 'quartier'},
+      {'name': 'Mamelles', 'address': 'Mamelles, Dakar, Sénégal', 'lat': 14.7333, 'lng': -17.5000, 'type': 'quartier'},
+      {'name': 'Mermoz', 'address': 'Mermoz, Dakar, Sénégal', 'lat': 14.7083, 'lng': -17.4667, 'type': 'quartier'},
+      {'name': 'Sacré-Cœur', 'address': 'Sacré-Cœur, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.4667, 'type': 'quartier'},
+      {'name': 'Point E', 'address': 'Point E, Dakar, Sénégal', 'lat': 14.6917, 'lng': -17.4667, 'type': 'quartier'},
+      {'name': 'Fann', 'address': 'Fann, Dakar, Sénégal', 'lat': 14.6917, 'lng': -17.4583, 'type': 'quartier'},
+      {'name': 'Liberté', 'address': 'Liberté 1, 2, 3, 4, 5, 6, Dakar, Sénégal', 'lat': 14.7000, 'lng': -17.4583, 'type': 'quartier'},
+      
+      // Pikine et ses zones
+      {'name': 'Pikine', 'address': 'Pikine, Dakar, Sénégal', 'lat': 14.7500, 'lng': -17.3833, 'type': 'ville'},
+      {'name': 'Pikine Ancien', 'address': 'Pikine Ancien, Dakar, Sénégal', 'lat': 14.7520, 'lng': -17.3850, 'type': 'quartier'},
+      {'name': 'Pikine Icotaf', 'address': 'Pikine Icotaf, Dakar, Sénégal', 'lat': 14.7480, 'lng': -17.3820, 'type': 'quartier'},
+      {'name': 'Pikine Tally Bou Bess', 'address': 'Tally Bou Bess, Pikine, Sénégal', 'lat': 14.7550, 'lng': -17.3900, 'type': 'quartier'},
+      {'name': 'Pikine Guinaw Rail', 'address': 'Guinaw Rail, Pikine, Sénégal', 'lat': 14.7600, 'lng': -17.3950, 'type': 'quartier'},
+      
+      // Centres commerciaux et lieux populaires
+      {'name': 'Sea Plaza', 'address': 'Sea Plaza, Almadies, Dakar', 'lat': 14.7167, 'lng': -17.4750, 'type': 'centre'},
+      {'name': 'Magic Land', 'address': 'Magic Land, Almadies, Dakar', 'lat': 14.7333, 'lng': -17.5000, 'type': 'centre'},
+      {'name': 'Dakar Almadies', 'address': 'Centre Commercial Dakar Almadies', 'lat': 14.7400, 'lng': -17.5100, 'type': 'centre'},
+      
+      // Autres quartiers importants
+      {'name': 'Médina', 'address': 'Médina, Dakar, Sénégal', 'lat': 14.6833, 'lng': -17.4500, 'type': 'quartier'},
+      {'name': 'Plateau', 'address': 'Plateau, Dakar, Sénégal', 'lat': 14.6697, 'lng': -17.4389, 'type': 'quartier'},
+      {'name': 'Grand Dakar', 'address': 'Grand Dakar, Dakar, Sénégal', 'lat': 14.6833, 'lng': -17.4667, 'type': 'quartier'},
+      {'name': 'HLM', 'address': 'HLM Grand Yoff, Dakar, Sénégal', 'lat': 14.7000, 'lng': -17.4500, 'type': 'quartier'},
+      {'name': 'Parcelles Assainies', 'address': 'Parcelles Assainies, Dakar, Sénégal', 'lat': 14.7667, 'lng': -17.4167, 'type': 'quartier'},
+      {'name': 'Guédiawaye', 'address': 'Guédiawaye, Dakar, Sénégal', 'lat': 14.7833, 'lng': -17.3833, 'type': 'ville'},
+      {'name': 'Rufisque', 'address': 'Rufisque, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.2667, 'type': 'ville'},
+      {'name': 'Thiaroye', 'address': 'Thiaroye, Dakar, Sénégal', 'lat': 14.7333, 'lng': -17.3500, 'type': 'quartier'},
+      {'name': 'Keur Massar', 'address': 'Keur Massar, Dakar, Sénégal', 'lat': 14.7833, 'lng': -17.3167, 'type': 'ville'},
+      {'name': 'Diamniadio', 'address': 'Diamniadio, Dakar, Sénégal', 'lat': 14.7000, 'lng': -17.1833, 'type': 'ville'},
+      {'name': 'Colobane', 'address': 'Colobane, Dakar, Sénégal', 'lat': 14.6917, 'lng': -17.4500, 'type': 'quartier'},
+      
+      // Lieux touristiques et monuments
+      {'name': 'Gorée', 'address': 'Île de Gorée, Dakar, Sénégal', 'lat': 14.6667, 'lng': -17.4000, 'type': 'ile'},
+      {'name': 'Monument de la Renaissance', 'address': 'Monument de la Renaissance Africaine, Dakar', 'lat': 14.7167, 'lng': -17.4417, 'type': 'monument'},
+      {'name': 'Place de l\'Indépendance', 'address': 'Place de l\'Indépendance, Plateau, Dakar', 'lat': 14.6697, 'lng': -17.4389, 'type': 'place'},
+      
+      // Marchés
+      {'name': 'Sandaga', 'address': 'Marché Sandaga, Dakar, Sénégal', 'lat': 14.6667, 'lng': -17.4333, 'type': 'marche'},
+      {'name': 'Marché Kermel', 'address': 'Marché Kermel, Plateau, Dakar', 'lat': 14.6697, 'lng': -17.4400, 'type': 'marche'},
+      {'name': 'Marché HLM', 'address': 'Marché HLM, Dakar, Sénégal', 'lat': 14.7020, 'lng': -17.4520, 'type': 'marche'},
+      
+      // Aéroports
+      {'name': 'Aéroport AIBD', 'address': 'Aéroport Blaise Diagne, Diass, Sénégal', 'lat': 14.6700, 'lng': -17.0728, 'type': 'aeroport'},
+      {'name': 'Aéroport LSS', 'address': 'Aéroport Léopold Sédar Senghor, Yoff', 'lat': 14.7397, 'lng': -17.4902, 'type': 'aeroport'},
+      
+      // Autres
+      {'name': 'Corniche', 'address': 'Corniche Ouest, Dakar, Sénégal', 'lat': 14.6833, 'lng': -17.4667, 'type': 'route'},
+      {'name': 'VDN', 'address': 'Voie de Dégagement Nord, Dakar', 'lat': 14.7200, 'lng': -17.4600, 'type': 'route'},
     ];
     
+    // Filtrage intelligent: commence par, contient, ou match partiel
     final filtered = localPlaces.where((place) {
       final name = (place['name'] as String).toLowerCase();
-      return name.contains(query) || query.contains(name.substring(0, query.length.clamp(0, name.length)));
+      final address = (place['address'] as String).toLowerCase();
+      
+      // Priorité 1: Commence par la requête
+      if (name.startsWith(query)) return true;
+      
+      // Priorité 2: Contient la requête
+      if (name.contains(query)) return true;
+      
+      // Priorité 3: L'adresse contient la requête
+      if (address.contains(query)) return true;
+      
+      // Priorité 4: Match des 3 premiers caractères
+      if (query.length >= 3 && name.length >= 3) {
+        final namePrefix = name.substring(0, 3);
+        final queryPrefix = query.substring(0, 3);
+        if (namePrefix == queryPrefix) return true;
+      }
+      
+      return false;
     }).toList();
+    
+    // Trier par pertinence: ceux qui commencent par la requête en premier
+    filtered.sort((a, b) {
+      final nameA = (a['name'] as String).toLowerCase();
+      final nameB = (b['name'] as String).toLowerCase();
+      
+      final startsWithA = nameA.startsWith(query) ? 0 : 1;
+      final startsWithB = nameB.startsWith(query) ? 0 : 1;
+      
+      if (startsWithA != startsWithB) return startsWithA - startsWithB;
+      return nameA.compareTo(nameB);
+    });
     
     print('📍 Suggestions locales pour "$input": ${filtered.length} résultats');
     

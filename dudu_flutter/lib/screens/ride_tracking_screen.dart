@@ -212,7 +212,18 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
         builder: (context, setDialogState) => AlertDialog(
           title: Row(
             children: [
-              const Text('🎉', style: TextStyle(fontSize: 32)),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00A651).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF00A651),
+                  size: 32,
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -362,7 +373,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
           markerId: const MarkerId('pickup'),
           position: LatLng(pickupLat, pickupLng),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          infoWindow: const InfoWindow(title: '📍 Point de récupération'),
+          infoWindow: const InfoWindow(title: 'Point de récupération'),
         ),
       );
       
@@ -543,7 +554,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
             GoogleMap(
               initialCameraPosition: CameraPosition(
                 target: _vehiclePosition!,
-                zoom: 15,
+                zoom: 16.5,
               ),
               markers: _markers,
               polylines: _polylines,
@@ -582,35 +593,35 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     
     switch (_rideStatus) {
       case 'going_to_pickup':
-        statusEmoji = widget.vehicleType == 'moto' ? '🏍️' : '🚗';
+        statusEmoji = '';
         statusText = widget.vehicleType == 'moto'
             ? 'Le livreur arrive pour récupérer'
             : 'Votre chauffeur arrive';
         statusColor = Colors.blue;
         break;
       case 'arrived':
-        statusEmoji = '✅';
+        statusEmoji = '';
         statusText = widget.vehicleType == 'moto'
             ? 'Livreur arrivé - Récupération en cours'
             : 'Chauffeur arrivé';
         statusColor = Colors.orange;
         break;
       case 'in_progress':
-        statusEmoji = widget.vehicleType == 'moto' ? '📦' : '🚕';
+        statusEmoji = '';
         statusText = widget.vehicleType == 'moto'
             ? 'Livraison en cours'
             : 'Course en cours';
         statusColor = const Color(0xFF00A651);
         break;
       case 'completed':
-        statusEmoji = '🎉';
+        statusEmoji = '';
         statusText = widget.vehicleType == 'moto'
             ? 'Livraison terminée !'
             : 'Course terminée !';
         statusColor = Colors.green;
         break;
       default:
-        statusEmoji = '📍';
+        statusEmoji = '';
         statusText = 'En cours...';
         statusColor = Colors.grey;
     }
@@ -651,9 +662,9 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildInfoChip('📍', '${_distance.toStringAsFixed(1)} km'),
-                  _buildInfoChip('⏱️', '$_estimatedTime min'),
-                  _buildInfoChip('🧭', '${_vehicleHeading.toInt()}°'),
+                  _buildInfoChipWithIcon(Icons.straighten, '${_distance.toStringAsFixed(1)} km'),
+                  _buildInfoChipWithIcon(Icons.access_time, '$_estimatedTime min'),
+                  _buildInfoChipWithIcon(Icons.navigation, '${_vehicleHeading.toInt()}°'),
                 ],
               ),
             ],
@@ -694,6 +705,37 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     );
   }
 
+  Widget _buildInfoChipWithIcon(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF00A651)),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDriverCard() {
     return Card(
       elevation: 4,
@@ -708,9 +750,10 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                 CircleAvatar(
                   radius: 30,
                   backgroundColor: const Color(0xFF00A651),
-                  child: Text(
-                    widget.vehicleType == 'moto' ? '🏍️' : '🚗',
-                    style: const TextStyle(fontSize: 28),
+                  child: Icon(
+                    widget.vehicleType == 'moto' ? Icons.motorcycle : Icons.directions_car,
+                    color: Colors.white,
+                    size: 32,
                   ),
                 ),
                 const SizedBox(width: 16),

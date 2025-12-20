@@ -177,7 +177,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Icons.settings,
                       [
                         _buildInfoItem('Langue', user?.language ?? 'Français', Icons.language),
-                        _buildInfoItem('Méthode de paiement', 'Orange Money', Icons.payment),
                       ],
                     );
                   },
@@ -462,15 +461,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.account_balance_wallet, color: Colors.orange),
-              title: const Text('Orange Money'),
-              subtitle: const Text('+221786205993'),
-              trailing: const Icon(Icons.check, color: Colors.green),
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'Aucun moyen de paiement configuré',
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.add_circle_outline),
+              leading: const Icon(Icons.add_circle_outline, color: AppTheme.primaryColor),
               title: const Text('Ajouter un moyen de paiement'),
               onTap: () {
                 Navigator.pop(context);

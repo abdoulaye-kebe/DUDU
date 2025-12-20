@@ -144,12 +144,13 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
       _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(
           LatLng(position.latitude, position.longitude),
-          15,
+          18, // Augmenter le zoom initial
         ),
       );
     } catch (e) {
       print('Erreur localisation: $e');
-      // Position par défaut (Dakar)
+      // Position par défaut : Dakar (centre ville)
+      final LatLng _dakarCenter = const LatLng(14.6928, -17.4467);
       setState(() {
         _currentPosition = Position(
           latitude: 14.6937,

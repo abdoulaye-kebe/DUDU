@@ -230,7 +230,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
         children: [
           // Carte
           Expanded(
-            flex: 3,
+            flex: 4,
             child: Stack(
               children: [
                 GoogleMap(
@@ -271,7 +271,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                       widget.ride.pickup.latitude,
                       widget.ride.pickup.longitude,
                     ),
-                    zoom: 13,
+                    zoom: 16,
                   ),
                   markers: _buildMarkers(),
                   polylines: _buildPolylines(),
@@ -308,7 +308,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
           
           // Informations de suivi
           Expanded(
-            flex: 2,
+            flex: 1,
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(

@@ -191,7 +191,7 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
             },
             initialCameraPosition: CameraPosition(
               target: _dakarCenter,
-              zoom: 15.0,
+              zoom: 16.5,
             ),
             markers: _buildMarkers(),
             polylines: _buildPolylines(),
