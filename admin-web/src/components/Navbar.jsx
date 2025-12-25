@@ -18,6 +18,7 @@ const navItems = [
   { id: 'drivers', label: 'Chauffeurs', icon: UserCheck },
   { id: 'clients', label: 'Clients', icon: Users },
   { id: 'rides', label: 'Courses', icon: MapPin },
+  { id: 'promotions', label: 'Promotions', icon: Bell },
 ];
 
 function Navbar({ currentPage, onNavigate }) {

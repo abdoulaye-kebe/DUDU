@@ -5,6 +5,7 @@ import DashboardPremium from './pages/DashboardPremium';
 import DriversPremium from './pages/DriversPremium';
 import ClientsPremium from './pages/ClientsPremium';
 import RidesPremium from './pages/RidesPremium';
+import PromotionsPremium from './pages/PromotionsPremium';
 import './styles/admin-premium.css';
 
 function AppPremium() {
@@ -20,6 +21,8 @@ function AppPremium() {
         return <ClientsPremium />;
       case 'rides':
         return <RidesPremium />;
+      case 'promotions':
+        return <PromotionsPremium />;
       default:
         return <DashboardPremium />;
     }
