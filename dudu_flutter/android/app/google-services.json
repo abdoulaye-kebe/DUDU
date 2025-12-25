@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "118330330401",
+    "project_id": "dudu-8b229",
+    "storage_bucket": "dudu-8b229.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:118330330401:android:7c2d0e44140ec21d91c260",
+        "android_client_info": {
+          "package_name": "dudugroup.sn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsSvfRk2J3uruLV_DG17H4O5vxF8QAj40"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:118330330401:android:2d94088d558a04b791c260",
+        "android_client_info": {
+          "package_name": "sn.dudu.client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsSvfRk2J3uruLV_DG17H4O5vxF8QAj40"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

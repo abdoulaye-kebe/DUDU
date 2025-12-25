@@ -80,7 +80,7 @@ router.put('/profile', [
 
     const { firstName, lastName, email, language, currency, dateOfBirth, gender } = req.body;
     
-    const user = await User.findById(req.userId);
+    const user = await User.findById(req.user?.id || req.userId);
     if (!user) {
       return res.status(404).json({
         success: false,

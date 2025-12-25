@@ -1,4 +1,4 @@
-package sn.dudu.pro
+package sn.dudu.mobileDuduPro
 
 import io.flutter.embedding.android.FlutterActivity
 

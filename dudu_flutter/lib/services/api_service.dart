@@ -10,6 +10,108 @@ class ApiService {
   // Utiliser la configuration centralisée
   static String get baseUrl => AppConfig.baseUrl;
 
+  static Future<ApiResponse<User>> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? language,
+    String? currency,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/users/profile'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          if (firstName != null) 'firstName': firstName,
+          if (lastName != null) 'lastName': lastName,
+          if (email != null) 'email': email,
+          if (language != null) 'language': language,
+          if (currency != null) 'currency': currency,
+        }),
+      ).timeout(timeout);
+
+      return _handleResponse(response, (data) {
+        final dynamic raw = data['user'] ?? data;
+        if (raw is Map<String, dynamic>) {
+          return User.fromJson(raw);
+        }
+        throw Exception('Format de réponse updateProfile inattendu');
+      });
+    } catch (e) {
+      return ApiResponse<User>(
+        success: false,
+        message: 'Erreur mise à jour profil: $e',
+        data: null,
+      );
+    }
+  }
+
+  static Future<ApiResponse<BudgetSettings>> updateBudgetSettings({
+    double? maxPricePerKm,
+    String? preferredPaymentMethod,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/users/budget-settings'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          if (maxPricePerKm != null) 'maxPricePerKm': maxPricePerKm,
+          if (preferredPaymentMethod != null)
+            'preferredPaymentMethod': preferredPaymentMethod,
+        }),
+      ).timeout(timeout);
+
+      return _handleResponse(response, (data) {
+        final dynamic raw = data['budgetSettings'] ?? data;
+        if (raw is Map<String, dynamic>) {
+          return BudgetSettings.fromJson(raw);
+        }
+        throw Exception('Format de réponse updateBudgetSettings inattendu');
+      });
+    } catch (e) {
+      return ApiResponse<BudgetSettings>(
+        success: false,
+        message: 'Erreur mise à jour budget: $e',
+        data: null,
+      );
+    }
+  }
+
+  static Future<ApiResponse<bool>> resendVerificationCode(String phone) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/resend-verification'),
+        headers: await _getHeaders(),
+        body: json.encode({'phone': phone}),
+      ).timeout(timeout);
+
+      return _handleResponse(response, (_) => true);
+    } catch (e) {
+      return ApiResponse<bool>(
+        success: false,
+        message: 'Erreur renvoi code: $e',
+        data: null,
+      );
+    }
+  }
+
+  static Future<ApiResponse<bool>> deactivateAccount() async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/users/account'),
+        headers: await _getHeaders(),
+      ).timeout(timeout);
+
+      return _handleResponse(response, (_) => true);
+    } catch (e) {
+      return ApiResponse<bool>(
+        success: false,
+        message: 'Erreur suppression compte: $e',
+        data: null,
+      );
+    }
+  }
+
   /// Créer une course planifiée (trajet planifié)
   static Future<ApiResponse<Ride>> scheduleRide({
     required String pickupAddress,
@@ -107,7 +209,7 @@ class ApiService {
     }
   }
   
-  static const Duration timeout = Duration(seconds: 30);
+  static Duration get timeout => Duration(seconds: AppConfig.httpTimeout);
 
   // Headers par défaut
   static Future<Map<String, String>> _getHeaders() async {
@@ -158,6 +260,10 @@ class ApiService {
           'password': password,
         }),
       ).timeout(timeout);
+
+      if (kDebugMode) {
+        print('📡 Réponse login: ${response.statusCode} - ${response.body}');
+      }
 
       final result = _handleResponse(response, (data) => AuthData.fromJson(data));
       

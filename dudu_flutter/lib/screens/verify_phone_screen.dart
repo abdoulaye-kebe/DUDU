@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 import '../themes/app_theme.dart';
 import 'dashboard_screen.dart';
 
@@ -125,8 +126,10 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
     });
 
     try {
-      // TODO: Implémenter l'API de renvoi de code
-      await Future.delayed(const Duration(seconds: 1));
+      final response = await ApiService.resendVerificationCode(widget.phone);
+      if (!response.success) {
+        throw Exception(response.message);
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

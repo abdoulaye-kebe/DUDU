@@ -180,27 +180,42 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 2000),
       builder: (context, value, child) {
-        return ShaderMask(
-          shaderCallback: (bounds) => LinearGradient(
-            colors: [
-              AppTheme.primaryColor,
-              AppTheme.primaryColor.withOpacity(0.7),
-              AppTheme.primaryColor,
-            ],
-            stops: [0.0, value, 1.0],
-          ).createShader(bounds),
-          child: Text(
-            'Yobalé sii sama prix',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              fontStyle: FontStyle.italic,
-              color: Colors.white,
-              letterSpacing: 1.0,
-              height: 1.2,
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ShaderMask(
+              shaderCallback: (bounds) => LinearGradient(
+                colors: [
+                  AppTheme.primaryColor,
+                  AppTheme.primaryColor.withOpacity(0.7),
+                  AppTheme.primaryColor,
+                ],
+                stops: [0.0, value, 1.0],
+              ).createShader(bounds),
+              child: Text(
+                'Yobalé sii sama prix',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.white,
+                  letterSpacing: 1.0,
+                  height: 1.2,
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 6),
+            const Text(
+              'la mobilité à mon prix',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.black54,
+              ),
+            ),
+          ],
         );
       },
     );

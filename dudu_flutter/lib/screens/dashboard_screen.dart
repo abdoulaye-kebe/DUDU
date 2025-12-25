@@ -959,6 +959,18 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                                   ),
                                 ),
                               ),
+                              const SizedBox(height: 6),
+                              const Center(
+                                child: Text(
+                                  'la mobilité à mon prix',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
                               const SizedBox(height: 24),
                               _buildRecentLocations(),
                               const SizedBox(height: 24),

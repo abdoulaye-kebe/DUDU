@@ -1324,4 +1324,58 @@ router.put('/change-password', async (req, res) => {
   }
 });
 
+// @route   DELETE /api/v1/drivers/account
+// @desc    Désactiver le compte chauffeur
+// @access  Private (chauffeur)
+router.delete('/account', auth, requireDriver, async (req, res) => {
+  try {
+    const driver = await Driver.findById(req.driver._id);
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chauffeur non trouvé'
+      });
+    }
+
+    const activeRides = await Ride.countDocuments({
+      driver: driver._id,
+      status: { $in: ['requested', 'searching', 'accepted', 'arriving', 'arrived', 'started'] }
+    });
+
+    if (activeRides > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Impossible de supprimer le compte avec des courses en cours'
+      });
+    }
+
+    if (!driver.subscription) {
+      driver.subscription = {};
+    }
+
+    driver.status = 'offline';
+    driver.isAvailable = false;
+    driver.subscription.isActive = false;
+
+    if (typeof driver.isVerified === 'boolean') {
+      driver.isVerified = false;
+    }
+
+    driver.verificationStatus = 'rejected';
+    await driver.save();
+
+    res.json({
+      success: true,
+      message: 'Compte chauffeur désactivé avec succès'
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la désactivation du compte chauffeur:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
 module.exports = router;

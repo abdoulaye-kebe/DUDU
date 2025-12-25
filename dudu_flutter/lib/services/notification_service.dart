@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -52,6 +53,9 @@ class NotificationService {
     // Demander permissions
     await _requestPermissions();
 
+    // Initialiser FCM (promos)
+    await initFCMPromos();
+
     _initialized = true;
     print('✅ Notifications initialisées');
   }
@@ -85,14 +89,42 @@ class NotificationService {
 
   /// Obtenir le token FCM (Firebase)
   Future<String?> getFCMToken() async {
-    // TODO: Implémenter avec Firebase Messaging
-    // final messaging = FirebaseMessaging.instance;
-    // _fcmToken = await messaging.getToken();
-    // return _fcmToken;
-    
-    // Pour le moment, retourner un token simulé
-    _fcmToken = 'simulated_fcm_token_${DateTime.now().millisecondsSinceEpoch}';
-    return _fcmToken;
+    if (kIsWeb) return null;
+    try {
+      final messaging = FirebaseMessaging.instance;
+      _fcmToken = await messaging.getToken();
+      return _fcmToken;
+    } catch (e) {
+      print('❌ Erreur getToken FCM: $e');
+      return null;
+    }
+  }
+
+  Future<void> initFCMPromos() async {
+    if (kIsWeb) return;
+    try {
+      final messaging = FirebaseMessaging.instance;
+
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      await messaging.subscribeToTopic('promos');
+
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+        final title = message.notification?.title ?? 'DUDU';
+        final body = message.notification?.body ?? '';
+        await showNotification(
+          title: title,
+          body: body,
+          payload: message.data.isNotEmpty ? jsonEncode(message.data) : null,
+        );
+      });
+    } catch (e) {
+      print('❌ Erreur initFCM promos: $e');
+    }
   }
 
   /// Enregistrer le token sur le serveur

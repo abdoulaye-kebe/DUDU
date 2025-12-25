@@ -2,11 +2,23 @@ const admin = require('firebase-admin');
 const Driver = require('../models/Driver');
 const User = require('../models/User');
 
-// Configuration Firebase Admin (à compléter avec vos credentials)
-// const serviceAccount = require('../../config/firebase-adminsdk.json');
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount)
-// });
+let _firebaseInitialized = false;
+
+function ensureFirebaseInitialized() {
+  if (_firebaseInitialized) return;
+
+  // On attend une variable d'env JSON pour éviter de committer des secrets.
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!raw) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON manquant (firebase-admin non initialisé)');
+  }
+
+  const serviceAccount = JSON.parse(raw);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  _firebaseInitialized = true;
+}
 
 class NotificationService {
   /**
@@ -14,6 +26,7 @@ class NotificationService {
    */
   async sendPushNotification(userId, notification) {
     try {
+      ensureFirebaseInitialized();
       const user = await User.findById(userId);
       
       if (!user || !user.fcmToken) {
@@ -37,6 +50,31 @@ class NotificationService {
       return response;
     } catch (error) {
       console.error('❌ Erreur notification:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Envoyer une notification à un topic (ex: promos)
+   */
+  async sendTopicNotification(topic, notification) {
+    try {
+      ensureFirebaseInitialized();
+      const message = {
+        notification: {
+          title: notification.title,
+          body: notification.body,
+          imageUrl: notification.image || null,
+        },
+        data: notification.data || {},
+        topic,
+      };
+
+      const response = await admin.messaging().send(message);
+      console.log(`✅ Notification topic ${topic} envoyée:`, response);
+      return response;
+    } catch (error) {
+      console.error('❌ Erreur notification topic:', error);
       return null;
     }
   }

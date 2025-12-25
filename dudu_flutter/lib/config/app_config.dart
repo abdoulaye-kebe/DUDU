@@ -16,7 +16,7 @@ class AppConfig {
   // ============================================
 
   /// URL du serveur de production (AWS)
-  static const String productionServerUrl = 'http://213.154.90.11';
+  static const String productionServerUrl = 'http://213.154.90.11:3000';
   
   /// URL du serveur local
   static const String localServerUrl = 'http://localhost:3000';
@@ -27,44 +27,30 @@ class AppConfig {
   /// Port du serveur
   static const int serverPort = 3000;
 
+  static const String _env = String.fromEnvironment('ENV', defaultValue: 'prod');
+  static const String _serverOriginOverride = String.fromEnvironment('SERVER_ORIGIN', defaultValue: '');
+
+  static String get _serverOrigin {
+    if (_serverOriginOverride.isNotEmpty) {
+      return _serverOriginOverride;
+    }
+    if (_env == 'local') {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        return androidEmulatorUrl;
+      }
+      return localServerUrl;
+    }
+    return productionServerUrl;
+  }
+
   /// Obtenir l'URL de base selon la plateforme et le mode
   static String get baseUrl {
-    if (kDebugMode) {
-      // En mode DEBUG, utiliser le serveur local
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        // Émulateur Android: 10.0.2.2 = localhost de la machine hôte
-        return '$androidEmulatorUrl/api/$apiVersion';
-      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-        // Simulateur iOS: localhost fonctionne
-        return '$localServerUrl/api/$apiVersion';
-      } else {
-        // Web ou autre: localhost
-        return '$localServerUrl/api/$apiVersion';
-      }
-    } else {
-      // En mode RELEASE, toujours utiliser la production
-      return '$productionServerUrl/api/$apiVersion';
-    }
+    return '$_serverOrigin/api/$apiVersion';
   }
 
   /// Obtenir l'URL du serveur Socket.io
   static String get socketUrl {
-    if (kDebugMode) {
-      // En mode DEBUG, utiliser le serveur local
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        // Émulateur Android: 10.0.2.2 = localhost de la machine hôte
-        return androidEmulatorUrl;
-      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-        // Simulateur iOS: localhost fonctionne
-        return localServerUrl;
-      } else {
-        // Web ou autre: localhost
-        return localServerUrl;
-      }
-    } else {
-      // En mode RELEASE, toujours utiliser la production avec le port
-      return '$productionServerUrl:$serverPort';
-    }
+    return _serverOrigin;
   }
 
   /// URL de l'API pour les appels HTTP

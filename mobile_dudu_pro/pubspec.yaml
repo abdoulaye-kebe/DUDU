@@ -21,6 +21,8 @@ dependencies:
   flutter_local_notifications: ^17.2.1
   url_launcher: ^6.3.0
   flutter_webrtc: ^0.12.4
+  firebase_core: ^3.4.0
+  firebase_messaging: ^15.1.0
 
 dev_dependencies:
   flutter_test:
@@ -32,6 +34,7 @@ flutter:
   
   assets:
     - assets/images/logo_dudu_off.png
+    - assets/images/payments/
   
   # Police Poppins
   fonts:

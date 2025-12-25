@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/driver_profile.dart';
+import '../services/api_service.dart';
 import 'login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -712,9 +713,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Annuler'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              // TODO: Implémenter la suppression du compte
+
+              final result = await ApiService.deleteAccount();
+              final success = result['success'] == true;
+              final message = result['message']?.toString() ??
+                  (success ? 'Compte supprimé' : 'Erreur de suppression');
+
+              if (!mounted) return;
+
+              if (success) {
+                ApiService.setAuthToken('');
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Supprimer'),

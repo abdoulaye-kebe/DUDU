@@ -6,15 +6,11 @@ const isDevelopment = window.location.hostname === 'localhost' || window.locatio
 
 // URL du backend API
 // - Développement local: http://localhost:3000
-// - Production: http://213.154.90.11
-export const API_BASE_URL = isDevelopment
-  ? 'http://localhost:3000/api/v1'
-  : 'http://213.154.90.11/api/v1';
+// - Production AWS: http://213.154.90.11
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
 
 // URL du serveur Socket.io (même que le backend)
-export const SOCKET_URL = isDevelopment
-  ? 'http://localhost:3000'
-  : 'http://213.154.90.11';
+export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 
 // Afficher la configuration dans la console
 console.log('🌐 Admin DUDU Configuration:');

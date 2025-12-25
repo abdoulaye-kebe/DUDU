@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DeliveryTrackingScreen extends StatefulWidget {
   final String deliveryId;
@@ -156,8 +157,20 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
                         ),
                         trailing: IconButton(
                           icon: const Icon(Icons.phone, color: Color(0xFF00A651)),
-                          onPressed: () {
-                            // TODO: Appeler le livreur
+                          onPressed: () async {
+                            final tel = _driverPhone.replaceAll(' ', '');
+                            final uri = Uri.parse('tel:$tel');
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri);
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Impossible de lancer un appel'),
+                                  ),
+                                );
+                              }
+                            }
                           },
                         ),
                       ),

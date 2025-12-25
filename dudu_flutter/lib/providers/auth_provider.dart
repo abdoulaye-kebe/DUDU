@@ -20,6 +20,29 @@ class AuthProvider extends ChangeNotifier {
   String get userDisplayName => _user != null ? '${_user!.firstName} ${_user!.lastName}' : '';
   String get userPhone => _user?.phone ?? '';
 
+  void setUser(User? user) {
+    _user = user;
+    if (user != null) {
+      _saveUserData(user);
+    }
+    notifyListeners();
+  }
+
+  Future<bool> refreshProfile() async {
+    try {
+      final response = await ApiService.getProfile();
+      if (response.success && response.data != null) {
+        setUser(response.data);
+        return true;
+      }
+      _setError(response.message);
+      return false;
+    } catch (e) {
+      _setError('Erreur de récupération du profil: $e');
+      return false;
+    }
+  }
+
   // Connexion
   Future<bool> login(String phone, String password) async {
     _setLoading(true);

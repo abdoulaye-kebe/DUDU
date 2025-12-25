@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../models/user.dart';
+import '../services/api_service.dart';
 import '../themes/app_theme.dart';
 import 'rides_screen.dart';
 import 'login_screen.dart';
@@ -13,6 +15,15 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  User? _user;
+  bool _isLoading = true;
+  String? _error;
+
+  static const Map<String, String> _paymentLogos = {
+    'orange_money': 'assets/images/payments/orange_money.png',
+    'wave': 'assets/images/payments/wave.png',
+    'free_money': 'assets/images/payments/free_money.png',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -135,9 +146,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       // Statistiques
                       Consumer<AuthProvider>(
                         builder: (context, authProvider, child) {
-                          // TODO: Récupérer les vraies stats depuis le backend
-                          final totalRides = 0; // À remplacer par authProvider.user?.totalRides ?? 0
-                          final rating = totalRides > 0 ? '5.0 ⭐' : 'Nouveau';
+                          final user = authProvider.user;
+                          final totalRides = user?.totalRides ?? 0;
+                          final rating = totalRides > 0
+                              ? '${(user?.averageRating ?? 0).toStringAsFixed(1)} ⭐'
+                              : 'Nouveau';
                           
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -172,11 +185,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
                     final user = authProvider.user;
+                    final paymentMethod = user?.budgetSettings?.preferredPaymentMethod;
+                    final paymentLabel = paymentMethod == null
+                        ? 'Non défini'
+                        : paymentMethod == 'orange_money'
+                            ? 'Orange Money'
+                            : paymentMethod == 'wave'
+                                ? 'Wave'
+                                : paymentMethod == 'free_money'
+                                    ? 'Free Money'
+                                    : 'Espèces';
                     return _buildSection(
                       'Préférences',
                       Icons.settings,
                       [
                         _buildInfoItem('Langue', user?.language ?? 'Français', Icons.language),
+                        _buildInfoItem('Méthode de paiement', paymentLabel, Icons.payment),
                       ],
                     );
                   },
@@ -435,15 +459,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Annuler'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // TODO: Envoyer les modifications au backend
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Profil mis à jour avec succès'),
-                  backgroundColor: Colors.green,
-                ),
+            onPressed: () async {
+              final firstName = firstNameController.text.trim();
+              final lastName = lastNameController.text.trim();
+              final email = emailController.text.trim();
+
+              if (firstName.isEmpty || lastName.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Prénom et nom requis'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              final response = await ApiService.updateProfile(
+                firstName: firstName,
+                lastName: lastName,
+                email: email.isEmpty ? null : email,
               );
+
+              if (!mounted) return;
+
+              if (response.success && response.data != null) {
+                await authProvider.refreshProfile();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Profil mis à jour avec succès'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(response.message),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
             child: const Text('Enregistrer'),
@@ -461,16 +516,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'Aucun moyen de paiement configuré',
-                style: TextStyle(color: Colors.grey),
+            ListTile(
+              leading: Image.asset(
+                _paymentLogos['orange_money']!,
+                width: 28,
+                height: 28,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.account_balance_wallet,
+                  color: Colors.orange,
+                ),
               ),
+              title: const Text('Orange Money'),
+              subtitle: const Text('+221786205993'),
+              trailing: const Icon(Icons.check, color: Colors.green),
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.add_circle_outline, color: AppTheme.primaryColor),
+              leading: Image.asset(
+                _paymentLogos['wave']!,
+                width: 28,
+                height: 28,
+                errorBuilder: (_, __, ___) => const Icon(Icons.account_balance_wallet),
+              ),
+              title: const Text('Wave'),
+              subtitle: const Text('Non configuré'),
+            ),
+            const Divider(),
+            ListTile(
+              leading: Image.asset(
+                _paymentLogos['free_money']!,
+                width: 28,
+                height: 28,
+                errorBuilder: (_, __, ___) => const Icon(Icons.account_balance_wallet),
+              ),
+              title: const Text('Free Money'),
+              subtitle: const Text('Non configuré'),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline),
               title: const Text('Ajouter un moyen de paiement'),
               onTap: () {
                 Navigator.pop(context);

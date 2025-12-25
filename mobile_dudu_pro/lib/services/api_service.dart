@@ -29,6 +29,28 @@ class ApiService {
     if (_authToken != null) 'Authorization': 'Bearer $_authToken',
   };
 
+  static Future<Map<String, dynamic>> deleteAccount() async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/drivers/account'),
+        headers: _headers,
+      );
+
+      final decoded = jsonDecode(response.body);
+      return decoded is Map<String, dynamic>
+          ? decoded
+          : {
+              'success': false,
+              'message': 'Réponse serveur inattendue'
+            };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erreur réseau: $e'
+      };
+    }
+  }
+
   // Authentification
   static Future<Map<String, dynamic>> login(String phone, String password) async {
     try {

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import '../models/ride.dart';
+import '../models/user.dart';
+import '../services/api_service.dart';
+import 'delivery_tracking_screen.dart';
 
 class DeliveryRequestScreen extends StatefulWidget {
   final Position? pickupLocation;
@@ -47,6 +51,8 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
   
   // Prix estimé
   double _estimatedPrice = 1500;
+
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -483,110 +489,156 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
       return;
     }
 
+    if (widget.pickupLocation == null || widget.destinationLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Localisation de départ et destination requises'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     // Générer un code de confirmation aléatoire
     final confirmationCode = _generateConfirmationCode();
 
-    final deliveryData = {
-      'rideType': 'delivery',
-      'pickup': {
-        'address': widget.pickupAddress,
-        'coordinates': {
-          'latitude': widget.pickupLocation?.latitude,
-          'longitude': widget.pickupLocation?.longitude,
-        },
-      },
-      'destination': {
-        'address': widget.destinationAddress,
-        'coordinates': {
-          'latitude': widget.destinationLocation?.latitude,
-          'longitude': widget.destinationLocation?.longitude,
-        },
-      },
-      'delivery': {
-        'packageType': _packageType,
-        'description': _descriptionController.text,
-        'weight': double.tryParse(_weightController.text) ?? 0,
-        'dimensions': {
-          'length': double.tryParse(_lengthController.text) ?? 0,
-          'width': double.tryParse(_widthController.text) ?? 0,
-          'height': double.tryParse(_heightController.text) ?? 0,
-        },
-        'pickupContact': _senderNameController.text,
-        'pickupContactPhone': _senderPhoneController.text,
-        'recipientName': _recipientNameController.text,
-        'recipientPhone': _recipientPhoneController.text,
-        'instructions': _instructionsController.text,
-        'isFragile': _isFragile,
-        'requiresSignature': _requiresSignature,
-        'confirmationCode': confirmationCode,
-      },
-      'pricing': {
-        'totalPrice': _estimatedPrice,
-      },
-    };
+    _submitDelivery(confirmationCode);
+  }
 
-    // TODO: Envoyer la demande via API
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Livraison confirmée ! 🎉'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Votre demande de livraison a été créée.'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Code de confirmation',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    confirmationCode,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFFF6B00),
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'À communiquer au destinataire',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text('Prix: ${_estimatedPrice.toInt()} FCFA'),
-            const SizedBox(height: 8),
-            const Text(
-              'Un moto-taxi va récupérer votre colis sous peu.',
-              style: TextStyle(fontSize: 12),
-            ),
-          ],
+  Future<void> _submitDelivery(String confirmationCode) async {
+    if (_isSubmitting) return;
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final pickup = RideLocation(
+        address: widget.pickupAddress,
+        coordinates: Coordinates(
+          latitude: widget.pickupLocation!.latitude,
+          longitude: widget.pickupLocation!.longitude,
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: const Text('OK'),
+      );
+      final destination = RideLocation(
+        address: widget.destinationAddress,
+        coordinates: Coordinates(
+          latitude: widget.destinationLocation!.latitude,
+          longitude: widget.destinationLocation!.longitude,
+        ),
+      );
+      final pricing = RidePricing(
+        basePrice: 0,
+        distancePrice: 0,
+        timePrice: 0,
+        surgeMultiplier: 1,
+        totalPrice: _estimatedPrice,
+        currency: 'XOF',
+        isPriceFixed: true,
+      );
+
+      final response = await ApiService.requestRide(
+        pickup: pickup,
+        destination: destination,
+        pricing: pricing,
+        rideType: 'delivery',
+      );
+
+      if (!mounted) return;
+
+      if (response.success && response.data != null) {
+        final rideId = response.data!.ride.id;
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Livraison confirmée ! 🎉'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Votre demande de livraison a été créée.'),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Code de confirmation',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        confirmationCode,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFF6B00),
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'À communiquer au destinataire',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('Prix: ${_estimatedPrice.toInt()} FCFA'),
+                const SizedBox(height: 8),
+                const Text(
+                  'Un moto-taxi va récupérer votre colis sous peu.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DeliveryTrackingScreen(
+                        deliveryId: rideId,
+                        confirmationCode: confirmationCode,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Suivre la livraison'),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response.message),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   String _generateConfirmationCode() {

@@ -20,6 +20,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   bool _isLoading = true;
   String? _error;
 
+  static const Map<String, String> _paymentLogos = {
+    'orange_money': 'assets/images/payments/orange_money.png',
+    'wave': 'assets/images/payments/wave.png',
+    'free_money': 'assets/images/payments/free_money.png',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -586,10 +592,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildPaymentOption('orange_money', 'Orange Money', '🟠'),
-            _buildPaymentOption('wave', 'Wave', '🌊'),
-            _buildPaymentOption('free_money', 'Free Money', '🆓'),
-            _buildPaymentOption('cash', 'Espèces', '💵'),
+            _buildPaymentOption('orange_money', 'Orange Money'),
+            _buildPaymentOption('wave', 'Wave'),
+            _buildPaymentOption('free_money', 'Free Money'),
+            _buildPaymentOption('cash', 'Espèces'),
           ],
         ),
         actions: [
@@ -602,9 +608,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  Widget _buildPaymentOption(String value, String label, String icon) {
+  Widget _buildPaymentOption(String value, String label) {
+    final logoPath = _paymentLogos[value];
     return ListTile(
-      leading: Text(icon, style: const TextStyle(fontSize: 24)),
+      leading: logoPath != null
+          ? Image.asset(
+              logoPath,
+              width: 28,
+              height: 28,
+              errorBuilder: (_, __, ___) => const Icon(Icons.account_balance_wallet),
+            )
+          : const Icon(Icons.payments),
       title: Text(label),
       onTap: () => Navigator.pop(context, value),
     );

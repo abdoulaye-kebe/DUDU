@@ -49,6 +49,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   String _selectedPaymentMethod = '';
   // Véhicules simulés à proximité (pour affichage liste + markers)
   List<LatLng> _nearbyVehicles = [];
+
+  static const Map<String, String> _paymentLogos = {
+    'orange_money': 'assets/images/payments/orange_money_logo.png',
+    'wave': 'assets/images/payments/wave_logo.png',
+    'free_money': 'assets/images/payments/free_money_logo..png',
+  };
   
   // Types de courses disponibles
   final List<Map<String, dynamic>> _rideTypes = [
@@ -62,14 +68,24 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       'basePricePerKm': 400,
     },
     {
-      'id': 'express',
-      'name': 'Express',
-      'icon': Icons.flash_on,
+      'id': 'comfort',
+      'name': 'Confort',
+      'icon': Icons.chair,
       'color': Colors.orange,
-      'description': 'Véhicule haut de gamme • Confort premium',
+      'description': 'Confort • Climatisation • 1-4 passagers',
       'badge': 'CONFORT',
       'capacity': 4,
       'basePricePerKm': 600,
+    },
+    {
+      'id': 'comfort_plus',
+      'name': 'Confort +',
+      'icon': Icons.star,
+      'color': Colors.deepOrange,
+      'description': 'Confort + • Premium • 1-4 passagers',
+      'badge': 'PREMIUM',
+      'capacity': 4,
+      'basePricePerKm': 750,
     },
   ];
 
@@ -275,17 +291,28 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildPaymentChip(
-                  label: 'Mobile money',
-                  value: 'mobile_money',
-                  icon: Icons.phone_iphone,
+                  label: 'Orange',
+                  value: 'orange_money',
+                  assetPath: _paymentLogos['orange_money'],
+                  icon: Icons.account_balance_wallet,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _buildPaymentChip(
-                  label: 'Carte bancaire',
-                  value: 'card',
-                  icon: Icons.credit_card,
+                  label: 'Wave',
+                  value: 'wave',
+                  assetPath: _paymentLogos['wave'],
+                  icon: Icons.account_balance_wallet,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildPaymentChip(
+                  label: 'Free',
+                  value: 'free_money',
+                  assetPath: _paymentLogos['free_money'],
+                  icon: Icons.account_balance_wallet,
                 ),
               ),
             ],
@@ -299,6 +326,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     required String label,
     required String value,
     required IconData icon,
+    String? assetPath,
   }) {
     final isSelected = _selectedPaymentMethod == value;
     return InkWell(
@@ -320,11 +348,23 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? Colors.white : primaryGreen,
-            ),
+            if (assetPath != null)
+              Image.asset(
+                assetPath,
+                width: 16,
+                height: 16,
+                errorBuilder: (_, __, ___) => Icon(
+                  icon,
+                  size: 16,
+                  color: isSelected ? Colors.white : primaryGreen,
+                ),
+              )
+            else
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? Colors.white : primaryGreen,
+              ),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
@@ -455,14 +495,19 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           // Points A et B
           _buildLocationInputs(),
           
-          // Carte - AGRANDIE (flex: 3)
+          // Carte (≈ moitié)
           Expanded(
-            flex: 3,
+            flex: 5,
             child: _buildMap(),
           ),
-          
-          // Prix libre et bouton de confirmation - RÉDUIT
-          _buildBottomSection(),
+
+          // Bas de page (scrollable pour éviter l'overflow et ne pas masquer les boutons)
+          Expanded(
+            flex: 5,
+            child: SingleChildScrollView(
+              child: _buildBottomSection(),
+            ),
+          ),
         ],
       ),
     );
@@ -470,7 +515,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
   Widget _buildRideTypeSelector() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -487,12 +532,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           const Text(
             'Choisissez votre type de véhicule',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: accentBlack,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -501,7 +546,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                 final capacity = type['capacity'] as int? ?? 4;
 
                 return Padding(
-                  padding: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.only(right: 10),
                   child: _buildRideTypeChip(
                     label: type['name'],
                     icon: type['icon'],
@@ -534,8 +579,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     return InkWell(
       onTap: onTap,
       child: Container(
-        width: 220,
-        padding: const EdgeInsets.all(12),
+        width: 190,
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: isSelected ? color.withOpacity(0.08) : Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -550,14 +595,14 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, color: color, size: 20),
+                  child: Icon(icon, color: color, size: 18),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,7 +610,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                       Text(
                         label,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: accentBlack,
                         ),
@@ -576,7 +621,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: Colors.grey[600],
                         ),
                       ),
@@ -601,17 +646,6 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                     ),
                   ),
                 ],
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.person, size: 14, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text(
-                  '$capacity places',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
               ],
             ),
           ],
@@ -979,46 +1013,51 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.all(20),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.search, size: 48, color: Colors.grey[400]),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Tapez au moins 3 caractères',
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                              const SizedBox(height: 24),
-                              const Text(
-                                'Lieux populaires à Dakar:',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 12),
-                              ..._getPopularPlaces().map((place) => ListTile(
-                                leading: const Icon(Icons.star, color: Colors.amber),
-                                title: Text(place['name']!),
-                                subtitle: Text(place['address']!),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  final lat = double.parse(place['lat']!);
-                                  final lng = double.parse(place['lng']!);
-                                  setState(() {
-                                    if (isPickup) {
-                                      _pickupAddress = place['name']!;
-                                      _pickupLatLng = LatLng(lat, lng);
-                                      _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.search, size: 48, color: Colors.grey[400]),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Tapez au moins 3 caractères',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                                const SizedBox(height: 24),
+                                const Text(
+                                  'Lieux populaires à Dakar:',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 12),
+                                ..._getPopularPlaces().map((place) => ListTile(
+                                  leading: const Icon(Icons.star, color: Colors.amber),
+                                  title: Text(place['name']!),
+                                  subtitle: Text(place['address']!),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    final lat = double.parse(place['lat']!);
+                                    final lng = double.parse(place['lng']!);
+                                    setState(() {
+                                      if (isPickup) {
+                                        _pickupAddress = place['name']!;
+                                        _pickupLatLng = LatLng(lat, lng);
+                                        _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
+                                      } else {
+                                        _destinationAddress = place['name']!;
+                                        _destinationLatLng = LatLng(lat, lng);
+                                        _addMarker(_destinationLatLng!, 'Destination', Colors.red);
+                                      }
+                                    });
+                                    if (_pickupLatLng != null && _destinationLatLng != null) {
+                                      _drawRoute();
+                                      _fitPickupAndDestination();
                                     } else {
-                                      _destinationAddress = place['name']!;
-                                      _destinationLatLng = LatLng(lat, lng);
-                                      _addMarker(_destinationLatLng!, 'Destination', Colors.red);
+                                      _focusOnLatLng(LatLng(lat, lng));
                                     }
-                                  });
-                                  if (_pickupLatLng != null && _destinationLatLng != null) {
-                                    _drawRoute();
-                                  }
-                                },
-                              )),
-                            ],
+                                  },
+                                )),
+                              ],
+                            ),
                           ),
                         ),
                       )
@@ -1067,6 +1106,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                                 });
                                 if (_pickupLatLng != null && _destinationLatLng != null) {
                                   _drawRoute();
+                                  _fitPickupAndDestination();
+                                } else {
+                                  _focusOnLatLng(LatLng(lat!, lng!));
                                 }
                               }
                             },
@@ -1095,7 +1137,37 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       _markers.removeWhere((m) => m.markerId == markerId);
       _markers.add(marker);
     });
-    _mapController?.animateCamera(CameraUpdate.newLatLng(position));
+  }
+
+  LatLngBounds _boundsFromLatLngs(List<LatLng> points) {
+    final lats = points.map((p) => p.latitude).toList();
+    final lngs = points.map((p) => p.longitude).toList();
+    final southWest = LatLng(
+      lats.reduce((a, b) => a < b ? a : b),
+      lngs.reduce((a, b) => a < b ? a : b),
+    );
+    final northEast = LatLng(
+      lats.reduce((a, b) => a > b ? a : b),
+      lngs.reduce((a, b) => a > b ? a : b),
+    );
+    return LatLngBounds(southwest: southWest, northeast: northEast);
+  }
+
+  Future<void> _focusOnLatLng(LatLng target, {double zoom = 16}) async {
+    if (_mapController == null) return;
+    await _mapController!.animateCamera(
+      CameraUpdate.newLatLngZoom(target, zoom),
+    );
+  }
+
+  Future<void> _fitPickupAndDestination({double padding = 100}) async {
+    if (_mapController == null) return;
+    if (_pickupLatLng == null || _destinationLatLng == null) return;
+
+    final bounds = _boundsFromLatLngs([_pickupLatLng!, _destinationLatLng!]);
+    await _mapController!.animateCamera(
+      CameraUpdate.newLatLngBounds(bounds, padding),
+    );
   }
 
   void _generateNearbyCarMarkers() {
@@ -1247,22 +1319,33 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  Icon(
-                    _selectedPaymentMethod == 'cash'
-                        ? Icons.payments
-                        : _selectedPaymentMethod == 'mobile_money'
-                            ? Icons.phone_iphone
-                            : Icons.credit_card,
-                    size: 18,
-                    color: primaryGreen,
-                  ),
+                  if (_selectedPaymentMethod != 'cash' &&
+                      _paymentLogos[_selectedPaymentMethod] != null)
+                    Image.asset(
+                      _paymentLogos[_selectedPaymentMethod]!,
+                      width: 18,
+                      height: 18,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.account_balance_wallet,
+                        size: 18,
+                        color: primaryGreen,
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons.payments,
+                      size: 18,
+                      color: primaryGreen,
+                    ),
                   const SizedBox(width: 8),
                   Text(
                     _selectedPaymentMethod == 'cash'
                         ? 'Paiement en espèces'
-                        : _selectedPaymentMethod == 'mobile_money'
-                            ? 'Mobile money'
-                            : 'Carte bancaire',
+                        : _selectedPaymentMethod == 'orange_money'
+                            ? 'Orange Money'
+                            : _selectedPaymentMethod == 'wave'
+                                ? 'Wave'
+                                : 'Free Money',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,

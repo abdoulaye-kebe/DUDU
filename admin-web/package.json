@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "vite --mode development",
+    "dev:live": "vite --mode production",
     "build": "vite build",
+    "build:live": "vite build --mode production",
     "preview": "vite preview"
   },
   "dependencies": {

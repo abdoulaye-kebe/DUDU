@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-// import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:io';
 
 class NotificationService {
@@ -9,7 +9,7 @@ class NotificationService {
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
-  // final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
   bool _isInitialized = false;
 
@@ -35,8 +35,8 @@ class NotificationService {
         onDidReceiveNotificationResponse: _onNotificationTapped,
       );
 
-      // Configuration Firebase Messaging (désactivé temporairement)
-      // await _setupFirebaseMessaging();
+      // Configuration Firebase Messaging
+      await _setupFirebaseMessaging();
 
       _isInitialized = true;
     } catch (e) {
@@ -44,34 +44,38 @@ class NotificationService {
     }
   }
 
-  // Future<void> _setupFirebaseMessaging() async {
-  //   // Demander les permissions
-  //   NotificationSettings settings = await _firebaseMessaging.requestPermission(
-  //     alert: true,
-  //     badge: true,
-  //     sound: true,
-  //     provisional: false,
-  //   );
+  Future<void> _setupFirebaseMessaging() async {
+    try {
+      // Demander les permissions (iOS)
+      final settings = await _firebaseMessaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
 
-  //   if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-  //     print('Notifications autorisées');
-  //   } else {
-  //     print('Notifications refusées');
-  //   }
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        print('Notifications autorisées');
+      } else {
+        print('Notifications refusées');
+      }
 
-  //   // Écouter les messages en arrière-plan
-  //   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      // Promos
+      await _firebaseMessaging.subscribeToTopic('promos');
 
-  //   // Écouter les messages au premier plan
-  //   FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      // Écouter les messages au premier plan
+      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-  //   // Écouter les clics sur les notifications
-  //   FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+      // Écouter les clics sur les notifications (quand l'app est ouverte depuis notif)
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
-  //   // Obtenir le token FCM
-  //   String? token = await _firebaseMessaging.getToken();
-  //   print('Token FCM: $token');
-  // }
+      // Token FCM
+      final token = await _firebaseMessaging.getToken();
+      print('Token FCM: $token');
+    } catch (e) {
+      print('Erreur setup Firebase Messaging: $e');
+    }
+  }
 
   Future<void> _onNotificationTapped(NotificationResponse response) async {
     // Gérer le clic sur une notification locale
@@ -79,21 +83,21 @@ class NotificationService {
     _handleNotificationData(response.payload);
   }
 
-  // Future<void> _handleForegroundMessage(RemoteMessage message) async {
-  //   print('Message reçu au premier plan: ${message.notification?.title}');
-    
-  //   // Afficher une notification locale
-  //   await showLocalNotification(
-  //     title: message.notification?.title ?? 'DUDU',
-  //     body: message.notification?.body ?? '',
-  //     payload: message.data.toString(),
-  //   );
-  // }
+  Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    print('Message reçu au premier plan: ${message.notification?.title}');
 
-  // Future<void> _handleNotificationTap(RemoteMessage message) async {
-  //   print('Notification Firebase tapée: ${message.data}');
-  //   _handleNotificationData(message.data.toString());
-  // }
+    await showLocalNotification(
+      title: message.notification?.title ?? 'DUDU',
+      body: message.notification?.body ?? '',
+      payload: message.data.isNotEmpty ? message.data.toString() : null,
+      id: message.messageId?.hashCode ?? 0,
+    );
+  }
+
+  Future<void> _handleNotificationTap(RemoteMessage message) async {
+    print('Notification Firebase tapée: ${message.data}');
+    _handleNotificationData(message.data.toString());
+  }
 
   void _handleNotificationData(String? data) {
     // Gérer les données de la notification

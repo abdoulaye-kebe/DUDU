@@ -78,6 +78,41 @@ exports.sendTestNotification = async (req, res) => {
 };
 
 /**
+ * Envoyer une promo à tous les utilisateurs abonnés au topic `promos`
+ */
+exports.sendPromoToTopic = async (req, res) => {
+  try {
+    const { title, body, image, data } = req.body || {};
+    if (!title || !body) {
+      return res.status(400).json({
+        success: false,
+        message: 'title et body requis'
+      });
+    }
+
+    const notification = {
+      title,
+      body,
+      image: image || null,
+      data: data || { type: 'promo' },
+    };
+
+    const result = await notificationService.sendTopicNotification('promos', notification);
+
+    res.json({
+      success: true,
+      result,
+    });
+  } catch (error) {
+    console.error('Erreur promo topic:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur'
+    });
+  }
+};
+
+/**
  * Obtenir statistiques notifications
  */
 exports.getNotificationStats = async (req, res) => {
