@@ -22,6 +22,8 @@ package-lock.json
 
 # Backend
 backend/.env
+backend/.env.*
+**/firebase-adminsdk*.json
 backend/node_modules/
 backend/logs/
 backend/uploads/

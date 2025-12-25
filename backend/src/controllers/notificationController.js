@@ -99,6 +99,13 @@ exports.sendPromoToTopic = async (req, res) => {
 
     const result = await notificationService.sendTopicNotification('promos', notification);
 
+    if (!result) {
+      return res.status(500).json({
+        success: false,
+        message: 'Échec envoi notification promo'
+      });
+    }
+
     res.json({
       success: true,
       result,

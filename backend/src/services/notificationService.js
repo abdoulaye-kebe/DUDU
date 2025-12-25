@@ -34,12 +34,17 @@ class NotificationService {
         return null;
       }
 
+      const messageNotification = {
+        title: notification.title,
+        body: notification.body,
+      };
+
+      if (typeof notification.image === 'string' && notification.image.trim().length > 0) {
+        messageNotification.imageUrl = notification.image;
+      }
+
       const message = {
-        notification: {
-          title: notification.title,
-          body: notification.body,
-          imageUrl: notification.image || null,
-        },
+        notification: messageNotification,
         data: notification.data || {},
         token: user.fcmToken,
       };
@@ -60,12 +65,17 @@ class NotificationService {
   async sendTopicNotification(topic, notification) {
     try {
       ensureFirebaseInitialized();
+      const messageNotification = {
+        title: notification.title,
+        body: notification.body,
+      };
+
+      if (typeof notification.image === 'string' && notification.image.trim().length > 0) {
+        messageNotification.imageUrl = notification.image;
+      }
+
       const message = {
-        notification: {
-          title: notification.title,
-          body: notification.body,
-          imageUrl: notification.image || null,
-        },
+        notification: messageNotification,
         data: notification.data || {},
         topic,
       };
