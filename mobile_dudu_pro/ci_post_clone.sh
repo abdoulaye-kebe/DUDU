@@ -23,11 +23,19 @@ flutter pub get
 echo "Precache iOS artifacts..."
 flutter precache --ios
 
+echo "Generating iOS build configuration (Generated.xcconfig)..."
+flutter build ios --config-only
+
 echo "Installing CocoaPods..."
 cd ios
 
-# Ensure CocoaPods repo is usable
+if ! command -v pod >/dev/null 2>&1; then
+  echo "CocoaPods not found. Installing with gem (user install)..."
+  gem install --user-install cocoapods -N
+  export PATH="$(ruby -e 'require "rubygems"; print Gem.user_dir')/bin:$PATH"
+fi
+
 pod --version
-pod install
+pod install --repo-update
 
 echo "Post-clone setup complete."
