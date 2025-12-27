@@ -42,7 +42,7 @@ echo "Precache iOS artifacts..."
 flutter precache --ios
 
 echo "Generating iOS build configuration (Generated.xcconfig)..."
-flutter build ios --config-only
+flutter build ios --config-only --no-codesign
 
 echo "Installing CocoaPods..."
 cd ios

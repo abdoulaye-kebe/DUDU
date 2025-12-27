@@ -41,7 +41,7 @@ echo "flutter precache --ios"
 flutter precache --ios
 
 echo "flutter build ios --config-only (Generate Generated.xcconfig)"
-flutter build ios --config-only
+flutter build ios --config-only --no-codesign
 
 cd ios
 
