@@ -6,9 +6,27 @@ PRO_DIR="$REPO_ROOT/mobile_dudu_pro"
 
 # Ensure Flutter is available
 if ! command -v flutter >/dev/null 2>&1; then
-  echo "Flutter not found. Installing Flutter SDK (stable) into $HOME/flutter";
-  git clone https://github.com/flutter/flutter.git -b stable "$HOME/flutter"
-  export PATH="$HOME/flutter/bin:$PATH"
+  FLUTTER_DIR="$HOME/flutter"
+  echo "Flutter not found. Installing Flutter SDK (stable) into $FLUTTER_DIR";
+
+  if [ -d "$FLUTTER_DIR" ] && [ ! -x "$FLUTTER_DIR/bin/flutter" ]; then
+    echo "Found partial Flutter checkout. Removing $FLUTTER_DIR..."
+    rm -rf "$FLUTTER_DIR"
+  fi
+
+  if [ ! -d "$FLUTTER_DIR" ]; then
+    for attempt in 1 2 3; do
+      echo "Cloning Flutter (attempt $attempt/3)..."
+      if git clone --depth 1 -b stable https://github.com/flutter/flutter.git "$FLUTTER_DIR"; then
+        break
+      fi
+      echo "Flutter clone failed. Retrying..."
+      rm -rf "$FLUTTER_DIR"
+      sleep 5
+    done
+  fi
+
+  export PATH="$FLUTTER_DIR/bin:$PATH"
 fi
 
 echo "Flutter version:"
