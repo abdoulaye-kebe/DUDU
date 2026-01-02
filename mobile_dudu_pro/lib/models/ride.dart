@@ -277,21 +277,15 @@ enum RideStatus {
 
 enum RideType {
   standard,
-  express,
-  shared,
-  premium,
+  comfort,
   womenOnly,
-  cargo,
   delivery;
 
   String get value {
     switch (this) {
       case RideType.standard: return 'standard';
-      case RideType.express: return 'express';
-      case RideType.shared: return 'shared';
-      case RideType.premium: return 'premium';
       case RideType.womenOnly: return 'women_only';
-      case RideType.cargo: return 'cargo';
+      case RideType.comfort: return 'comfort';
       case RideType.delivery: return 'delivery';
     }
   }
@@ -299,11 +293,9 @@ enum RideType {
   static RideType fromString(String type) {
     switch (type) {
       case 'standard': return RideType.standard;
-      case 'express': return RideType.express;
-      case 'shared': return RideType.shared;
-      case 'premium': return RideType.premium;
+      case 'comfort': return RideType.comfort;
+      case 'express': return RideType.comfort;
       case 'women_only': return RideType.womenOnly;
-      case 'cargo': return RideType.cargo;
       case 'delivery': return RideType.delivery;
       default: return RideType.standard;
     }
@@ -312,11 +304,8 @@ enum RideType {
   String get displayName {
     switch (this) {
       case RideType.standard: return 'Standard';
-      case RideType.express: return 'Express';
-      case RideType.shared: return 'Covoiturage';
-      case RideType.premium: return 'Premium';
-      case RideType.womenOnly: return 'Réservé femmes';
-      case RideType.cargo: return 'Cargo';
+      case RideType.comfort: return 'Confort';
+      case RideType.womenOnly: return 'Femme';
       case RideType.delivery: return 'Livraison';
     }
   }

@@ -5,6 +5,7 @@ class User {
   final String phone;
   final String? email;
   final bool isVerified;
+  final String? gender;
   final String referralCode;
   final String language;
   final String currency;
@@ -22,6 +23,7 @@ class User {
     required this.phone,
     this.email,
     required this.isVerified,
+    this.gender,
     required this.referralCode,
     required this.language,
     required this.currency,
@@ -53,6 +55,7 @@ class User {
       phone: json['phone'] ?? '',
       email: json['email'],
       isVerified: json['isVerified'] ?? false,
+      gender: json['gender'],
       referralCode: json['referralCode'] ?? '',
       language: json['language'] ?? 'fr',
       currency: json['currency'] ?? 'XOF',
@@ -73,6 +76,7 @@ class User {
       'phone': phone,
       'email': email,
       'isVerified': isVerified,
+      'gender': gender,
       'referralCode': referralCode,
       'language': language,
       'currency': currency,

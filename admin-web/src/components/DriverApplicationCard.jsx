@@ -21,6 +21,7 @@ function DriverApplicationCard({ driver, onApprove, onReject, delay = 0 }) {
   const [showValidationForm, setShowValidationForm] = useState(false);
   const [validationData, setValidationData] = useState({
     serviceLevel: 'standard',
+    womenOnly: false,
     vehicleCondition: 'good',
     vehicleInspected: false,
     documentsVerified: false,
@@ -44,6 +45,7 @@ function DriverApplicationCard({ driver, onApprove, onReject, delay = 0 }) {
     setShowValidationForm(false);
     setValidationData({
       serviceLevel: 'standard',
+      womenOnly: false,
       vehicleCondition: 'good',
       vehicleInspected: false,
       documentsVerified: false,
@@ -247,10 +249,31 @@ function DriverApplicationCard({ driver, onApprove, onReject, delay = 0 }) {
                   />
                   <Zap size={24} color={validationData.serviceLevel === 'express' ? '#FF9800' : '#666'} />
                   <div>
-                    <div style={{ fontWeight: '600' }}>Express</div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>Véhicule haut de gamme</div>
+                    <div style={{ fontWeight: '600' }}>Comfort+</div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>Confort haut de gamme</div>
                   </div>
                 </label>
+              </div>
+            </div>
+
+            {/* Femme uniquement */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                cursor: 'pointer',
+                userSelect: 'none'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={validationData.womenOnly}
+                  onChange={(e) => setValidationData({ ...validationData, womenOnly: e.target.checked })}
+                />
+                <span style={{ fontWeight: 600, color: '#333' }}>Femme uniquement (women_only)</span>
+              </label>
+              <div style={{ fontSize: '12px', color: '#666', marginTop: '6px' }}>
+                Active le type de course "Femme" pour ce chauffeur.
               </div>
             </div>
 

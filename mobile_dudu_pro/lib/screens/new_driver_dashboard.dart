@@ -84,6 +84,15 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
             final pickup = data['pickup'];
             final destination = data['destination'];
             final pricing = (data['pricing'] ?? {}) as Map?;
+            final rawRideType = data['rideType']?.toString() ?? 'standard';
+            final normalizedRideType = rawRideType == 'express' ? 'comfort' : rawRideType;
+            final rideTypeLabels = {
+              'standard': 'Standard',
+              'comfort': 'Confort',
+              'women_only': 'Femme',
+              'delivery': 'Livraison',
+            };
+            final rideTypeLabel = rideTypeLabels[normalizedRideType] ?? 'Standard';
             final passengerName = passenger?['name']?.toString() ?? 'Client DUDU';
             final passengerPhone = data['passengerPhone']?.toString();
             String pickupText;
@@ -109,7 +118,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
 
             return AlertDialog(
               title: const Text(
-                'NOUVELLE DEMANDE DE COURSE',
+                'NOUVELLE DEMANDE',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -119,6 +128,21 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: primaryGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      rideTypeLabel,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: primaryGreen,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   Text(
                     passengerName,
                     style: const TextStyle(

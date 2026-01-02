@@ -225,7 +225,8 @@ class ApiService {
   // Gestion des erreurs
   static ApiResponse<T> _handleResponse<T>(http.Response response, T Function(dynamic) fromJson) {
     try {
-      final data = json.decode(response.body);
+      final dynamic decoded = response.body.isNotEmpty ? json.decode(response.body) : null;
+      final Map<String, dynamic> data = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
       
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return ApiResponse<T>(
@@ -290,8 +291,8 @@ class ApiService {
     String? email,
     required String phone,
     required String password,
+    String? gender,
     String language = 'fr',
-    String? referralCode,
   }) async {
     try {
       final requestData = {
@@ -299,9 +300,9 @@ class ApiService {
         'lastName': lastName,
         'phone': phone,
         'password': password,
+        if (gender != null && gender.isNotEmpty) 'gender': gender,
         'language': language,
         if (email != null && email.isNotEmpty) 'email': email,
-        if (referralCode != null) 'referralCode': referralCode,
       };
       
       print('🔍 Données d\'inscription envoyées: $requestData');
@@ -511,7 +512,7 @@ class ApiService {
     }
   }
 
-  static Future<ApiResponse<Ride>> cancelRide(String rideId, String reason) async {
+  static Future<ApiResponse<bool>> cancelRide(String rideId, String reason) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/rides/$rideId/cancel'),
@@ -519,9 +520,13 @@ class ApiService {
         body: json.encode({'reason': reason}),
       ).timeout(timeout);
 
-      return _handleResponse(response, (data) => Ride.fromJson(data));
+      if (kDebugMode) {
+        print('📡 Réponse cancelRide: ${response.statusCode} - ${response.body}');
+      }
+
+      return _handleResponse(response, (data) => true);
     } catch (e) {
-      return ApiResponse<Ride>(
+      return ApiResponse<bool>(
         success: false,
         message: 'Erreur d\'annulation de la course: $e',
         data: null,

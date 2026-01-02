@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -47,11 +49,15 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
   // Controllers
   final TextEditingController _pickupController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController();
+  final FocusNode _destinationFocusNode = FocusNode();
+  Timer? _searchDebounce;
   
   // États
   bool _isLoading = true;
   bool _showDestinationInput = false;
   List<PlaceSuggestion> _suggestions = [];
+  bool _isSearchingDestination = false;
+  bool _isSearchingSuggestions = false;
   late String _selectedRideType;
   double _estimatedPrice = 0;
   
@@ -79,6 +85,100 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
     
     _setupAnimations();
     _getCurrentLocation();
+
+    _destinationController.addListener(_onDestinationTextChanged);
+  }
+
+  void _onDestinationTextChanged() {
+    if (!_destinationFocusNode.hasFocus) return;
+    final query = _destinationController.text.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _suggestions = [];
+        _isSearchingSuggestions = false;
+      });
+      return;
+    }
+
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      if (!_destinationFocusNode.hasFocus) return;
+      final current = _destinationController.text.trim();
+      if (current.isEmpty) return;
+      _searchSuggestions(current);
+    });
+  }
+
+  Future<void> _searchSuggestions(String query) async {
+    setState(() {
+      _isSearchingSuggestions = true;
+    });
+
+    final userLat = _currentPosition?.latitude;
+    final userLng = _currentPosition?.longitude;
+    final suggestions = await PlacesService.getPlaceSuggestions(
+      query,
+      userLat: userLat,
+      userLng: userLng,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _suggestions = suggestions;
+      _isSearchingSuggestions = false;
+    });
+  }
+
+  double? _distanceKmTo(PlaceSuggestion suggestion) {
+    if (_currentPosition == null) return null;
+
+    final lat = suggestion.localLat;
+    final lng = suggestion.localLng;
+    if (suggestion.isLocal && lat != null && lng != null) {
+      final meters = Geolocator.distanceBetween(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        lat,
+        lng,
+      );
+      return meters / 1000.0;
+    }
+
+    return null;
+  }
+
+  Future<void> _selectSuggestion(PlaceSuggestion suggestion) async {
+    FocusScope.of(context).unfocus();
+
+    double? lat = suggestion.localLat;
+    double? lng = suggestion.localLng;
+    String addressLabel = suggestion.description;
+
+    if (!suggestion.isLocal) {
+      final details = await PlacesService.getPlaceDetails(suggestion.placeId);
+      if (details != null) {
+        lat = details.latitude;
+        lng = details.longitude;
+        addressLabel = details.formattedAddress;
+      }
+    }
+
+    if (lat == null || lng == null) {
+      return;
+    }
+
+    setState(() {
+      _destinationController.text = suggestion.mainText.isNotEmpty
+          ? suggestion.mainText
+          : addressLabel;
+      _suggestions = [];
+      _isSearchingDestination = false;
+    });
+
+    final pos = LatLng(lat, lng);
+    _addMarker(pos, 'destination', 'Destination');
+    _mapController?.animateCamera(CameraUpdate.newLatLngZoom(pos, 16));
   }
 
   void _setupAnimations() {
@@ -180,6 +280,7 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
     );
 
     setState(() {
+      _markers.removeWhere((m) => m.markerId.value == id);
       _markers.add(marker);
     });
   }
@@ -255,13 +356,23 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
               ),
               child: IconButton(
                 icon: const Icon(Icons.arrow_back, color: AppTheme.textColor),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  if (_isSearchingDestination) {
+                    setState(() {
+                      _isSearchingDestination = false;
+                      _suggestions = [];
+                    });
+                    FocusScope.of(context).unfocus();
+                    return;
+                  }
+                  Navigator.pop(context);
+                },
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(15),
@@ -276,20 +387,109 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
                 child: Row(
                   children: [
                     Icon(Icons.search, color: AppTheme.primaryColor),
-                    SizedBox(width: 12),
-                    Text(
-                      'Où allez-vous ?',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: _destinationController,
+                        focusNode: _destinationFocusNode,
+                        onTap: () {
+                          setState(() {
+                            _isSearchingDestination = true;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          hintText: 'Où allez-vous ?'
+                              ,
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
                       ),
                     ),
+                    if (_destinationController.text.trim().isNotEmpty)
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _destinationController.clear();
+                            _suggestions = [];
+                          });
+                        },
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close, size: 18, color: Colors.black54),
+                        ),
+                      ),
                   ],
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsOverlay() {
+    if (!_isSearchingDestination) return const SizedBox.shrink();
+    if (_destinationController.text.trim().isEmpty) return const SizedBox.shrink();
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 88, 16, 0),
+        child: Material(
+          elevation: 12,
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.white,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isSearchingSuggestions)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: LinearProgressIndicator(minHeight: 2),
+                  ),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _suggestions.length,
+                    separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey[200]),
+                    itemBuilder: (context, index) {
+                      final s = _suggestions[index];
+                      final km = _distanceKmTo(s);
+
+                      return ListTile(
+                        leading: const Icon(Icons.location_on_outlined, color: Colors.black54),
+                        title: Text(
+                          s.mainText.isNotEmpty ? s.mainText : s.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          s.secondaryText.isNotEmpty ? s.secondaryText : s.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: km != null
+                            ? Text(
+                                '${km.toStringAsFixed(1)} km',
+                                style: const TextStyle(color: Colors.black54),
+                              )
+                            : const Icon(Icons.north_east, size: 18, color: Colors.black45),
+                        onTap: () => _selectSuggestion(s),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -549,6 +749,8 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
     _fadeController.dispose();
     _pickupController.dispose();
     _destinationController.dispose();
+    _destinationFocusNode.dispose();
+    _searchDebounce?.cancel();
     _mapController?.dispose();
     super.dispose();
   }
@@ -565,6 +767,8 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
           ),
           // Barre supérieure
           _buildTopBar(),
+          // Suggestions
+          _buildSuggestionsOverlay(),
           // Bouton de localisation
           _buildMyLocationButton(),
           // Bottom sheet

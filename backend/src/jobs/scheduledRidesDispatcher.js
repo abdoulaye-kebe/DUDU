@@ -44,9 +44,9 @@ module.exports = function startScheduledRidesDispatcher(io) {
           // Rayon de recherche similaire à la route prix libre
           const SEARCH_RADIUS = {
             standard: 5000,
-            express: 7000,
-            shared: 5000,
+            comfort: 7000,
             women_only: 5000,
+            delivery: 3000,
           };
           const searchRadius = SEARCH_RADIUS[rideType] || 3000;
 
@@ -61,11 +61,12 @@ module.exports = function startScheduledRidesDispatcher(io) {
             'location.longitude': { $exists: true, $ne: null },
           };
 
-          // Filtre spécial femmes uniquement
           if (rideType === 'women_only') {
-            const femaleUsers = await User.find({ gender: 'female' }).select('_id');
-            const femaleUserIds = femaleUsers.map((u) => u._id);
-            driverQuery.user = { $in: femaleUserIds };
+            driverQuery.gender = 'female';
+          }
+
+          if (rideType === 'delivery') {
+            driverQuery['vehicle.category'] = 'moto';
           }
 
           const allDrivers = await Driver.find(driverQuery)

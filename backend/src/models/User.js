@@ -59,6 +59,45 @@ const userSchema = new mongoose.Schema({
     enum: ['XOF', 'EUR', 'USD'],
     default: 'XOF'
   },
+
+  fcmToken: {
+    type: String,
+    default: null
+  },
+
+  deviceInfo: {
+    platform: {
+      type: String,
+      default: 'mobile'
+    }
+  },
+
+  preferences: {
+    pushNotifications: {
+      type: Boolean,
+      default: true
+    },
+    carpoolNotifications: {
+      type: Boolean,
+      default: true
+    },
+    promoNotifications: {
+      type: Boolean,
+      default: true
+    }
+  },
+
+  lastKnownLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: undefined
+    }
+  },
   
   // Statut et vérification
   isVerified: {
@@ -136,6 +175,7 @@ const userSchema = new mongoose.Schema({
 
 // Index géospatial pour la localisation
 userSchema.index({ 'address.coordinates': '2dsphere' });
+userSchema.index({ lastKnownLocation: '2dsphere' });
 
 // Middleware pour hasher le mot de passe
 userSchema.pre('save', async function(next) {

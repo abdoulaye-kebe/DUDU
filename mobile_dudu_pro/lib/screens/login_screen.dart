@@ -4,6 +4,10 @@ import 'change_password_screen.dart';
 import 'driver_registration_screen.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import '../services/notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'pro_app_gate.dart';
+import '../config/app_config.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -136,16 +140,27 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
         final token = response['token']?.toString();
         if (token != null && token.isNotEmpty) {
+          ApiService.setAuthToken(token);
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('pro_auth_token', token);
+          } catch (e) {
+            print('⚠️ Impossible de sauvegarder le token: $e');
+          }
           try {
             SocketService().connect(token);
           } catch (e) {
             print('⚠️ Impossible d\'initialiser le socket: $e');
           }
+
+          try {
+            await NotificationService().registerToken(AppConfig.apiUrl, token);
+          } catch (_) {}
         }
-        
+
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const NewDriverDashboard()),
+          MaterialPageRoute(builder: (context) => const ProAppGate()),
         );
       } else {
         setState(() {

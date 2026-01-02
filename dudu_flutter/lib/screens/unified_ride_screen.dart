@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:math' as math;
+ import 'dart:async';
 import '../services/api_service.dart';
 import '../services/places_service.dart';
 import '../services/socket_service.dart';
+import 'delivery_tracking_screen.dart';
 import 'ride_tracking_screen.dart';
 
 /// Écran unifié pour les 4 types de courses (Standard, Express, Covoiturage, Femmes)
@@ -23,6 +25,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
   bool _isSearchingDriver = false;
+  String? _pendingRideMongoId;
+  Timer? _searchDebounce;
+  int _searchToken = 0;
   
   // Couleurs DUDU
   static const Color primaryGreen = Color(0xFF0d5d36);
@@ -78,16 +83,23 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       'basePricePerKm': 600,
     },
     {
-      'id': 'comfort_plus',
-      'name': 'Confort +',
-      'icon': Icons.star,
-      'color': Colors.deepOrange,
-      'description': 'Confort + • Premium • 1-4 passagers',
-      'badge': 'PREMIUM',
+      'id': 'women_only',
+      'name': 'Femme',
+      'icon': Icons.woman,
+      'color': Colors.pink,
+      'description': 'Femmes • Sécurité • 1-4 passagers',
+      'badge': 'FEMME',
       'capacity': 4,
-      'basePricePerKm': 750,
+      'basePricePerKm': 650,
     },
   ];
+
+  String get _backendRideType {
+    if (_selectedMode == 'delivery') return 'delivery';
+    if (_selectedRideType == 'women_only') return 'women_only';
+    if (_selectedRideType == 'comfort') return 'comfort';
+    return 'standard';
+  }
 
   @override
   void initState() {
@@ -213,8 +225,13 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       setState(() {
         _currentPosition = position;
         _pickupAddress = 'Ma position actuelle';
+        _pickupLatLng = LatLng(position.latitude, position.longitude);
         _isLoading = false;
       });
+
+      if (_pickupLatLng != null) {
+        _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
+      }
 
       _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(
@@ -396,9 +413,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
               icon: Icons.directions_car,
               isSelected: _selectedMode == 'ride',
               onTap: () {
-                setState(() {
-                  _selectedMode = 'ride';
-                });
+                _setMode('ride');
               },
             ),
           ),
@@ -409,15 +424,44 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
               icon: Icons.delivery_dining,
               isSelected: _selectedMode == 'delivery',
               onTap: () {
-                setState(() {
-                  _selectedMode = 'delivery';
-                });
+                _setMode('delivery');
               },
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _setMode(String mode) {
+    if (_selectedMode == mode) return;
+
+    setState(() {
+      _selectedMode = mode;
+
+      _pendingRideMongoId = null;
+
+      _pickupController.clear();
+      _destinationController.clear();
+      _priceController.clear();
+
+      _pickupAddress = '';
+      _destinationAddress = '';
+      _pickupLatLng = null;
+      _destinationLatLng = null;
+      _customPrice = 0;
+      _estimatedDistance = 0;
+      _suggestions = [];
+      _isSearching = false;
+      _isSearchingDriver = false;
+      _nearbyVehicles = [];
+
+      _markers.clear();
+      _polylines.clear();
+    });
+
+    _searchDebounce?.cancel();
+    _searchToken++;
   }
 
   Widget _buildModeChip({
@@ -489,8 +533,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         children: [
           // Sélection Course / Livraison (moto)
           _buildModeSelector(),
-          // Sélection du type de course
-          _buildRideTypeSelector(),
+          // Sélection du type de course (pas de types en livraison)
+          if (_selectedMode != 'delivery') _buildRideTypeSelector(),
           
           // Points A et B
           _buildLocationInputs(),
@@ -505,6 +549,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           Expanded(
             flex: 5,
             child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
               child: _buildBottomSection(),
             ),
           ),
@@ -801,322 +848,348 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (_, controller) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+      builder: (context) => StatefulBuilder(
+        builder: (context, modalSetState) => DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (_, controller) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                // Handle
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              // En-tête "Votre itinéraire" avec bouton fermer
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'Votre itinéraire',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                // En-tête "Votre itinéraire" avec bouton fermer
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                      const Expanded(
+                        child: Text(
+                          'Votre itinéraire',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 48),
-                  ],
+                      const SizedBox(width: 48),
+                    ],
+                  ),
                 ),
-              ),
-              // Bouton "Ma position actuelle"
-              if (isPickup)
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      Navigator.pop(context);
-                      
-                      // Afficher un indicateur de chargement
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Row(
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              ),
-                              SizedBox(width: 12),
-                              Text('Récupération de votre position...'),
-                            ],
-                          ),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                      
-                      try {
-                        // Toujours essayer d'obtenir la position GPS actuelle
-                        Position position = await Geolocator.getCurrentPosition(
-                          desiredAccuracy: LocationAccuracy.high,
-                          timeLimit: const Duration(seconds: 10),
-                        );
+                // Bouton "Ma position actuelle"
+                if (isPickup)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(context);
                         
-                        print('📍 Position GPS obtenue: ${position.latitude}, ${position.longitude}');
-                        
-                        // Obtenir l'adresse
-                        final address = await PlacesService.reverseGeocode(
-                          position.latitude,
-                          position.longitude,
-                        );
-                        
-                        setState(() {
-                          _currentPosition = position;
-                          _pickupAddress = address;
-                          _pickupLatLng = LatLng(position.latitude, position.longitude);
-                          _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
-                        });
-                        
-                        // Centrer la carte sur la position
-                        _mapController?.animateCamera(
-                          CameraUpdate.newLatLngZoom(
-                            LatLng(position.latitude, position.longitude),
-                            15.0,
-                          ),
-                        );
-                        
-                        if (_destinationLatLng != null) {
-                          _drawRoute();
-                        }
-                        
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        // Afficher un indicateur de chargement
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Position définie: $address'),
-                            backgroundColor: primaryGreen,
+                          const SnackBar(
+                            content: Row(
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                ),
+                                SizedBox(width: 12),
+                                Text('Récupération de votre position...'),
+                              ],
+                            ),
+                            duration: Duration(seconds: 2),
                           ),
                         );
-                      } catch (e) {
-                        print('❌ Erreur position: $e');
-                        // Utiliser la position par défaut si disponible
-                        if (_currentPosition != null) {
-                          final address = await PlacesService.reverseGeocode(
-                            _currentPosition!.latitude,
-                            _currentPosition!.longitude,
+                        
+                        try {
+                          // Toujours essayer d'obtenir la position GPS actuelle
+                          Position position = await Geolocator.getCurrentPosition(
+                            desiredAccuracy: LocationAccuracy.high,
+                            timeLimit: const Duration(seconds: 10),
                           );
+                          
+                          print('📍 Position GPS obtenue: ${position.latitude}, ${position.longitude}');
+                          
+                          // Obtenir l'adresse
+                          final address = await PlacesService.reverseGeocode(
+                            position.latitude,
+                            position.longitude,
+                          );
+                          
                           setState(() {
+                            _currentPosition = position;
                             _pickupAddress = address;
-                            _pickupLatLng = LatLng(
-                              _currentPosition!.latitude,
-                              _currentPosition!.longitude,
-                            );
+                            _pickupLatLng = LatLng(position.latitude, position.longitude);
                             _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
                           });
+                          
+                          // Centrer la carte sur la position
+                          _mapController?.animateCamera(
+                            CameraUpdate.newLatLngZoom(
+                              LatLng(position.latitude, position.longitude),
+                              15.0,
+                            ),
+                          );
+                          
                           if (_destinationLatLng != null) {
                             _drawRoute();
                           }
-                        } else {
+                          
                           ScaffoldMessenger.of(context).hideCurrentSnackBar();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Impossible d\'obtenir votre position. Vérifiez que le GPS est activé.'),
-                              backgroundColor: Colors.red,
+                            SnackBar(
+                              content: Text('Position définie: $address'),
+                              backgroundColor: primaryGreen,
                             ),
                           );
+                        } catch (e) {
+                          print('❌ Erreur position: $e');
+                          // Utiliser la position par défaut si disponible
+                          if (_currentPosition != null) {
+                            final address = await PlacesService.reverseGeocode(
+                              _currentPosition!.latitude,
+                              _currentPosition!.longitude,
+                            );
+                            setState(() {
+                              _pickupAddress = address;
+                              _pickupLatLng = LatLng(
+                                _currentPosition!.latitude,
+                                _currentPosition!.longitude,
+                              );
+                              _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
+                            });
+                            if (_destinationLatLng != null) {
+                              _drawRoute();
+                            }
+                          } else {
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Impossible d\'obtenir votre position. Vérifiez que le GPS est activé.'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
-                      }
-                    },
-                    icon: const Icon(Icons.my_location),
-                    label: const Text('Utiliser ma position actuelle'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryGreen,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      },
+                      icon: const Icon(Icons.my_location),
+                      label: const Text('Utiliser ma position actuelle'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryGreen,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              // Barre de recherche
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: TextField(
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: isPickup ? 'Lieu de prise en charge' : 'Lieu d\'arrivée',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _isSearching 
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: Padding(
-                              padding: EdgeInsets.all(12),
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                // Barre de recherche
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: isPickup ? 'Lieu de prise en charge' : 'Lieu d\'arrivée',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _isSearching
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: Padding(
+                                padding: EdgeInsets.all(12),
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                  ),
-                  onChanged: (value) async {
-                    if (value.length > 2) {
+                    onChanged: (value) {
+                      final query = value.trim();
+                      _searchDebounce?.cancel();
+
+                      if (query.length <= 2) {
+                        setState(() {
+                          _suggestions = [];
+                          _isSearching = false;
+                        });
+                        modalSetState(() {});
+                        _searchToken++;
+                        return;
+                      }
+
+                      final int token = ++_searchToken;
                       setState(() => _isSearching = true);
-                      try {
-                        // Passer la position actuelle pour des suggestions plus pertinentes
-                        final suggestions = await PlacesService.getPlaceSuggestions(
-                          value,
-                          userLat: _currentPosition?.latitude ?? 14.6928,
-                          userLng: _currentPosition?.longitude ?? -17.4467,
-                        );
-                        if (mounted) {
+                      modalSetState(() {});
+
+                      _searchDebounce = Timer(const Duration(milliseconds: 220), () async {
+                        if (!mounted) return;
+                        if (_searchToken != token) return;
+
+                        final current = query;
+                        if (current.length <= 2) return;
+
+                        try {
+                          final suggestions = await PlacesService.getPlaceSuggestions(
+                            current,
+                            userLat: _currentPosition?.latitude ?? 14.6928,
+                            userLng: _currentPosition?.longitude ?? -17.4467,
+                          );
+
+                          if (!mounted) return;
+                          if (_searchToken != token) return;
+
                           setState(() {
                             _suggestions = suggestions;
                             _isSearching = false;
                           });
-                        }
-                      } catch (e) {
-                        print('Erreur recherche: $e');
-                        if (mounted) {
+                          if (mounted) {
+                            modalSetState(() {});
+                          }
+                        } catch (e) {
+                          print('Erreur recherche: $e');
+                          if (!mounted) return;
+                          if (_searchToken != token) return;
                           setState(() => _isSearching = false);
+                          if (mounted) {
+                            modalSetState(() {});
+                          }
                         }
-                      }
-                    } else {
-                      setState(() {
-                        _suggestions = [];
-                        _isSearching = false;
                       });
-                    }
-                  },
+                    },
+                  ),
                 ),
-              ),
-              // Suggestions
-              Expanded(
-                child: _suggestions.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: SingleChildScrollView(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.search, size: 48, color: Colors.grey[400]),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Tapez au moins 3 caractères',
-                                  style: TextStyle(color: Colors.grey[600]),
-                                ),
-                                const SizedBox(height: 24),
-                                const Text(
-                                  'Lieux populaires à Dakar:',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 12),
-                                ..._getPopularPlaces().map((place) => ListTile(
-                                  leading: const Icon(Icons.star, color: Colors.amber),
-                                  title: Text(place['name']!),
-                                  subtitle: Text(place['address']!),
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                    final lat = double.parse(place['lat']!);
-                                    final lng = double.parse(place['lng']!);
-                                    setState(() {
-                                      if (isPickup) {
-                                        _pickupAddress = place['name']!;
-                                        _pickupLatLng = LatLng(lat, lng);
-                                        _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
-                                      } else {
-                                        _destinationAddress = place['name']!;
-                                        _destinationLatLng = LatLng(lat, lng);
-                                        _addMarker(_destinationLatLng!, 'Destination', Colors.red);
-                                      }
-                                    });
-                                    if (_pickupLatLng != null && _destinationLatLng != null) {
-                                      _drawRoute();
-                                      _fitPickupAndDestination();
-                                    } else {
-                                      _focusOnLatLng(LatLng(lat, lng));
-                                    }
-                                  },
-                                )),
-                              ],
+                // Suggestions
+                Expanded(
+                  child: _suggestions.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search, size: 48, color: Colors.grey[400]),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Tapez au moins 3 caractères',
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  const Text(
+                                    'Lieux populaires à Dakar:',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ..._getPopularPlaces().map((place) => ListTile(
+                                        leading: const Icon(Icons.star, color: Colors.amber),
+                                        title: Text(place['name']!),
+                                        subtitle: Text(place['address']!),
+                                        onTap: () {
+                                          Navigator.pop(context);
+                                          final lat = double.parse(place['lat']!);
+                                          final lng = double.parse(place['lng']!);
+                                          setState(() {
+                                            if (isPickup) {
+                                              _pickupAddress = place['name']!;
+                                              _pickupLatLng = LatLng(lat, lng);
+                                              _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
+                                            } else {
+                                              _destinationAddress = place['name']!;
+                                              _destinationLatLng = LatLng(lat, lng);
+                                              _addMarker(_destinationLatLng!, 'Destination', Colors.red);
+                                            }
+                                          });
+                                          if (_pickupLatLng != null && _destinationLatLng != null) {
+                                            _drawRoute();
+                                            _fitPickupAndDestination();
+                                          } else {
+                                            _focusOnLatLng(LatLng(lat, lng));
+                                          }
+                                        },
+                                      )),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: controller,
-                        itemCount: _suggestions.length,
-                        itemBuilder: (context, index) {
-                          final suggestion = _suggestions[index];
-                          return ListTile(
-                            leading: Icon(
-                              suggestion.isLocal ? Icons.star : Icons.location_on,
-                              color: suggestion.isLocal ? Colors.amber : null,
-                            ),
-                            title: Text(suggestion.mainText),
-                            subtitle: Text(suggestion.secondaryText),
-                            onTap: () async {
-                              Navigator.pop(context);
-                              
-                              double? lat;
-                              double? lng;
-                              
-                              // Si c'est une suggestion locale, utiliser les coordonnées directement
-                              if (suggestion.isLocal && suggestion.localLat != null && suggestion.localLng != null) {
-                                lat = suggestion.localLat;
-                                lng = suggestion.localLng;
-                              } else {
-                                // Sinon, appeler l'API pour obtenir les coordonnées
-                                final details = await PlacesService.getPlaceDetails(suggestion.placeId);
-                                if (details != null) {
-                                  lat = details.latitude;
-                                  lng = details.longitude;
-                                }
-                              }
-                              
-                              if (lat != null && lng != null) {
-                                setState(() {
-                                  if (isPickup) {
-                                    _pickupAddress = suggestion.description;
-                                    _pickupLatLng = LatLng(lat!, lng!);
-                                    _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
-                                  } else {
-                                    _destinationAddress = suggestion.description;
-                                    _destinationLatLng = LatLng(lat!, lng!);
-                                    _addMarker(_destinationLatLng!, 'Destination', Colors.red);
-                                  }
-                                });
-                                if (_pickupLatLng != null && _destinationLatLng != null) {
-                                  _drawRoute();
-                                  _fitPickupAndDestination();
+                        )
+                      : ListView.builder(
+                          controller: controller,
+                          itemCount: _suggestions.length,
+                          itemBuilder: (context, index) {
+                            final suggestion = _suggestions[index];
+                            return ListTile(
+                              leading: Icon(
+                                suggestion.isLocal ? Icons.star : Icons.location_on,
+                                color: suggestion.isLocal ? Colors.amber : null,
+                              ),
+                              title: Text(suggestion.mainText),
+                              subtitle: Text(suggestion.secondaryText),
+                              onTap: () async {
+                                Navigator.pop(context);
+
+                                double? lat;
+                                double? lng;
+
+                                // Si c'est une suggestion locale, utiliser les coordonnées directement
+                                if (suggestion.isLocal && suggestion.localLat != null && suggestion.localLng != null) {
+                                  lat = suggestion.localLat;
+                                  lng = suggestion.localLng;
                                 } else {
-                                  _focusOnLatLng(LatLng(lat!, lng!));
+                                  // Sinon, appeler l'API pour obtenir les coordonnées
+                                  final details = await PlacesService.getPlaceDetails(suggestion.placeId);
+                                  if (details != null) {
+                                    lat = details.latitude;
+                                    lng = details.longitude;
+                                  }
                                 }
-                              }
-                            },
-                          );
-                        },
-                      ),
-              ),
-            ],
+
+                                if (lat != null && lng != null) {
+                                  setState(() {
+                                    if (isPickup) {
+                                      _pickupAddress = suggestion.description;
+                                      _pickupLatLng = LatLng(lat!, lng!);
+                                      _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
+                                    } else {
+                                      _destinationAddress = suggestion.description;
+                                      _destinationLatLng = LatLng(lat!, lng!);
+                                      _addMarker(_destinationLatLng!, 'Destination', Colors.red);
+                                    }
+                                  });
+                                  if (_pickupLatLng != null && _destinationLatLng != null) {
+                                    _drawRoute();
+                                    _fitPickupAndDestination();
+                                  } else {
+                                    _focusOnLatLng(LatLng(lat!, lng!));
+                                  }
+                                }
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1177,7 +1250,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     final List<Marker> carMarkers = [];
     final List<LatLng> vehicles = [];
 
-    for (int i = 0; i < 5; i++) {
+    final String rideType = _backendRideType;
+    final int count = rideType == 'comfort' ? 3 : 5;
+    final String markerPrefix = rideType == 'delivery' ? 'moto_' : 'car_';
+    final double hue = rideType == 'delivery' ? BitmapDescriptor.hueOrange : BitmapDescriptor.hueYellow;
+
+    for (int i = 0; i < count; i++) {
       final dx = (random.nextDouble() - 0.5) / 500; // petit décalage latitude
       final dy = (random.nextDouble() - 0.5) / 500; // petit décalage longitude
       final carPosition = LatLng(
@@ -1189,17 +1267,19 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
       carMarkers.add(
         Marker(
-          markerId: MarkerId('car_$i'),
+          markerId: MarkerId('${markerPrefix}$i'),
           position: carPosition,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
-          infoWindow: const InfoWindow(title: 'Chauffeur à proximité'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+          infoWindow: InfoWindow(
+            title: rideType == 'delivery' ? 'Livreur à proximité' : 'Chauffeur à proximité',
+          ),
         ),
       );
     }
 
     setState(() {
       _nearbyVehicles = vehicles;
-      _markers.removeWhere((m) => m.markerId.value.startsWith('car_'));
+      _markers.removeWhere((m) => m.markerId.value.startsWith('car_') || m.markerId.value.startsWith('moto_'));
       _markers.addAll(carMarkers);
     });
 
@@ -1211,7 +1291,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
   void _clearNearbyCarMarkers() {
     setState(() {
-      _markers.removeWhere((m) => m.markerId.value.startsWith('car_'));
+      _markers.removeWhere((m) => m.markerId.value.startsWith('car_') || m.markerId.value.startsWith('moto_'));
     });
   }
 
@@ -1497,45 +1577,78 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         final driver = data['driver'] ?? {};
         final vehicle = driver['vehicle'] ?? {};
 
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => RideTrackingScreen(
-              rideId: rideId,
-              vehicleType: _selectedMode == 'delivery' ? 'moto' : 'car',
-              pickupLocation: {
-                'latitude': _pickupLatLng!.latitude,
-                'longitude': _pickupLatLng!.longitude,
-              },
-              destinationLocation: {
-                'latitude': _destinationLatLng!.latitude,
-                'longitude': _destinationLatLng!.longitude,
-              },
-              driverInfo: {
-                'name': driver['name'] ?? 'Chauffeur',
-                'phone': driver['phone'] ?? '',
-                'vehicle': vehicle['model'] != null
-                    ? '${vehicle['make'] ?? ''} ${vehicle['model']}'
-                    : '',
-                'rating': driver['rating'] ?? 5.0,
-              },
+        if (_selectedMode == 'delivery') {
+          final confirmationCode = data['confirmationCode']?.toString() ?? '----';
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => DeliveryTrackingScreen(
+                deliveryId: rideId,
+                confirmationCode: confirmationCode,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => RideTrackingScreen(
+                rideId: rideId,
+                vehicleType: 'car',
+                pickupLocation: {
+                  'latitude': _pickupLatLng!.latitude,
+                  'longitude': _pickupLatLng!.longitude,
+                },
+                destinationLocation: {
+                  'latitude': _destinationLatLng!.latitude,
+                  'longitude': _destinationLatLng!.longitude,
+                },
+                driverInfo: {
+                  'name': driver['name'] ?? 'Chauffeur',
+                  'phone': driver['phone'] ?? '',
+                  'vehicle': vehicle['model'] != null
+                      ? '${vehicle['make'] ?? ''} ${vehicle['model']}'
+                      : '',
+                  'rating': driver['rating'] ?? 5.0,
+                },
+              ),
+            ),
+          );
+        }
       } catch (e) {
         print('Erreur lors de l\'ouverture du tracking: $e');
       }
     };
 
+    final searchingLabel = _selectedMode == 'delivery' ? 'Recherche de livreur...' : 'Recherche de chauffeur...';
+    bool cancelRequested = false;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const AlertDialog(
+      builder: (context) => AlertDialog(
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Recherche de chauffeur...'),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(searchingLabel),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () {
+                cancelRequested = true;
+                Navigator.pop(context);
+                if (!mounted) return;
+                _clearNearbyCarMarkers();
+                setState(() {
+                  _isSearchingDriver = false;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Demande annulée'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              },
+              child: const Text('Annuler', style: TextStyle(color: Colors.red)),
+            ),
           ],
         ),
       ),
@@ -1550,17 +1663,76 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         destinationLatitude: _destinationLatLng!.latitude,
         destinationLongitude: _destinationLatLng!.longitude,
         destinationAddress: _destinationAddress,
-        rideType: _selectedRideType,
+        rideType: _backendRideType,
         customPrice: _customPrice,
         estimatedDistance: _estimatedDistance,
         paymentMethod: _selectedPaymentMethod,
       );
 
-      if (mounted) {
-        Navigator.pop(context);
-      }
-
       if (response.success) {
+        String? rideMongoId;
+        final raw = response.data;
+        String? status;
+        if (raw is Map) {
+          final data = raw['data'];
+          if (data is Map) {
+            final s = data['status'];
+            if (s is String) status = s;
+            final dynamic rid = data['rideId'] ?? (data['ride'] is Map ? (data['ride']['id'] ?? data['ride']['_id']) : null);
+            if (rid != null) rideMongoId = rid.toString();
+          }
+        }
+
+        if (rideMongoId != null && rideMongoId.isNotEmpty) {
+          _pendingRideMongoId = rideMongoId;
+        }
+
+        if (cancelRequested) {
+          if (rideMongoId != null && rideMongoId.isNotEmpty) {
+            try {
+              await ApiService.cancelRide(rideMongoId, 'passenger_cancelled');
+            } catch (_) {}
+          }
+          _pendingRideMongoId = null;
+          return;
+        }
+
+        if (status == 'no_driver') {
+          await Future.delayed(const Duration(seconds: 2));
+
+          if (mounted) {
+            Navigator.pop(context);
+          }
+
+          if (mounted) {
+            _clearNearbyCarMarkers();
+            setState(() {
+              _isSearchingDriver = false;
+            });
+
+            final String message;
+            if (_selectedMode == 'delivery') {
+              message = 'Aucun livreur disponible pour le moment. Veuillez réessayer.';
+            } else if (_backendRideType == 'women_only') {
+              message = 'Aucune chauffeuse disponible pour le moment. Veuillez réessayer.';
+            } else {
+              message = 'Aucun chauffeur disponible pour le moment. Veuillez réessayer.';
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(message),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
+
+        if (mounted) {
+          Navigator.pop(context);
+        }
+
         if (mounted) {
           // Afficher un dialogue d'attente avec possibilité d'annuler
           showDialog(
@@ -1587,15 +1759,67 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'En attente d\'un chauffeur...\nPrix proposé: $_customPrice FCFA',
+                    _selectedMode == 'delivery'
+                        ? 'En attente d\'un livreur...\nPrix proposé: $_customPrice FCFA'
+                        : 'En attente d\'un chauffeur...\nPrix proposé: $_customPrice FCFA',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 24),
                   TextButton(
-                    onPressed: () {
-                      Navigator.pop(context); // Fermer le dialogue
-                      Navigator.pop(context); // Retourner au dashboard
+                    onPressed: () async {
+                      final rideId = _pendingRideMongoId;
+                      if (rideId == null || rideId.isEmpty) {
+                        Navigator.pop(context);
+                        if (mounted) {
+                          _clearNearbyCarMarkers();
+                          setState(() {
+                            _isSearchingDriver = false;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Demande annulée'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          Navigator.pop(context);
+                        }
+                        return;
+                      }
+
+                      try {
+                        final cancelRes = await ApiService.cancelRide(rideId, 'passenger_cancelled');
+                        Navigator.pop(context);
+                        if (mounted) {
+                          _pendingRideMongoId = null;
+                          _clearNearbyCarMarkers();
+                          setState(() {
+                            _isSearchingDriver = false;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(cancelRes.success ? 'Demande annulée' : 'Annulation échouée: ${cancelRes.message}'),
+                              backgroundColor: cancelRes.success ? Colors.orange : Colors.red,
+                            ),
+                          );
+                          Navigator.pop(context);
+                        }
+                      } catch (e) {
+                        Navigator.pop(context);
+                        if (mounted) {
+                          _clearNearbyCarMarkers();
+                          setState(() {
+                            _isSearchingDriver = false;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Erreur annulation: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          Navigator.pop(context);
+                        }
+                      }
                     },
                     child: const Text('Annuler la demande', style: TextStyle(color: Colors.red)),
                   ),
@@ -1606,6 +1830,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         }
       } else {
         if (mounted) {
+          Navigator.pop(context);
           _clearNearbyCarMarkers();
           setState(() {
             _isSearchingDriver = false;
@@ -1634,6 +1859,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _pickupController.dispose();
     _destinationController.dispose();
     _priceController.dispose();

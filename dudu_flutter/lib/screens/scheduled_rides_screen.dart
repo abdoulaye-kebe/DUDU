@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'dart:async';
 import 'dart:math' as math;
 import '../services/places_service.dart';
 import '../services/api_service.dart';
 import '../models/ride.dart';
 import '../services/notification_service.dart';
+import '../services/secure_auth_service.dart';
 
 class ScheduledRidesScreen extends StatefulWidget {
   const ScheduledRidesScreen({Key? key}) : super(key: key);
@@ -40,6 +42,8 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
   bool _isSearching = false;
   List<PlaceSuggestion> _suggestions = [];
   String _lastSearchQuery = '';
+  Timer? _searchDebounce;
+  int _searchToken = 0;
   LatLng? _pickupLatLng;
   LatLng? _destinationLatLng;
   double _estimatedDistanceKm = 0;
@@ -64,7 +68,31 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     _tabController.dispose();
     _fromController.dispose();
     _toController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
+  }
+
+  void _setMode(String mode) {
+    if (_mode == mode) return;
+    setState(() {
+      _mode = mode;
+      _from = '';
+      _to = '';
+      _fromController.clear();
+      _toController.clear();
+      _dateTime = null;
+      _price = 0;
+      _suggestions = [];
+      _isSearching = false;
+      _lastSearchQuery = '';
+      _pickupLatLng = null;
+      _destinationLatLng = null;
+      _estimatedDistanceKm = 0;
+      _estimatedDurationMin = 0;
+      _markers.clear();
+    });
+    _searchDebounce?.cancel();
+    _searchToken++;
   }
 
   Future<void> _initLocation() async {
@@ -129,17 +157,18 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (_, controller) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
+      builder: (context) => StatefulBuilder(
+        builder: (context, modalSetState) => DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (_, controller) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
               Container(
                 margin: const EdgeInsets.only(top: 12),
                 width: 40,
@@ -172,34 +201,49 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onChanged: (value) async {
+                  onChanged: (value) {
                     final query = value.trim();
                     _lastSearchQuery = query;
-                    if (query.isNotEmpty) {
-                      setState(() => _isSearching = true);
+                    _searchDebounce?.cancel();
+
+                    if (query.length <= 2) {
+                      setState(() {
+                        _suggestions = [];
+                        _isSearching = false;
+                      });
+                      modalSetState(() {});
+                      _searchToken++;
+                      return;
+                    }
+
+                    final int token = ++_searchToken;
+                    setState(() => _isSearching = true);
+                    modalSetState(() {});
+
+                    _searchDebounce = Timer(const Duration(milliseconds: 220), () async {
+                      if (!mounted) return;
+                      if (_searchToken != token) return;
+
                       try {
                         final suggestions = await PlacesService.getPlaceSuggestions(
                           query,
                           userLat: _currentPosition?.latitude ?? 14.6928,
                           userLng: _currentPosition?.longitude ?? -17.4467,
                         );
-                        if (mounted) {
-                          setState(() {
-                            _suggestions = suggestions;
-                            _isSearching = false;
-                          });
-                        }
+                        if (!mounted) return;
+                        if (_searchToken != token) return;
+                        setState(() {
+                          _suggestions = suggestions;
+                          _isSearching = false;
+                        });
+                        modalSetState(() {});
                       } catch (e) {
-                        if (mounted) {
-                          setState(() => _isSearching = false);
-                        }
+                        if (!mounted) return;
+                        if (_searchToken != token) return;
+                        setState(() => _isSearching = false);
+                        modalSetState(() {});
                       }
-                    } else {
-                      setState(() {
-                        _suggestions = [];
-                        _isSearching = false;
-                      });
-                    }
+                    });
                   },
                 ),
               ),
@@ -322,7 +366,8 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                         },
                       ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -453,7 +498,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                   label: 'Course',
                   icon: Icons.directions_car,
                   isSelected: _mode == 'ride',
-                  onTap: () => setState(() => _mode = 'ride'),
+                  onTap: () => _setMode('ride'),
                 ),
               ),
               const SizedBox(height: 8),
@@ -462,7 +507,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                   label: 'Livraison (moto)',
                   icon: Icons.delivery_dining,
                   isSelected: _mode == 'delivery',
-                  onTap: () => setState(() => _mode = 'delivery'),
+                  onTap: () => _setMode('delivery'),
                 ),
               ),
             ],
@@ -509,7 +554,11 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
               labelText: 'Prix proposé (FCFA)',
               border: OutlineInputBorder(),
             ),
-            onChanged: (v) => _price = int.tryParse(v) ?? 0,
+            onChanged: (v) {
+              setState(() {
+                _price = int.tryParse(v) ?? 0;
+              });
+            },
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -798,6 +847,25 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
 
   Future<void> _savePlannedRide() async {
     if (!_canSave()) return;
+
+    final auth = SecureAuthService();
+    final biometricEnabled = await auth.isBiometricEnabled();
+    if (biometricEnabled) {
+      final ok = await auth.authenticateWithBiometrics(
+        reason: 'Confirmer la planification du trajet',
+      );
+      if (!ok) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Authentification Face ID requise'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
 
     final rideType = _mode == 'delivery' ? 'delivery' : 'standard';
 

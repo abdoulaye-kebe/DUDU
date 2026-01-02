@@ -10,6 +10,18 @@ const driverSchema = new mongoose.Schema({
     unique: true,
     sparse: true // Permet des valeurs null multiples
   },
+
+  fcmToken: {
+    type: String,
+    default: null
+  },
+
+  deviceInfo: {
+    platform: {
+      type: String,
+      default: 'mobile'
+    }
+  },
   
   // Mot de passe pour connexion directe
   password: {
@@ -147,13 +159,17 @@ const driverSchema = new mongoose.Schema({
       type: Boolean,
       default: true  // Tous les chauffeurs peuvent faire du standard
     },
-    express: {
+    comfort: {
       type: Boolean,
-      default: false  // Seuls les chauffeurs "express" peuvent faire de l'express
+      default: false  // Seuls les chauffeurs validés "confort" peuvent faire du confort
     },
     delivery: {
       type: Boolean,
       default: false  // Pour les motos uniquement
+    },
+    women_only: {
+      type: Boolean,
+      default: false  // Réservé aux chauffeuses
     }
   },
   

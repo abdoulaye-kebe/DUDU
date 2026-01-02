@@ -125,20 +125,22 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
   Widget _buildRequestCard(RideRequest request) {
     final rideTypeColors = {
       'standard': const Color(0xFF0d5d36),
-      'express': Colors.orange,
-      'shared': Colors.blue,
+      'comfort': Colors.orange,
       'women_only': Colors.pink,
+      'delivery': Colors.deepOrange,
     };
 
     final rideTypeLabels = {
       'standard': 'Standard',
-      'express': 'Express',
-      'shared': 'Covoiturage',
-      'women_only': 'Femmes',
+      'comfort': 'Confort',
+      'women_only': 'Femme',
+      'delivery': 'Livraison',
     };
 
-    final color = rideTypeColors[request.rideType] ?? Colors.grey;
-    final label = rideTypeLabels[request.rideType] ?? 'Standard';
+    final rawType = request.rideType;
+    final normalizedType = rawType == 'express' ? 'comfort' : rawType;
+    final color = rideTypeColors[normalizedType] ?? Colors.grey;
+    final label = rideTypeLabels[normalizedType] ?? 'Standard';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),

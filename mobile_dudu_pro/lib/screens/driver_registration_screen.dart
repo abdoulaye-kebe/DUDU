@@ -25,15 +25,42 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
   final _vehicleYearController = TextEditingController();
   final _vehicleColorController = TextEditingController();
   final _vehiclePlateController = TextEditingController();
+  final _insuranceController = TextEditingController();
+  final _technicalInspectionController = TextEditingController();
 
   DateTime? _dateOfBirth;
   DateTime? _licenseExpiry;
+  DateTime? _insuranceExpiry;
+  DateTime? _technicalInspectionExpiry;
 
   bool _isSubmitting = false;
   String? _errorMessage;
   String _gender = 'male';
   bool _acceptTerms = false;
   bool _isMotoCourier = false;
+
+  void _setProfileType(bool isMotoCourier) {
+    setState(() {
+      _isMotoCourier = isMotoCourier;
+
+      // Reset fields that depend on the selected profile type
+      _licenseNumberController.clear();
+      _licenseExpiry = null;
+
+      _vehicleMakeController.clear();
+      _vehicleModelController.clear();
+      _vehicleYearController.clear();
+      _vehicleColorController.clear();
+      _vehiclePlateController.clear();
+
+      _insuranceController.clear();
+      _insuranceExpiry = null;
+      _technicalInspectionController.clear();
+      _technicalInspectionExpiry = null;
+
+      _errorMessage = null;
+    });
+  }
 
   @override
   void dispose() {
@@ -50,14 +77,17 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
     _vehicleYearController.dispose();
     _vehicleColorController.dispose();
     _vehiclePlateController.dispose();
+    _insuranceController.dispose();
+    _technicalInspectionController.dispose();
     super.dispose();
   }
 
-  Future<void> _selectDate(BuildContext context, {required bool isBirthDate}) async {
+  Future<void> _selectDate(BuildContext context, {required String field}) async {
+    final isBirthDate = field == 'birth';
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isBirthDate 
-          ? DateTime(2000, 1, 1) 
+      initialDate: isBirthDate
+          ? DateTime(2000, 1, 1)
           : DateTime.now().add(const Duration(days: 365)),
       firstDate: isBirthDate ? DateTime(1950) : DateTime.now(),
       lastDate: isBirthDate ? DateTime.now() : DateTime(2050),
@@ -79,10 +109,19 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
 
     if (picked != null) {
       setState(() {
-        if (isBirthDate) {
-          _dateOfBirth = picked;
-        } else {
-          _licenseExpiry = picked;
+        switch (field) {
+          case 'birth':
+            _dateOfBirth = picked;
+            break;
+          case 'licenseExpiry':
+            _licenseExpiry = picked;
+            break;
+          case 'insuranceExpiry':
+            _insuranceExpiry = picked;
+            break;
+          case 'technicalInspectionExpiry':
+            _technicalInspectionExpiry = picked;
+            break;
         }
       });
     }
@@ -118,6 +157,13 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
         'number': _licenseNumberController.text.trim(),
         'expiryDate': _licenseExpiry?.toIso8601String().split('T')[0],
         'category': _isMotoCourier ? 'A' : 'B',
+      },
+      'documents': {
+        'insurance': _insuranceController.text.trim(),
+        'insuranceExpiryDate': _insuranceExpiry?.toIso8601String().split('T')[0],
+        'technicalInspection': _technicalInspectionController.text.trim(),
+        'technicalInspectionExpiryDate':
+            _technicalInspectionExpiry?.toIso8601String().split('T')[0],
       },
       'vehicle': {
         'make': _vehicleMakeController.text.trim(),
@@ -178,8 +224,37 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
         );
         Navigator.pop(context);
       } else {
+        final msg = response['message']?.toString();
+        final errors = response['errors'];
+        String details = '';
+        final lines = <String>[];
+        if (errors is List) {
+          for (final e in errors) {
+            if (e is Map) {
+              final path = e['path']?.toString();
+              final emsg = e['msg']?.toString();
+              if (path != null && emsg != null) {
+                lines.add('- $path: $emsg');
+              } else if (emsg != null) {
+                lines.add('- $emsg');
+              }
+            } else if (e != null) {
+              lines.add('- $e');
+            }
+          }
+        } else if (errors is Map) {
+          errors.forEach((k, v) {
+            if (v == null) return;
+            lines.add('- $k: $v');
+          });
+        }
+        if (lines.isNotEmpty) {
+          details = '\n\nDétails:\n${lines.join('\n')}';
+        }
         setState(() {
-          _errorMessage = response['message']?.toString() ?? 'Erreur lors de l\'envoi de la candidature.';
+          _errorMessage = (msg == null || msg.isEmpty)
+              ? 'Données invalides$details'
+              : '$msg$details';
         });
       }
     } catch (e) {
@@ -243,12 +318,12 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
     required String label,
     required IconData icon,
     required DateTime? selectedDate,
-    required bool isBirthDate,
+    required String field,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: InkWell(
-        onTap: () => _selectDate(context, isBirthDate: isBirthDate),
+        onTap: () => _selectDate(context, field: field),
         child: InputDecorator(
           decoration: InputDecoration(
             labelText: label,
@@ -293,7 +368,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF0d5d36) : Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -306,15 +381,15 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
           children: [
             Icon(
               icon,
-              size: 40,
+              size: 20,
               color: isSelected ? Colors.white : const Color(0xFF0d5d36),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             Text(
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: isSelected ? Colors.white : Colors.black87,
               ),
@@ -360,7 +435,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                         icon: Icons.directions_car,
                         label: 'Chauffeur\nVoiture',
                         isSelected: !_isMotoCourier,
-                        onTap: () => setState(() => _isMotoCourier = false),
+                        onTap: () => _setProfileType(false),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -369,7 +444,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                         icon: Icons.motorcycle,
                         label: 'Livreur\nMoto',
                         isSelected: _isMotoCourier,
-                        onTap: () => setState(() => _isMotoCourier = true),
+                        onTap: () => _setProfileType(true),
                       ),
                     ),
                   ],
@@ -411,7 +486,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                   label: 'Date de naissance',
                   icon: Icons.cake_outlined,
                   selectedDate: _dateOfBirth,
-                  isBirthDate: true,
+                  field: 'birth',
                 ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -496,7 +571,41 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                   label: 'Date d\'expiration du permis',
                   icon: Icons.event,
                   selectedDate: _licenseExpiry,
-                  isBirthDate: false,
+                  field: 'licenseExpiry',
+                ),
+                const SizedBox(height: 24),
+
+                // Documents
+                const Text(
+                  'Documents',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0d5d36),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  _insuranceController,
+                  label: 'Assurance',
+                  icon: Icons.verified_user_outlined,
+                ),
+                _buildDateField(
+                  label: 'Date de validité de l\'assurance',
+                  icon: Icons.event,
+                  selectedDate: _insuranceExpiry,
+                  field: 'insuranceExpiry',
+                ),
+                _buildTextField(
+                  _technicalInspectionController,
+                  label: 'Contrôle technique',
+                  icon: Icons.build_circle_outlined,
+                ),
+                _buildDateField(
+                  label: 'Date d\'expiration du contrôle technique',
+                  icon: Icons.event,
+                  selectedDate: _technicalInspectionExpiry,
+                  field: 'technicalInspectionExpiry',
                 ),
                 const SizedBox(height: 24),
 
