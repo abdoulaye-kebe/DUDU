@@ -4,6 +4,8 @@ import 'dart:convert';
 import '../models/user.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import '../services/notification_service.dart';
+import '../config/app_config.dart';
 
 class AuthProvider extends ChangeNotifier {
   User? _user;
@@ -61,6 +63,10 @@ class AuthProvider extends ChangeNotifier {
         SocketService().connect(_authToken!);
         // Connecter Socket.io pour recevoir les événements (ride-accepted, tracking, ...)
         SocketService().connect(_authToken!);
+
+        try {
+          await NotificationService().registerToken(AppConfig.apiUrl, _authToken!);
+        } catch (_) {}
         
         _setLoading(false);
         notifyListeners();
@@ -84,8 +90,8 @@ class AuthProvider extends ChangeNotifier {
     String? email,
     required String phone,
     required String password,
+    String? gender,
     String language = 'fr',
-    String? referralCode,
   }) async {
     _setLoading(true);
     _clearError();
@@ -97,8 +103,8 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         phone: phone,
         password: password,
+        gender: gender,
         language: language,
-        referralCode: referralCode,
       );
       
       if (response.success && response.data != null) {
@@ -108,6 +114,10 @@ class AuthProvider extends ChangeNotifier {
         
         await _saveUserData(_user!);
         await _saveToken(_authToken!);
+
+        try {
+          await NotificationService().registerToken(AppConfig.apiUrl, _authToken!);
+        } catch (_) {}
         
         _setLoading(false);
         return true;
@@ -138,6 +148,10 @@ class AuthProvider extends ChangeNotifier {
         
         await _saveUserData(_user!);
         await _saveToken(_authToken!);
+
+        try {
+          await NotificationService().registerToken(AppConfig.apiUrl, _authToken!);
+        } catch (_) {}
         
         _setLoading(false);
         return true;

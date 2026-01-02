@@ -31,7 +31,7 @@ router.post('/request', [
   body('destination.coordinates.latitude').isFloat().withMessage('Latitude invalide'),
   body('destination.coordinates.longitude').isFloat().withMessage('Longitude invalide'),
   body('pricing.totalPrice').isFloat({ min: 0 }).withMessage('Le prix doit être positif'),
-  body('rideType').optional().isIn(['standard', 'express', 'delivery'])
+  body('rideType').optional().isIn(['standard', 'comfort', 'women_only', 'delivery'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -91,19 +91,40 @@ router.post('/request', [
 
     // Rechercher des chauffeurs disponibles (en ligne)
     // Pour les tests: on cherche tous les chauffeurs en ligne sans contrainte de distance
-    let availableDrivers = await Driver.find({
+    const driverQuery = {
       status: 'online',
       isAvailable: true,
-      verificationStatus: 'approved'
-    }).limit(10);
+      verificationStatus: 'approved',
+      [`rideTypes.${rideType}`]: true,
+    };
+
+    if (rideType === 'delivery') {
+      driverQuery['vehicle.category'] = 'moto';
+    }
+
+    if (rideType === 'women_only') {
+      driverQuery.gender = 'female';
+    }
+
+    let availableDrivers = await Driver.find(driverQuery).limit(10);
 
     console.log(`🔍 Recherche chauffeurs: ${availableDrivers.length} trouvés en ligne`);
     
     // Si aucun chauffeur en ligne, chercher tous les chauffeurs approuvés
     if (availableDrivers.length === 0) {
-      availableDrivers = await Driver.find({
-        verificationStatus: 'approved'
-      }).limit(10);
+      const fallbackQuery = {
+        verificationStatus: 'approved',
+        [`rideTypes.${rideType}`]: true,
+      };
+      if (rideType === 'delivery') {
+        fallbackQuery['vehicle.category'] = 'moto';
+      }
+
+      if (rideType === 'women_only') {
+        fallbackQuery.gender = 'female';
+      }
+
+      availableDrivers = await Driver.find(fallbackQuery).limit(10);
       console.log(`🔍 Fallback: ${availableDrivers.length} chauffeurs approuvés trouvés`);
     }
 
@@ -563,8 +584,15 @@ router.post('/:id/cancel', [
       await driver.save();
     }
 
-    // TODO: Notifier l'autre partie via Socket.io
-    // TODO: Traiter le remboursement si nécessaire
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('ride-no-longer-available', { rideId: ride._id });
+      io.emit('ride-cancelled', {
+        rideId: ride._id,
+        cancelledBy,
+        reason,
+      });
+    }
 
     res.json({
       success: true,
@@ -780,7 +808,7 @@ router.post('/create', [
   body('destination.latitude').isFloat().withMessage('Latitude de destination invalide'),
   body('destination.longitude').isFloat().withMessage('Longitude de destination invalide'),
   body('destination.address').notEmpty().withMessage('Adresse de destination requise'),
-  body('rideType').isIn(['standard', 'express', 'delivery']).withMessage('Type de course invalide'),
+  body('rideType').isIn(['standard', 'comfort', 'women_only', 'delivery']).withMessage('Type de course invalide'),
   body('customPrice').isInt({ min: 500 }).withMessage('Le prix minimum est 500 FCFA'),
   body('estimatedDistance').isFloat({ min: 0 }).withMessage('Distance invalide')
 ], async (req, res) => {
@@ -857,7 +885,8 @@ router.post('/create', [
     // Définir le rayon de recherche selon le type de course
     const SEARCH_RADIUS = {
       standard: 5000,    // 5 km
-      express: 7000,     // 7 km - Plus grand rayon pour trouver des véhicules premium
+      comfort: 7000,     // 7 km - Plus grand rayon pour trouver des véhicules confort
+      women_only: 5000,  // 5 km
       delivery: 3000     // 3 km - Motos plus proches
     };
     
@@ -873,6 +902,16 @@ router.post('/create', [
       'location.latitude': { $exists: true, $ne: null },
       'location.longitude': { $exists: true, $ne: null }
     };
+
+    // Filtrer selon le type de course demandé
+    if (rideType === 'comfort') {
+      baseDriverQuery['rideTypes.comfort'] = true;
+    } else if (rideType === 'standard') {
+      baseDriverQuery['rideTypes.standard'] = true;
+    } else if (rideType === 'women_only') {
+      baseDriverQuery['rideTypes.women_only'] = true;
+      baseDriverQuery.gender = 'female';
+    }
     
     // Pour les livraisons, ne chercher que les motos
     if (rideType === 'delivery') {
@@ -959,10 +998,10 @@ router.post('/create', [
     // ============================================================
     
     // Séparer les chauffeurs par niveau de service
-    const expressDrivers = availableDrivers.filter(d => d.serviceLevel === 'express');
-    const standardDrivers = availableDrivers.filter(d => d.serviceLevel !== 'express');
+    const comfortDrivers = availableDrivers.filter(d => d.rideTypes && d.rideTypes.comfort === true);
+    const standardDrivers = availableDrivers.filter(d => !d.rideTypes || d.rideTypes.comfort !== true);
     
-    console.log(`📊 Répartition: ${expressDrivers.length} Express, ${standardDrivers.length} Standard`);
+    console.log(`📊 Répartition: ${comfortDrivers.length} Confort, ${standardDrivers.length} Standard`);
 
     // Notifier les chauffeurs via Socket.IO
     const io = req.app.get('io');
@@ -984,20 +1023,21 @@ router.post('/create', [
         passengerPhone,
       };
 
-      if (rideType === 'express') {
-        // Course EXPRESS: notifier UNIQUEMENT les chauffeurs Express
-        console.log('🎯 Course EXPRESS: notification aux chauffeurs Express uniquement');
-        expressDrivers.forEach(driver => {
+      if (rideType === 'comfort') {
+        // Course CONFORT: notifier UNIQUEMENT les chauffeurs Confort
+        console.log('🎯 Course CONFORT: notification aux chauffeurs Confort uniquement');
+        const targets = comfortDrivers.length > 0 ? comfortDrivers : availableDrivers;
+        targets.forEach(driver => {
           io.to(`driver_${driver._id}`).emit('new-ride-request', rideNotification);
         });
-        console.log(`📣 ${expressDrivers.length} chauffeur(s) Express notifié(s)`);
+        console.log(`📣 ${targets.length} chauffeur(s) Confort notifié(s)`);
       } else {
         // Course STANDARD: notifier TOUS les chauffeurs (Standard + Express) en même temps
-        console.log('📢 Course STANDARD: notification à TOUS les chauffeurs disponibles');
+        console.log('📢 Course STANDARD: notification à tous les chauffeurs (Standard + Express)');
         availableDrivers.forEach(driver => {
           io.to(`driver_${driver._id}`).emit('new-ride-request', rideNotification);
         });
-        console.log(`📣 ${availableDrivers.length} chauffeur(s) notifié(s) (${expressDrivers.length} Express + ${standardDrivers.length} Standard)`);
+        console.log(`📣 ${availableDrivers.length} chauffeur(s) notifié(s)`);
       }
     }
 
@@ -1036,7 +1076,7 @@ router.post('/schedule', [
   body('destination.address').notEmpty().withMessage('Adresse de destination requise'),
   body('destination.latitude').isFloat().withMessage('Latitude de destination invalide'),
   body('destination.longitude').isFloat().withMessage('Longitude de destination invalide'),
-  body('rideType').isIn(['standard', 'express', 'delivery']).withMessage('Type de course invalide'),
+  body('rideType').isIn(['standard', 'comfort', 'women_only', 'delivery']).withMessage('Type de course invalide'),
   body('customPrice').isInt({ min: 500 }).withMessage('Le prix minimum est 500 FCFA'),
   body('scheduledFor').notEmpty().withMessage('Date de programmation requise')
 ], async (req, res) => {

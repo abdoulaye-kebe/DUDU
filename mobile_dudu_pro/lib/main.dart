@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'screens/new_driver_dashboard.dart';
-import 'screens/login_screen.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'screens/pro_startup_screen.dart';
 import 'services/notification_service.dart';
 import 'config/app_config.dart';
 
@@ -67,6 +67,16 @@ class DUDUProApp extends StatelessWidget {
     return MaterialApp(
       title: 'DUDU Pro - Chauffeur',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('fr', 'FR'),
+      supportedLocales: const [
+        Locale('fr', 'FR'),
+        Locale('en', 'US'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: ThemeData(
         primaryColor: const Color(0xFF0d5d36), // Couleur DUDU
         colorScheme: ColorScheme.fromSeed(
@@ -76,7 +86,7 @@ class DUDUProApp extends StatelessWidget {
         useMaterial3: true,
       ),
       navigatorKey: proNavigatorKey,
-      home: const LoginScreen(), // Page de connexion par défaut
+      home: const ProStartupScreen(),
     );
   }
 }

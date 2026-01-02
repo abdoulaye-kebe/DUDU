@@ -230,6 +230,7 @@ router.get('/users', async (req, res) => {
 router.put('/drivers/:id/verify', [
   body('status').isIn(['approved', 'rejected']).withMessage('Statut de vérification invalide'),
   body('serviceLevel').optional().isIn(['standard', 'express']).withMessage('Niveau de service invalide'),
+  body('womenOnlyOverride').optional().isBoolean().withMessage('womenOnlyOverride invalide'),
   body('vehicleCondition').optional().isIn(['excellent', 'good', 'acceptable', 'rejected']),
   body('vehicleInspected').optional().isBoolean(),
   body('documentsVerified').optional().isBoolean(),
@@ -248,6 +249,7 @@ router.put('/drivers/:id/verify', [
     const { 
       status, 
       serviceLevel = 'standard',
+      womenOnlyOverride,
       vehicleCondition,
       vehicleInspected = false,
       documentsVerified = false,
@@ -277,8 +279,9 @@ router.put('/drivers/:id/verify', [
       // Définir les types de courses autorisés selon le niveau de service
       driver.rideTypes = {
         standard: true,  // Tous les chauffeurs approuvés peuvent faire du standard
-        express: serviceLevel === 'express',  // Seuls les "express" peuvent faire de l'express
-        delivery: driver.vehicle?.category === 'moto'  // Livraison pour les motos
+        comfort: serviceLevel === 'express',  // Seuls les chauffeurs validés "confort" (serviceLevel=express) peuvent faire du confort
+        delivery: driver.vehicle?.category === 'moto',  // Livraison pour les motos
+        women_only: typeof womenOnlyOverride === 'boolean' ? womenOnlyOverride : driver.gender === 'female'  // Override admin possible
       };
     }
 

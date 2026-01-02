@@ -119,12 +119,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       );
 
       if (success && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const DashboardScreen(),
-          ),
-        );
+        Navigator.pushReplacementNamed(context, '/app');
       } else if (mounted) {
         setState(() {
           _errorMessage = authProvider.errorMessage ?? 'Erreur de connexion';

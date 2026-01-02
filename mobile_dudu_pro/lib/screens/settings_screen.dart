@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/driver_profile.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
+import 'pro_app_gate.dart';
 
 class SettingsScreen extends StatefulWidget {
   final DriverProfile driverProfile;
@@ -767,9 +769,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
+              () async {
+                try {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('pro_auth_token');
+                } catch (_) {}
+                ApiService.clearAuthToken();
+              }();
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                MaterialPageRoute(builder: (context) => const ProAppGate()),
                 (route) => false,
               );
             },

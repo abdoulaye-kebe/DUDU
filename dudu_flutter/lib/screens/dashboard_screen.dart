@@ -326,6 +326,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
 
+    final bool isFemale = (user?.gender ?? '').toLowerCase() == 'female';
+    final IconData genderIcon = isFemale ? Icons.woman : Icons.man;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
@@ -366,6 +369,16 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                             ),
                           ),
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Icon(genderIcon, color: accentBlack, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(

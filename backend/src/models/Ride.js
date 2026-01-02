@@ -146,7 +146,8 @@ const rideSchema = new mongoose.Schema({
     type: String,
     enum: [
       'standard',        // Course standard - Véhicule normal, tarif de base
-      'express',         // Course express - Véhicule haut de gamme, confort premium (+50%)
+      'comfort',         // Course confort - Véhicule plus confortable
+      'women_only',      // Course femme - Chauffeuse uniquement
       'delivery'         // Livraison - Moto uniquement
     ],
     default: 'standard'

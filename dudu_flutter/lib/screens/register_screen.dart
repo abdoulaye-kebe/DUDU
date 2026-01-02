@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../themes/app_theme.dart';
 import 'login_screen.dart';
-import 'verify_phone_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,7 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _referralCodeController = TextEditingController();
+  String _selectedGender = 'male';
   
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -61,7 +60,6 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _referralCodeController.dispose();
     super.dispose();
   }
 
@@ -133,10 +131,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
         phone: _phoneController.text,
         password: _passwordController.text,
+        gender: _selectedGender,
         language: _selectedLanguage,
-        referralCode: _referralCodeController.text.trim().isEmpty 
-            ? null 
-            : _referralCodeController.text.trim().toUpperCase(),
       );
 
       if (success && mounted) {
@@ -536,25 +532,59 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                         ),
                       ),
                       
-                      // Code parrainage
+                      // Genre
                       Container(
                         margin: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
                           color: Colors.grey[50],
                           borderRadius: BorderRadius.circular(15),
                           border: Border.all(color: Colors.grey[300]!),
                         ),
-                        child: TextFormField(
-                          controller: _referralCodeController,
-                          decoration: InputDecoration(
-                            labelText: 'Code de parrainage (optionnel)',
-                            labelStyle: TextStyle(color: AppTheme.primaryColor),
-                            hintText: 'Entrez le code si vous en avez un',
-                            prefixIcon: Icon(Icons.card_giftcard, color: AppTheme.primaryColor),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                          ),
-                          textCapitalization: TextCapitalization.characters,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Genre',
+                              style: TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: RadioListTile<String>(
+                                    value: 'male',
+                                    groupValue: _selectedGender,
+                                    onChanged: (value) {
+                                      if (value == null) return;
+                                      setState(() => _selectedGender = value);
+                                    },
+                                    title: const Text('Homme'),
+                                    dense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    activeColor: AppTheme.primaryColor,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: RadioListTile<String>(
+                                    value: 'female',
+                                    groupValue: _selectedGender,
+                                    onChanged: (value) {
+                                      if (value == null) return;
+                                      setState(() => _selectedGender = value);
+                                    },
+                                    title: const Text('Femme'),
+                                    dense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    activeColor: AppTheme.primaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                       

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -41,6 +43,39 @@ class NotificationService {
       _isInitialized = true;
     } catch (e) {
       print('Erreur initialisation notifications: $e');
+    }
+  }
+
+  Future<void> registerToken(String apiUrl, String authToken) async {
+    try {
+      final token = await _firebaseMessaging.getToken();
+      if (token == null || token.isEmpty) return;
+
+      final platform = Platform.isIOS
+          ? 'ios'
+          : Platform.isAndroid
+              ? 'android'
+              : 'mobile';
+
+      final response = await http.post(
+        Uri.parse('$apiUrl/notifications/register-token'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+        body: jsonEncode({
+          'fcmToken': token,
+          'platform': platform,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Token FCM Pro enregistré');
+      } else {
+        print('⚠️ Enregistrement token FCM Pro échoué (${response.statusCode})');
+      }
+    } catch (e) {
+      print('❌ Erreur enregistrement token FCM Pro: $e');
     }
   }
 

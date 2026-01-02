@@ -37,11 +37,18 @@ exports.registerFCMToken = async (req, res) => {
     const userId = req.user.id;
     const { fcmToken, platform } = req.body;
 
-    const User = require('../models/User');
-    await User.findByIdAndUpdate(userId, {
-      fcmToken,
-      'deviceInfo.platform': platform,
-    });
+    if (req.user.role === 'driver') {
+      await Driver.findByIdAndUpdate(userId, {
+        fcmToken,
+        'deviceInfo.platform': platform,
+      });
+    } else {
+      const User = require('../models/User');
+      await User.findByIdAndUpdate(userId, {
+        fcmToken,
+        'deviceInfo.platform': platform,
+      });
+    }
 
     res.json({ success: true, message: 'Token FCM enregistré' });
   } catch (error) {

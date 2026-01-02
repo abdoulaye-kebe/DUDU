@@ -127,7 +127,7 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
             totalPrice: 2800,
           ),
           status: RideStatus.requested,
-          rideType: RideType.express,
+          rideType: RideType.comfort,
           vehicleCategory: VehicleCategory.car,
           timing: RideTiming(
             requestedAt: DateTime.now().subtract(const Duration(minutes: 2)),
@@ -579,16 +579,10 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
     switch (type) {
       case RideType.standard:
         return Icons.directions_car;
-      case RideType.express:
-        return Icons.flash_on;
-      case RideType.shared:
-        return Icons.people;
-      case RideType.premium:
-        return Icons.star;
+      case RideType.comfort:
+        return Icons.chair;
       case RideType.womenOnly:
         return Icons.female;
-      case RideType.cargo:
-        return Icons.local_shipping;
       case RideType.delivery:
         return Icons.motorcycle;
     }

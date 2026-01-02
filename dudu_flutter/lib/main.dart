@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -7,6 +8,7 @@ import 'providers/auth_provider.dart';
 import 'themes/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/app_gate.dart';
 import 'config/app_config.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
@@ -63,30 +65,24 @@ class MyApp extends StatelessWidget {
         title: 'DUDU',
         theme: AppTheme.lightTheme,
         navigatorKey: appNavigatorKey,
-        home: const AppWrapper(),
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('fr'),
+          Locale('wo'),
+          Locale('en'),
+        ],
+        home: const AppGate(),
         debugShowCheckedModeBanner: false,
         routes: {
           '/login': (context) => const LoginScreen(),
           '/dashboard': (context) => const DashboardScreen(),
+          '/app': (context) => const AppGate(),
         },
       ),
-    );
-  }
-}
-
-class AppWrapper extends StatelessWidget {
-  const AppWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        // Flux normal : Login puis Dashboard
-        if (authProvider.isAuthenticated) {
-          return const DashboardScreen();
-        }
-        return const LoginScreen();
-      },
     );
   }
 }

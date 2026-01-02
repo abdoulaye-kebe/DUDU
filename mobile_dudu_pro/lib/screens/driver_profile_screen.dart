@@ -20,10 +20,95 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
   bool _isLoading = true;
   String? _error;
 
+  bool _savingRideTypes = false;
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
+  }
+
+  Future<void> _toggleRideType(String key) async {
+    if (_profile == null) return;
+    if (_savingRideTypes) return;
+
+    final current = _profile!.rideTypes ?? <String, bool>{};
+    final isMoto = _profile!.isMoto;
+
+    if (key == 'standard') return;
+    if (key == 'delivery' && !isMoto) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Livraison disponible uniquement pour les motos.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final next = Map<String, bool>.from(current);
+    next['standard'] = true;
+    next[key] = !(next[key] == true);
+
+    if (!isMoto) {
+      next['delivery'] = false;
+    }
+
+    setState(() {
+      _savingRideTypes = true;
+      _profile = DriverProfile(
+        id: _profile!.id,
+        firstName: _profile!.firstName,
+        lastName: _profile!.lastName,
+        phone: _profile!.phone,
+        email: _profile!.email,
+        vehicleType: _profile!.vehicleType,
+        vehicle: _profile!.vehicle,
+        subscription: _profile!.subscription,
+        stats: _profile!.stats,
+        earnings: _profile!.earnings,
+        isOnline: _profile!.isOnline,
+        isAvailable: _profile!.isAvailable,
+        currentLocation: _profile!.currentLocation,
+        rideTypes: next,
+        preferences: _profile!.preferences,
+        driverType: _profile!.driverType,
+      );
+    });
+
+    final res = await ApiService.updateRideTypes(
+      comfort: key == 'comfort' ? next['comfort'] : null,
+      womenOnly: key == 'women_only' ? next['women_only'] : null,
+      delivery: key == 'delivery' ? next['delivery'] : null,
+    );
+
+    if (!mounted) return;
+    if (res['success'] == true) {
+      await _loadProfile();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Types de courses mis à jour'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      await _loadProfile();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message']?.toString() ?? 'Erreur lors de la mise à jour'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        _savingRideTypes = false;
+      });
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -226,7 +311,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
   Color _getServiceLevelColor() {
     // Vérifier le niveau de service depuis les données du profil
     final serviceLevel = _profile?.vehicle.type.toLowerCase() ?? 'standard';
-    if (serviceLevel.contains('express') || serviceLevel.contains('premium')) {
+    if (serviceLevel.contains('express') || serviceLevel.contains('premium') || serviceLevel.contains('comfort')) {
       return goldColor;
     }
     return lightGreen;
@@ -234,8 +319,8 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
 
   String _getServiceLevelLabel() {
     final serviceLevel = _profile?.vehicle.type.toLowerCase() ?? 'standard';
-    if (serviceLevel.contains('express') || serviceLevel.contains('premium')) {
-      return 'EXPRESS';
+    if (serviceLevel.contains('express') || serviceLevel.contains('premium') || serviceLevel.contains('comfort')) {
+      return 'CONFORT';
     }
     return 'STANDARD';
   }
@@ -742,6 +827,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
 
   Widget _buildRideTypesCard() {
     final rideTypes = _profile!.rideTypes ?? {};
+    final isMoto = _profile!.isMoto;
     
     return Container(
       padding: const EdgeInsets.all(20),
@@ -778,9 +864,16 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _buildRideTypeChip('Standard', rideTypes['standard'] ?? true, primaryGreen),
-              _buildRideTypeChip('Express', rideTypes['express'] ?? false, Colors.orange),
-              _buildRideTypeChip('Livraison', rideTypes['delivery'] ?? false, Colors.purple),
+              _buildRideTypeChip('Standard', rideTypes['standard'] ?? true, primaryGreen, keyName: 'standard'),
+              _buildRideTypeChip('Confort', rideTypes['comfort'] ?? false, Colors.orange, keyName: 'comfort'),
+              _buildRideTypeChip('Femme', rideTypes['women_only'] ?? false, Colors.pink, keyName: 'women_only'),
+              _buildRideTypeChip(
+                'Livraison',
+                rideTypes['delivery'] ?? false,
+                Colors.deepOrange,
+                keyName: 'delivery',
+                disabled: !isMoto,
+              ),
             ],
           ),
         ],
@@ -788,8 +881,19 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
     );
   }
 
-  Widget _buildRideTypeChip(String label, bool isActive, Color color) {
-    return Container(
+  Widget _buildRideTypeChip(
+    String label,
+    bool isActive,
+    Color color, {
+    required String keyName,
+    bool disabled = false,
+  }) {
+    return InkWell(
+      onTap: (_savingRideTypes || disabled) ? null : () => _toggleRideType(keyName),
+      borderRadius: BorderRadius.circular(20),
+      child: Opacity(
+        opacity: disabled ? 0.5 : 1,
+        child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: isActive ? color.withOpacity(0.1) : Colors.grey[100],
@@ -817,6 +921,8 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

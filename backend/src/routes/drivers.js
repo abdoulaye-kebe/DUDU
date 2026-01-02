@@ -102,10 +102,10 @@ router.post('/login', async (req, res) => {
           features: isMotoCourier ? ['large_cargo'] : ['ac']
         },
         rideTypes: {
-          standard: !isMotoCourier,
-          express: true,
-          shared: false,
-          womenOnly: false
+          standard: true,
+          comfort: !isMotoCourier,
+          delivery: isMotoCourier,
+          women_only: false
         },
         isVerified: true,
         verificationStatus: 'approved'
@@ -1028,6 +1028,73 @@ router.put('/preferences', [
 
   } catch (error) {
     console.error('Erreur lors de la mise à jour des préférences:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
+// @route   PUT /api/v1/drivers/ride-types
+// @desc    Mettre à jour les types de courses acceptées par le chauffeur
+// @access  Private (chauffeur)
+router.put('/ride-types', [
+  auth,
+  requireDriver,
+  body('comfort').optional().isBoolean(),
+  body('women_only').optional().isBoolean(),
+  body('delivery').optional().isBoolean()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const driver = await Driver.findById(req.driver._id);
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chauffeur non trouvé'
+      });
+    }
+
+    const isMoto = driver.vehicle?.category === 'moto' || driver.vehicle?.type === 'moto_delivery';
+
+    const nextRideTypes = {
+      ...(driver.rideTypes || {}),
+      standard: true
+    };
+
+    if (req.body.comfort !== undefined) {
+      nextRideTypes.comfort = req.body.comfort;
+    }
+    if (req.body.women_only !== undefined) {
+      nextRideTypes.women_only = req.body.women_only;
+    }
+    if (req.body.delivery !== undefined) {
+      nextRideTypes.delivery = isMoto ? req.body.delivery : false;
+    }
+
+    if (!isMoto) {
+      nextRideTypes.delivery = false;
+    }
+    nextRideTypes.standard = true;
+
+    driver.rideTypes = nextRideTypes;
+    await driver.save();
+
+    res.json({
+      success: true,
+      message: 'Types de courses mis à jour',
+      data: { rideTypes: driver.rideTypes }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des rideTypes:', error);
     res.status(500).json({
       success: false,
       message: 'Erreur interne du serveur'

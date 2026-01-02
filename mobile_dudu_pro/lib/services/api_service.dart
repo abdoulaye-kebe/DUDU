@@ -16,6 +16,42 @@ class ApiService {
     _authToken = token;
   }
 
+  static Future<Map<String, dynamic>> updateRideTypes({
+    bool? comfort,
+    bool? womenOnly,
+    bool? delivery,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (comfort != null) body['comfort'] = comfort;
+      if (womenOnly != null) body['women_only'] = womenOnly;
+      if (delivery != null) body['delivery'] = delivery;
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/drivers/ride-types'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+
+      final decoded = jsonDecode(response.body);
+      return decoded is Map<String, dynamic>
+          ? decoded
+          : {
+              'success': false,
+              'message': 'Réponse serveur inattendue'
+            };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erreur réseau: $e'
+      };
+    }
+  }
+
+  static void clearAuthToken() {
+    _authToken = null;
+  }
+
   static String? get authToken => _authToken;
 
   static void setLastDriverData(Map<String, dynamic> driver) {
@@ -119,15 +155,46 @@ class ApiService {
   // Candidature chauffeur
   static Future<Map<String, dynamic>> applyAsDriver(Map<String, dynamic> payload) async {
     try {
+      if (kDebugMode) {
+        print('📤 applyAsDriver payload: ${jsonEncode(payload)}');
+      }
       final response = await http.post(
         Uri.parse('$baseUrl/drivers/apply'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
       );
 
-      return jsonDecode(response.body);
+      if (kDebugMode) {
+        print('📥 applyAsDriver status: ${response.statusCode}');
+        print('📥 applyAsDriver body: ${response.body}');
+      }
+
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (_) {
+        decoded = null;
+      }
+
+      if (decoded is Map<String, dynamic>) {
+        // Normal: backend returns {success, message, ...}
+        return decoded;
+      }
+
+      // Fallback: non-json or unexpected format
+      return {
+        'success': false,
+        'message': response.statusCode >= 400
+            ? 'Données invalides (HTTP ${response.statusCode})'
+            : 'Réponse serveur inattendue',
+        'raw': response.body,
+        'statusCode': response.statusCode,
+      };
     } catch (e) {
-      throw Exception('Erreur candidature chauffeur: $e');
+      return {
+        'success': false,
+        'message': 'Erreur candidature chauffeur: $e',
+      };
     }
   }
 
@@ -174,6 +241,13 @@ class ApiService {
             final Map<String, dynamic> vehicle =
                 rawVehicle is Map<String, dynamic> ? rawVehicle : <String, dynamic>{};
 
+            final dynamic rawRideTypes = driverJson['rideTypes'];
+            final Map<String, bool>? rideTypes = rawRideTypes is Map
+                ? Map<String, bool>.from(rawRideTypes.map(
+                    (key, value) => MapEntry(key.toString(), value == true),
+                  ))
+                : null;
+
             final String driverId =
                 driverJson['id'] ?? driverJson['_id'] ?? '';
             final String firstName = driverJson['firstName'] ?? '';
@@ -219,7 +293,7 @@ class ApiService {
               isOnline: driverJson['status'] == 'online' || driverJson['isOnline'] == true,
               isAvailable: driverJson['isAvailable'] ?? false,
               currentLocation: null,
-              rideTypes: null,
+              rideTypes: rideTypes,
               preferences: null,
               driverType: (driverJson['driverType'] ?? computedType) as String,
             );

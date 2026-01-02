@@ -23,6 +23,10 @@ router.post('/register', [
   body('password')
     .isLength({ min: 6 })
     .withMessage('Le mot de passe doit contenir au moins 6 caractères'),
+  body('gender')
+    .optional()
+    .isIn(['male', 'female'])
+    .withMessage('Genre invalide (male ou female)'),
   body('language')
     .optional()
     .isIn(['fr', 'wo'])
@@ -48,7 +52,7 @@ router.post('/register', [
       });
     }
 
-    const { firstName, lastName, phone, password, language = 'fr', referralCode } = req.body;
+    const { firstName, lastName, phone, password, gender, language = 'fr', referralCode } = req.body;
 
     // Normaliser le numéro de téléphone
     let normalizedPhone = phone.replace(/\D/g, '');
@@ -86,6 +90,7 @@ router.post('/register', [
       lastName,
       phone: normalizedPhone,
       password,
+      gender,
       language,
       referredBy
     });
@@ -129,6 +134,7 @@ router.post('/register', [
           firstName: user.firstName,
           lastName: user.lastName,
           phone: user.phone,
+          gender: user.gender,
           language: user.language,
           referralCode: user.referralCode,
           isVerified: user.isVerified
@@ -235,6 +241,7 @@ router.post('/login', [
           lastName: user.lastName,
           phone: user.phone,
           email: user.email,
+          gender: user.gender,
           language: user.language,
           currency: user.currency,
           isVerified: user.isVerified,

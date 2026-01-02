@@ -582,16 +582,10 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
     switch (type) {
       case RideType.standard:
         return Icons.directions_car;
-      case RideType.express:
-        return Icons.flash_on;
-      case RideType.shared:
-        return Icons.people;
-      case RideType.premium:
-        return Icons.star;
+      case RideType.comfort:
+        return Icons.chair;
       case RideType.womenOnly:
         return Icons.female;
-      case RideType.cargo:
-        return Icons.local_shipping;
       case RideType.delivery:
         return Icons.motorcycle;
     }

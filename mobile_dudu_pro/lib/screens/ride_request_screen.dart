@@ -134,20 +134,11 @@ class _RideRequestScreenState extends State<RideRequestScreen> {
         case RideType.standard:
           multiplier = 1.0;
           break;
-        case RideType.express:
-          multiplier = 1.5;
-          break;
-        case RideType.premium:
-          multiplier = 2.0;
-          break;
-        case RideType.shared:
-          multiplier = 0.7;
+        case RideType.comfort:
+          multiplier = 1.3;
           break;
         case RideType.womenOnly:
           multiplier = 1.2;
-          break;
-        case RideType.cargo:
-          multiplier = 1.8;
           break;
         case RideType.delivery:
           multiplier = 1.3;

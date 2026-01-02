@@ -67,6 +67,7 @@ function DriversPremium() {
       // Si approuvé, ajouter les données de validation
       if (decision === 'approved' && validationData) {
         payload.serviceLevel = validationData.serviceLevel;
+        payload.womenOnlyOverride = !!validationData.womenOnly;
         payload.vehicleCondition = validationData.vehicleCondition;
         payload.vehicleInspected = validationData.vehicleInspected;
         payload.documentsVerified = validationData.documentsVerified;
@@ -76,7 +77,9 @@ function DriversPremium() {
       await loadData();
       
       if (decision === 'approved') {
-        alert(`Chauffeur validé avec succès en tant que "${validationData?.serviceLevel === 'express' ? 'Express' : 'Standard'}"`);
+        const levelLabel = validationData?.serviceLevel === 'express' ? 'Comfort+' : 'Standard';
+        const womenLabel = validationData?.womenOnly ? ' + Femme' : '';
+        alert(`Chauffeur validé avec succès en tant que "${levelLabel}${womenLabel}"`);
       }
     } catch (err) {
       console.error('Erreur décision:', err);
@@ -123,18 +126,24 @@ function DriversPremium() {
     {
       key: 'serviceLevel',
       label: 'Niveau',
-      render: (value) => (
-        <span 
-          className={`badge ${value === 'express' ? 'badge-warning' : 'badge-info'}`}
-          style={{
-            background: value === 'express' ? '#FF9800' : '#00A651',
-            color: '#fff',
-            fontWeight: 600
-          }}
-        >
-          {value === 'express' ? '⚡ Express' : '🚗 Standard'}
-        </span>
-      )
+      render: (value, row) => {
+        const isComfort = value === 'express';
+        const womenOnly = row.rideTypes?.women_only === true;
+        const label = womenOnly ? '👩 Femme' : (isComfort ? '✨ Comfort+' : '🚗 Standard');
+        const bg = womenOnly ? '#7C3AED' : (isComfort ? '#FF9800' : '#00A651');
+        return (
+          <span
+            className={`badge ${isComfort ? 'badge-warning' : 'badge-info'}`}
+            style={{
+              background: bg,
+              color: '#fff',
+              fontWeight: 600
+            }}
+          >
+            {label}
+          </span>
+        );
+      }
     },
     {
       key: 'status',
