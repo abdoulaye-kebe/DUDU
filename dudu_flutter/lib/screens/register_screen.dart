@@ -139,21 +139,16 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         // Afficher un message de succès
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Inscription réussie ! Connectez-vous maintenant.'),
+            content: Text('✅ Inscription réussie ! Bienvenue sur DUDU'),
             backgroundColor: AppTheme.successColor,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            duration: Duration(seconds: 3),
+            duration: Duration(seconds: 2),
           ),
         );
         
-        // Rediriger vers la page de connexion
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const LoginScreen(),
-          ),
-        );
+        // Accès direct au dashboard après inscription
+        Navigator.pushReplacementNamed(context, '/dashboard');
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

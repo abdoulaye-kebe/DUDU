@@ -339,7 +339,16 @@ router.post('/:id/arrive', [
     ride.arrivedAt = new Date();
     await ride.save();
 
-    // TODO: Notifier le passager via Socket.io
+    // Notifier le passager via Socket.io
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`passenger_${ride.passenger}`).emit('driver-arrived', {
+        rideId: ride._id,
+        arrivedAt: ride.arrivedAt,
+        message: 'Votre chauffeur est arrivé au point de départ'
+      });
+      console.log(`📢 Notification arrivée envoyée au client ${ride.passenger}`);
+    }
 
     res.json({
       success: true,
@@ -397,7 +406,16 @@ router.post('/:id/start', [
     ride.startedAt = new Date();
     await ride.save();
 
-    // TODO: Notifier le passager via Socket.io
+    // Notifier le passager via Socket.io
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`passenger_${ride.passenger}`).emit('ride-started', {
+        rideId: ride._id,
+        startedAt: ride.startedAt,
+        message: 'Votre course a démarré'
+      });
+      console.log(`📢 Notification démarrage envoyée au client ${ride.passenger}`);
+    }
 
     res.json({
       success: true,
@@ -492,8 +510,19 @@ router.post('/:id/complete', [
     passenger.totalSpent += ride.pricing.totalPrice;
     await passenger.save();
 
-    // TODO: Notifier le passager via Socket.io
-    // TODO: Déclencher le processus de paiement
+    // Notifier le passager via Socket.io
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`passenger_${ride.passenger}`).emit('ride-completed', {
+        rideId: ride._id,
+        completedAt: ride.completedAt,
+        pricing: ride.pricing,
+        distance: ride.distance,
+        actualDuration: ride.actualDuration,
+        message: 'Votre course est terminée'
+      });
+      console.log(`📢 Notification fin de course envoyée au client ${ride.passenger}`);
+    }
 
     res.json({
       success: true,

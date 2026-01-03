@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../themes/app_theme.dart';
+import '../services/search_history_service.dart';
 import 'unified_ride_screen.dart';
 import 'delivery_request_screen.dart';
 import 'scheduled_rides_screen.dart';
@@ -26,6 +28,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   GoogleMapController? _mapController;
   Position? _currentPosition;
   final Set<Marker> _vehicleMarkers = {};
+  List<SearchHistoryItem> _searchHistory = [];
 
   // Couleurs DUDU
   static const Color primaryGreen = Color(0xFF0d5d36);
@@ -38,6 +41,16 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     super.initState();
     _setupAnimations();
     _getCurrentLocation();
+    _loadSearchHistory();
+  }
+
+  Future<void> _loadSearchHistory() async {
+    final history = await SearchHistoryService.getHistory();
+    if (mounted) {
+      setState(() {
+        _searchHistory = history;
+      });
+    }
   }
 
   void _generateNearbyVehicles() {
@@ -268,6 +281,44 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Support - Bientôt disponible')),
                 );
+              },
+            ),
+            _buildMenuOption(
+              icon: Icons.local_taxi,
+              title: 'Devenir chauffeur (DUDU Pro)',
+              color: primaryGreen,
+              onTap: () async {
+                Navigator.pop(context);
+                const url = 'https://dudugroup.sn/downloads/dudu-driver.apk';
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Téléchargement de DUDU Pro...'),
+                    backgroundColor: primaryGreen,
+                    duration: const Duration(seconds: 3),
+                    action: SnackBarAction(
+                      label: 'Ouvrir',
+                      textColor: Colors.white,
+                      onPressed: () async {
+                        try {
+                          final uri = Uri.parse(url);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          }
+                        } catch (e) {
+                          print('Erreur ouverture lien: $e');
+                        }
+                      },
+                    ),
+                  ),
+                );
+                try {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                } catch (e) {
+                  print('Erreur ouverture lien: $e');
+                }
               },
             ),
             const Divider(),
@@ -732,29 +783,64 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             ),
           ),
           const SizedBox(height: 20),
-          _buildLocationItem(
-            icon: Icons.hotel,
-            title: 'King Fahd Palace',
-            subtitle: 'Les Almadies, Dakar',
-            time: '15 min',
-          ),
-          const SizedBox(height: 12),
-          _buildLocationItem(
-            icon: Icons.location_on,
-            title: 'Voie de Dégagement Nord',
-            subtitle: 'Dakar',
-            time: '21 min',
-          ),
-          const SizedBox(height: 12),
-          _buildLocationItem(
-            icon: Icons.location_on,
-            title: 'Route de King Fahd',
-            subtitle: 'Ngor-Almadies, Région de Dakar',
-            time: '13 min',
-          ),
+          // Afficher l'historique des recherches ou un message si vide
+          if (_searchHistory.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.history,
+                      size: 48,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Aucune recherche récente',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ..._searchHistory.map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildLocationItem(
+                icon: Icons.location_on,
+                title: item.title,
+                subtitle: item.subtitle,
+                time: _calculateTime(item),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UnifiedRideScreen(),
+                    ),
+                  );
+                },
+              ),
+            )).toList(),
         ],
       ),
     );
+  }
+
+  String _calculateTime(SearchHistoryItem item) {
+    final now = DateTime.now();
+    final difference = now.difference(item.timestamp);
+    
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} min';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h';
+    } else {
+      return '${difference.inDays}j';
+    }
   }
 
   Widget _buildLocationItem({
@@ -762,9 +848,10 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     required String title,
     required String subtitle,
     required String time,
+    VoidCallback? onTap,
   }) {
     return InkWell(
-      onTap: () {
+      onTap: onTap ?? () {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const UnifiedRideScreen()),

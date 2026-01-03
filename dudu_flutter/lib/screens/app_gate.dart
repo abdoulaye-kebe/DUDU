@@ -89,21 +89,7 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
           return const LoginScreen();
         }
 
-        if (_loading) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        // PIN is mandatory at setup. If missing, force secure setup.
-        if (!_hasPin) {
-          return SecureSetupScreen(onComplete: _onSetupComplete);
-        }
-
-        if (!_unlocked) {
-          return AppLockScreen(onUnlocked: _onUnlocked, onNoAuthMethods: _onNoAuthMethods);
-        }
-
+        // Accès direct au dashboard sans code PIN ni biométrie
         return const DashboardScreen();
       },
     );

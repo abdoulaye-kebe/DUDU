@@ -7,8 +7,10 @@ import 'dart:math' as math;
 import '../services/api_service.dart';
 import '../services/places_service.dart';
 import '../services/socket_service.dart';
+import '../services/search_history_service.dart';
 import 'delivery_tracking_screen.dart';
 import 'ride_tracking_screen.dart';
+import 'ride_confirmation_screen.dart';
 
 /// Écran unifié pour les 4 types de courses (Standard, Express, Covoiturage, Femmes)
 /// Avec sélection Point A, Point B et PRIX LIBRE
@@ -236,7 +238,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(
           LatLng(position.latitude, position.longitude),
-          14.0,
+          18.0,
         ),
       );
     } catch (e) {
@@ -271,7 +273,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(
         const LatLng(14.6928, -17.4467),
-        13.0,
+        18.0,
       ),
     );
   }
@@ -793,7 +795,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
             target: _currentPosition != null
                 ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
                 : const LatLng(14.6928, -17.4467), // Dakar
-            zoom: 14.0,
+            zoom: 18.0,
           ),
           onMapCreated: (controller) => _mapController = controller,
           markers: _markers,
@@ -802,6 +804,11 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           myLocationButtonEnabled: true,
           zoomControlsEnabled: false,
           mapType: MapType.normal,
+          mapToolbarEnabled: false,
+          compassEnabled: false,
+          rotateGesturesEnabled: false,
+          tiltGesturesEnabled: false,
+          liteModeEnabled: false,
         ),
         if (etaMinutes != null && _pickupLatLng != null)
           Positioned(
@@ -945,7 +952,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                           _mapController?.animateCamera(
                             CameraUpdate.newLatLngZoom(
                               LatLng(position.latitude, position.longitude),
-                              15.0,
+                              18.0,
                             ),
                           );
                           
@@ -1226,7 +1233,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     return LatLngBounds(southwest: southWest, northeast: northEast);
   }
 
-  Future<void> _focusOnLatLng(LatLng target, {double zoom = 16}) async {
+  Future<void> _focusOnLatLng(LatLng target, {double zoom = 18}) async {
     if (_mapController == null) return;
     await _mapController!.animateCamera(
       CameraUpdate.newLatLngZoom(target, zoom),
@@ -1285,7 +1292,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
     // Recentrer la caméra sur le point de départ pour bien voir les voitures
     _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(_pickupLatLng!, 15.5),
+      CameraUpdate.newLatLngZoom(_pickupLatLng!, 18.0),
     );
   }
 
@@ -1441,25 +1448,18 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
             // Liste des véhicules avec temps d'arrivée estimé
             _buildNearbyVehiclesList(),
 
-            const SizedBox(height: 8),
-
-            // Prix libre - COMPACT
-            _buildPriceInput(),
+            const SizedBox(height: 16),
             
-            const SizedBox(height: 10),
-            
-            // Bouton de confirmation
+            // Bouton Continuer vers la page de confirmation
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _customPrice > 0 && 
-                           _pickupAddress.isNotEmpty && 
+                onPressed: _pickupAddress.isNotEmpty && 
                            _destinationAddress.isNotEmpty &&
                            _pickupLatLng != null &&
-                           _destinationLatLng != null &&
-                           _selectedPaymentMethod.isNotEmpty
-                    ? _confirmRide
+                           _destinationLatLng != null
+                    ? _navigateToConfirmation
                     : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryGreen,
@@ -1469,11 +1469,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                   ),
                   elevation: 0,
                 ),
-                child: Text(
-                  _customPrice > 0
-                      ? 'Confirmer - ${_customPrice} FCFA'
-                      : 'Entrez votre prix',
-                  style: const TextStyle(
+                child: const Text(
+                  'Continuer',
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -1548,12 +1546,57 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     );
   }
 
+  Future<void> _navigateToConfirmation() async {
+    if (_pickupLatLng == null || _destinationLatLng == null) {
+      return;
+    }
+
+    // Naviguer vers la page de confirmation
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RideConfirmationScreen(
+          pickupAddress: _pickupAddress,
+          destinationAddress: _destinationAddress,
+          pickupLatLng: _pickupLatLng!,
+          destinationLatLng: _destinationLatLng!,
+          distance: _estimatedDistance,
+          selectedRideType: _selectedRideType,
+          selectedMode: _selectedMode,
+        ),
+      ),
+    );
+
+    // Si l'utilisateur a confirmé avec un prix
+    if (result != null && result is Map<String, dynamic>) {
+      setState(() {
+        _customPrice = result['price'] ?? 0;
+        _selectedPaymentMethod = result['paymentMethod'] ?? 'cash';
+      });
+      
+      // Lancer la confirmation de la course
+      _confirmRide();
+    }
+  }
+
   void _confirmRide() async {
     if (_pickupLatLng == null || _destinationLatLng == null || _customPrice == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez remplir tous les champs')),
       );
       return;
+    }
+
+    // Sauvegarder la destination dans l'historique
+    if (_destinationAddress.isNotEmpty && _destinationLatLng != null) {
+      await SearchHistoryService.addToHistory(
+        SearchHistoryItem(
+          title: _destinationAddress.split(',').first.trim(),
+          subtitle: _destinationAddress,
+          latitude: _destinationLatLng!.latitude,
+          longitude: _destinationLatLng!.longitude,
+        ),
+      );
     }
 
     if (mounted) {

@@ -602,6 +602,54 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
               currentPlan: _currentPlan,
               expiryDate: _subscriptionExpiry,
               onUpgrade: () async {
+                // Vérifier si le compte est vérifié avant d'accéder aux abonnements
+                if (!(_driverProfile?.isVerified ?? false)) {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.orange,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'Compte en attente',
+                              style: TextStyle(fontSize: 18),
+                            ),
+                          ),
+                        ],
+                      ),
+                      content: const Text(
+                        'Votre compte est en cours de vérification.\n\n'
+                        'Vous devez attendre la validation de votre compte par notre équipe avant de pouvoir souscrire à un abonnement.\n\n'
+                        'Vous serez notifié dès que votre compte sera validé.',
+                        style: TextStyle(fontSize: 15, height: 1.5),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            foregroundColor: primaryGreen,
+                          ),
+                          child: const Text('Compris', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  );
+                  return;
+                }
+
                 try {
                   if (_driverProfile == null) {
                     // Construire le profil à partir des données du login si disponibles
@@ -761,6 +809,54 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                 Switch(
                   value: _isOnline,
                   onChanged: (value) async {
+                    // Vérifier si le compte est vérifié avant de permettre la mise en ligne
+                    if (value && !(_driverProfile?.isVerified ?? false)) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Colors.orange,
+                                  size: 28,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text(
+                                  'Compte en attente',
+                                  style: TextStyle(fontSize: 18),
+                                ),
+                              ),
+                            ],
+                          ),
+                          content: const Text(
+                            'Votre compte est en cours de vérification.\n\n'
+                            'Notre équipe examine vos documents et validera votre compte prochainement.\n\n'
+                            'Vous pourrez recevoir des courses une fois votre compte validé.',
+                            style: TextStyle(fontSize: 15, height: 1.5),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                foregroundColor: primaryGreen,
+                              ),
+                              child: const Text('Compris', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      );
+                      return;
+                    }
+
                     try {
                       await ApiService.toggleOnlineStatus(value);
                       // Lors du passage en ligne, renvoyer la localisation actuelle au backend si disponible

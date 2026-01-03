@@ -329,12 +329,30 @@ router.post('/apply', [
 
     await driver.save();
 
+    // Générer un token JWT pour permettre l'accès immédiat
+    const token = jwt.sign(
+      { 
+        id: driver._id, 
+        phone: driver.phone,
+        role: 'driver',
+        isVerified: driver.isVerified
+      },
+      process.env.JWT_SECRET || 'dudu-secret-key-2024',
+      { expiresIn: '30d' }
+    );
+
     res.status(201).json({
       success: true,
-      message: 'Votre demande a été envoyée. Vous serez informé(e) après vérification.',
-      data: {
-        driverId: driver._id,
-        status: driver.verificationStatus
+      message: 'Inscription réussie ! Votre compte sera vérifié prochainement.',
+      token,
+      driver: {
+        id: driver._id,
+        firstName: driver.firstName,
+        lastName: driver.lastName,
+        phone: driver.phone,
+        email: driver.email,
+        isVerified: driver.isVerified,
+        verificationStatus: driver.verificationStatus
       }
     });
   } catch (error) {

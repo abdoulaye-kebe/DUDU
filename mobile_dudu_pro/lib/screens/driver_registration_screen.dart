@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 
 class DriverRegistrationScreen extends StatefulWidget {
@@ -186,6 +187,18 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
       if (!mounted) return;
 
       if (response['success'] == true) {
+        // Sauvegarder le token si présent
+        final token = response['token']?.toString();
+        if (token != null && token.isNotEmpty) {
+          ApiService.setAuthToken(token);
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('pro_auth_token', token);
+          } catch (e) {
+            print('⚠️ Impossible de sauvegarder le token: $e');
+          }
+        }
+
         await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
@@ -204,12 +217,14 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text('Demande envoyée'),
+                const Text('Inscription réussie !'),
               ],
             ),
             content: const Text(
-              'Votre candidature a été envoyée.\n'
-              'Notre équipe l\'examinera prochainement et vous serez notifié(e) par SMS ou email.',
+              'Bienvenue sur DUDU Pro !\n\n'
+              'Votre compte a été créé avec succès.\n'
+              'Notre équipe vérifiera vos documents prochainement.\n\n'
+              'Vous pouvez déjà explorer l\'application, mais vous devrez attendre la validation pour recevoir des courses.',
             ),
             actions: [
               TextButton(
@@ -217,12 +232,14 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF0d5d36),
                 ),
-                child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text('Commencer', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
         );
-        Navigator.pop(context);
+        
+        // Rediriger vers le dashboard
+        Navigator.pushReplacementNamed(context, '/dashboard');
       } else {
         final msg = response['message']?.toString();
         final errors = response['errors'];

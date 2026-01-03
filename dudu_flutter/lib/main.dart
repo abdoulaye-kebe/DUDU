@@ -9,6 +9,7 @@ import 'themes/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/app_gate.dart';
+import 'screens/splash_screen.dart';
 import 'config/app_config.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
@@ -75,9 +76,10 @@ class MyApp extends StatelessWidget {
           Locale('wo'),
           Locale('en'),
         ],
-        home: const AppGate(),
+        home: const SplashScreen(),
         debugShowCheckedModeBanner: false,
         routes: {
+          '/splash': (context) => const SplashScreen(),
           '/login': (context) => const LoginScreen(),
           '/dashboard': (context) => const DashboardScreen(),
           '/app': (context) => const AppGate(),

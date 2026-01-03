@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 import 'location_permission_screen.dart';
 import 'login_screen.dart';
 import 'pro_app_gate.dart';
+import 'splash_screen.dart';
 
 class StartupScreen extends StatefulWidget {
   const StartupScreen({super.key});
@@ -14,10 +16,25 @@ class StartupScreen extends StatefulWidget {
 
 class _StartupScreenState extends State<StartupScreen> {
   bool _isBootstrapping = true;
+  bool _showSplash = true;
 
   @override
   void initState() {
     super.initState();
+    _showSplashThenBootstrap();
+  }
+
+  Future<void> _showSplashThenBootstrap() async {
+    // Afficher le splash pendant 3 secondes
+    await Future.delayed(const Duration(seconds: 3));
+    
+    if (!mounted) return;
+    
+    setState(() {
+      _showSplash = false;
+    });
+    
+    // Puis faire le bootstrap
     _bootstrap();
   }
 
@@ -55,6 +72,12 @@ class _StartupScreenState extends State<StartupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Afficher le splash screen pendant les 3 premières secondes
+    if (_showSplash) {
+      return const SplashScreen();
+    }
+    
+    // Puis afficher l'écran de configuration
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(

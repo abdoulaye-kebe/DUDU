@@ -34,6 +34,7 @@ export const adminAPI = {
   // Rides
   getRides: (params) => api.get('/admin/rides', { params }),
   getRide: (id) => api.get(`/admin/rides/${id}`),
+  getCancelledRides: (params) => api.get('/admin/rides/cancelled', { params }),
   cancelRide: (id, reason) => api.put(`/admin/rides/${id}/cancel`, { reason }),
   
   // Real-time monitoring

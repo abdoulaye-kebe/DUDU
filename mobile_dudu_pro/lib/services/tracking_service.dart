@@ -23,8 +23,8 @@ class TrackingService {
   Function(String rideId, RideStatus status)? _onRideStatusUpdate;
 
   // Configuration du suivi
-  static const Duration _trackingInterval = Duration(seconds: 5);
-  static const double _minDistanceForUpdate = 10.0; // mètres
+  static const Duration _trackingInterval = Duration(seconds: 3); // Mise à jour toutes les 3 secondes
+  static const double _minDistanceForUpdate = 5.0; // mètres (réduit pour plus de précision)
   static const double _maxSpeed = 200.0; // km/h
 
   Future<void> initialize() async {
@@ -175,10 +175,21 @@ class TrackingService {
     if (_trackingPoints.isEmpty || _currentRideId == null) return;
 
     try {
-      // TODO: Implémenter l'envoi des données de tracking via API ou WebSocket
-      print('Données de suivi: ${_trackingPoints.length} points');
+      // Envoyer la position actuelle via Socket.io
+      final lastPoint = _trackingPoints.last;
+      final socketService = SocketService();
+      
+      socketService.emitDriverLocation(
+        rideId: _currentRideId!,
+        latitude: lastPoint.latitude,
+        longitude: lastPoint.longitude,
+        speed: lastPoint.speed ?? 0.0,
+        heading: lastPoint.heading ?? 0.0,
+      );
+      
+      print('📡 Position envoyée: ${lastPoint.latitude}, ${lastPoint.longitude}');
     } catch (e) {
-      print('Erreur envoi données suivi: $e');
+      print('❌ Erreur envoi position: $e');
     }
   }
 

@@ -160,13 +160,38 @@ class SocketService {
     });
   }
 
-  /// Déconnecter
+  /// Émettre la position du chauffeur en temps réel
+  void emitDriverLocation({
+    required String rideId,
+    required double latitude,
+    required double longitude,
+    required double speed,
+    required double heading,
+  }) {
+    if (!_isConnected || _socket == null) {
+      print('⚠️ Socket non connecté - impossible d\'envoyer la position');
+      return;
+    }
+
+    _socket!.emit('driver-location-update', {
+      'rideId': rideId,
+      'latitude': latitude,
+      'longitude': longitude,
+      'speed': speed,
+      'heading': heading,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// Déconnecter du serveur Socket.io
   void disconnect() {
+    _locationUpdateTimer?.cancel();
+    _locationUpdateTimer = null;
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
     _isConnected = false;
-    _stopLocationUpdates();
+    _currentRideId = null;
     print('🔌 Socket.io déconnecté');
   }
 

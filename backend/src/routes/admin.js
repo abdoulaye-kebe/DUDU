@@ -323,16 +323,34 @@ router.put('/drivers/:id/verify', [
 });
 
 // @route   GET /api/v1/admin/rides
-// @desc    Obtenir la liste des courses
+// @desc    Obtenir la liste des courses avec filtres avancés
 // @access  Private (admin)
 router.get('/rides', auth, requireAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 20, status, dateFrom, dateTo } = req.query;
+    const { page = 1, limit = 20, status, dateFrom, dateTo, cancelledBy } = req.query;
     const skip = (page - 1) * limit;
 
     // Construire le filtre
     const filter = {};
-    if (status) filter.status = status;
+    
+    // Filtre par statut (peut être multiple: completed, cancelled, in_progress)
+    if (status) {
+      if (status === 'in_progress') {
+        // En cours = accepted, arriving, arrived, started
+        filter.status = { $in: ['accepted', 'arriving', 'arrived', 'started'] };
+      } else if (status.includes(',')) {
+        filter.status = { $in: status.split(',') };
+      } else {
+        filter.status = status;
+      }
+    }
+    
+    // Filtre par qui a annulé (passenger, driver, system)
+    if (cancelledBy) {
+      filter['cancellation.cancelledBy'] = cancelledBy;
+    }
+    
+    // Filtre par date
     if (dateFrom || dateTo) {
       filter.createdAt = {};
       if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
@@ -340,14 +358,31 @@ router.get('/rides', auth, requireAdmin, async (req, res) => {
     }
 
     const rides = await Ride.find(filter)
-      .populate('passenger', 'firstName lastName phone')
-      .populate('driver', 'user vehicle')
-      .populate('driver.user', 'firstName lastName')
+      .populate('passenger', 'firstName lastName phone email')
+      .populate('driver', 'firstName lastName phone vehicle')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
     const total = await Ride.countDocuments(filter);
+    
+    // Statistiques rapides
+    const stats = {
+      total: await Ride.countDocuments(),
+      completed: await Ride.countDocuments({ status: 'completed' }),
+      cancelled: await Ride.countDocuments({ status: 'cancelled' }),
+      inProgress: await Ride.countDocuments({ 
+        status: { $in: ['accepted', 'arriving', 'arrived', 'started'] }
+      }),
+      cancelledByPassenger: await Ride.countDocuments({ 
+        status: 'cancelled',
+        'cancellation.cancelledBy': 'passenger'
+      }),
+      cancelledByDriver: await Ride.countDocuments({ 
+        status: 'cancelled',
+        'cancellation.cancelledBy': 'driver'
+      })
+    };
 
     res.json({
       success: true,
@@ -355,8 +390,14 @@ router.get('/rides', auth, requireAdmin, async (req, res) => {
         rides: rides.map(ride => ({
           id: ride._id,
           rideId: ride.rideId,
-          pickup: ride.pickup,
-          destination: ride.destination,
+          pickup: {
+            address: ride.pickup?.address,
+            coordinates: ride.pickup?.coordinates
+          },
+          destination: {
+            address: ride.destination?.address,
+            coordinates: ride.destination?.coordinates
+          },
           distance: ride.distance,
           pricing: ride.pricing,
           status: ride.status,
@@ -364,21 +405,35 @@ router.get('/rides', auth, requireAdmin, async (req, res) => {
           passenger: ride.passenger ? {
             id: ride.passenger._id,
             name: `${ride.passenger.firstName} ${ride.passenger.lastName}`,
-            phone: ride.passenger.phone
+            phone: ride.passenger.phone,
+            email: ride.passenger.email
           } : null,
           driver: ride.driver ? {
             id: ride.driver._id,
-            name: ride.driver.user ? 
-              `${ride.driver.user.firstName} ${ride.driver.user.lastName}` : 
-              'Inconnu',
+            name: `${ride.driver.firstName} ${ride.driver.lastName}`,
+            phone: ride.driver.phone,
             vehicle: ride.driver.vehicle ? 
-              `${ride.driver.vehicle.make} ${ride.driver.vehicle.plateNumber}` : 
+              `${ride.driver.vehicle.make} ${ride.driver.vehicle.model} - ${ride.driver.vehicle.plateNumber}` : 
               'N/A'
           } : null,
           requestedAt: ride.requestedAt,
+          acceptedAt: ride.acceptedAt,
+          startedAt: ride.startedAt,
           completedAt: ride.completedAt,
-          cancelledAt: ride.cancelledAt
+          cancelledAt: ride.cancelledAt,
+          cancellation: ride.cancellation ? {
+            reason: ride.cancellation.reason,
+            cancelledBy: ride.cancellation.cancelledBy,
+            refundAmount: ride.cancellation.refundAmount,
+            refundProcessed: ride.cancellation.refundProcessed
+          } : null,
+          payment: {
+            method: ride.payment?.method,
+            status: ride.payment?.status,
+            transactionId: ride.payment?.transactionId
+          }
         })),
+        stats,
         pagination: {
           currentPage: parseInt(page),
           totalPages: Math.ceil(total / limit),
@@ -391,6 +446,121 @@ router.get('/rides', auth, requireAdmin, async (req, res) => {
 
   } catch (error) {
     console.error('Erreur lors de la récupération des courses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
+// @route   GET /api/v1/admin/rides/cancelled
+// @desc    Obtenir l'historique des courses annulées avec détails
+// @access  Private (admin)
+router.get('/rides/cancelled', auth, requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 50, cancelledBy, dateFrom, dateTo } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Construire le filtre pour courses annulées uniquement
+    const filter = { status: 'cancelled' };
+    
+    if (cancelledBy) {
+      filter['cancellation.cancelledBy'] = cancelledBy;
+    }
+    
+    if (dateFrom || dateTo) {
+      filter.cancelledAt = {};
+      if (dateFrom) filter.cancelledAt.$gte = new Date(dateFrom);
+      if (dateTo) filter.cancelledAt.$lte = new Date(dateTo);
+    }
+
+    const cancelledRides = await Ride.find(filter)
+      .populate('passenger', 'firstName lastName phone email')
+      .populate('driver', 'firstName lastName phone vehicle')
+      .sort({ cancelledAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Ride.countDocuments(filter);
+    
+    // Statistiques d'annulation
+    const cancellationStats = {
+      total: total,
+      byPassenger: await Ride.countDocuments({ 
+        status: 'cancelled',
+        'cancellation.cancelledBy': 'passenger'
+      }),
+      byDriver: await Ride.countDocuments({ 
+        status: 'cancelled',
+        'cancellation.cancelledBy': 'driver'
+      }),
+      bySystem: await Ride.countDocuments({ 
+        status: 'cancelled',
+        'cancellation.cancelledBy': 'system'
+      }),
+      totalRefundAmount: await Ride.aggregate([
+        { $match: { status: 'cancelled', 'cancellation.refundAmount': { $exists: true } } },
+        { $group: { _id: null, total: { $sum: '$cancellation.refundAmount' } } }
+      ]).then(result => result[0]?.total || 0)
+    };
+
+    res.json({
+      success: true,
+      data: {
+        cancelledRides: cancelledRides.map(ride => ({
+          id: ride._id,
+          rideId: ride.rideId,
+          pickup: {
+            address: ride.pickup?.address,
+            coordinates: ride.pickup?.coordinates
+          },
+          destination: {
+            address: ride.destination?.address,
+            coordinates: ride.destination?.coordinates
+          },
+          distance: ride.distance,
+          pricing: ride.pricing,
+          passenger: ride.passenger ? {
+            id: ride.passenger._id,
+            name: `${ride.passenger.firstName} ${ride.passenger.lastName}`,
+            phone: ride.passenger.phone,
+            email: ride.passenger.email
+          } : null,
+          driver: ride.driver ? {
+            id: ride.driver._id,
+            name: `${ride.driver.firstName} ${ride.driver.lastName}`,
+            phone: ride.driver.phone,
+            vehicle: ride.driver.vehicle ? 
+              `${ride.driver.vehicle.make} ${ride.driver.vehicle.model} - ${ride.driver.vehicle.plateNumber}` : 
+              'N/A'
+          } : null,
+          requestedAt: ride.requestedAt,
+          acceptedAt: ride.acceptedAt,
+          cancelledAt: ride.cancelledAt,
+          cancellation: {
+            reason: ride.cancellation.reason,
+            cancelledBy: ride.cancellation.cancelledBy,
+            refundAmount: ride.cancellation.refundAmount,
+            refundProcessed: ride.cancellation.refundProcessed
+          },
+          payment: {
+            method: ride.payment?.method,
+            status: ride.payment?.status
+          }
+        })),
+        stats: cancellationStats,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          totalCancelled: total,
+          hasNext: page * limit < total,
+          hasPrev: page > 1
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la récupération des courses annulées:', error);
     res.status(500).json({
       success: false,
       message: 'Erreur interne du serveur'

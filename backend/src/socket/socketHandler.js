@@ -542,6 +542,46 @@ module.exports = (io) => {
       }
     });
 
+    // Recevoir position GPS du chauffeur en temps réel (toutes les 3 secondes)
+    socket.on('driver-location-update', async (data) => {
+      try {
+        if (!socket.driver) {
+          return socket.emit('error', { message: 'Accès réservé aux chauffeurs' });
+        }
+
+        const { rideId, latitude, longitude, speed, heading, timestamp } = data;
+        
+        // Vérifier que la course existe et est assignée à ce chauffeur
+        const ride = await Ride.findById(rideId);
+        if (!ride || ride.driver.toString() !== socket.driverId.toString()) {
+          return;
+        }
+
+        // Diffuser la position au client en temps réel
+        io.to(`passenger_${ride.passenger}`).emit('driver-location', {
+          rideId: ride._id,
+          latitude,
+          longitude,
+          speed,
+          heading,
+          timestamp: timestamp || new Date().toISOString()
+        });
+
+        // Aussi diffuser dans la room de suivi de la course
+        io.to(`ride_${rideId}`).emit('driver-location', {
+          rideId: ride._id,
+          latitude,
+          longitude,
+          speed,
+          heading,
+          timestamp: timestamp || new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('Erreur réception position chauffeur:', error);
+      }
+    });
+
     // --- Signalisation WebRTC pour appels VOIP (base) ---
     // Offre d'appel (WebRTC offer)
     socket.on('call-offer', async (data) => {

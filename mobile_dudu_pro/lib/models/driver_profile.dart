@@ -15,6 +15,8 @@ class DriverProfile {
   final Map<String, bool>? rideTypes;
   final DriverPreferences? preferences;
   final String driverType; // 'driver' ou 'courier'
+  final bool isVerified; // Compte vérifié par l'admin
+  final String verificationStatus; // 'pending', 'approved', 'rejected'
 
   DriverProfile({
     required this.id,
@@ -33,6 +35,8 @@ class DriverProfile {
     this.rideTypes,
     this.preferences,
     required this.driverType,
+    this.isVerified = false,
+    this.verificationStatus = 'pending',
   });
 
   factory DriverProfile.fromJson(Map<String, dynamic> json) {
@@ -99,6 +103,8 @@ class DriverProfile {
       rideTypes: rideTypes,
       preferences: preferences,
       driverType: rawDriverType.isNotEmpty ? rawDriverType : computedType,
+      isVerified: json['isVerified'] ?? false,
+      verificationStatus: json['verificationStatus'] ?? 'pending',
     );
   }
 
@@ -118,6 +124,8 @@ class DriverProfile {
       'isAvailable': isAvailable,
       'currentLocation': currentLocation?.toJson(),
       'driverType': driverType,
+      'isVerified': isVerified,
+      'verificationStatus': verificationStatus,
     };
   }
 

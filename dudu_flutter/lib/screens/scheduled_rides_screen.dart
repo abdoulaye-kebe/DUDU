@@ -95,6 +95,43 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     _searchToken++;
   }
 
+  Future<void> _useCurrentLocation() async {
+    if (_currentPosition == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Position non disponible')),
+      );
+      return;
+    }
+
+    try {
+      final address = await PlacesService.reverseGeocode(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+      );
+
+      setState(() {
+        _from = address;
+        _fromController.text = address;
+        _pickupLatLng = LatLng(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+        );
+      });
+      _updateMarkersOnMap();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Position actuelle utilisée'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erreur lors de la récupération de l\'adresse')),
+      );
+    }
+  }
+
   Future<void> _initLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -440,15 +477,19 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                   target: _pickupLatLng ??
                       _destinationLatLng ??
                       const LatLng(14.6928, -17.4467),
-                  zoom: 13,
+                  zoom: 18.0,
                 ),
                 onMapCreated: (controller) {
                   _mapController = controller;
                   _updateMarkersOnMap();
                 },
-                myLocationEnabled: false,
-                myLocationButtonEnabled: false,
+                myLocationEnabled: true,
+                myLocationButtonEnabled: true,
                 zoomControlsEnabled: false,
+                mapToolbarEnabled: false,
+                compassEnabled: false,
+                rotateGesturesEnabled: false,
+                tiltGesturesEnabled: false,
                 markers: _markers,
               ),
             ),
@@ -513,15 +554,33 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
             ],
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _fromController,
-            readOnly: true,
-            decoration: const InputDecoration(
-              labelText: 'Départ',
-              border: OutlineInputBorder(),
-              suffixIcon: Icon(Icons.search),
-            ),
-            onTap: () => _showPlaceSearch(isPickup: true),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _fromController,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Départ',
+                    border: OutlineInputBorder(),
+                    suffixIcon: Icon(Icons.search),
+                  ),
+                  onTap: () => _showPlaceSearch(isPickup: true),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: primaryGreen,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.my_location, color: Colors.white),
+                  tooltip: 'Position actuelle',
+                  onPressed: _useCurrentLocation,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           TextField(
@@ -535,17 +594,65 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
             onTap: () => _showPlaceSearch(isPickup: false),
           ),
           const SizedBox(height: 12),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.calendar_today),
-            title: Text(
-              _dateTime == null
-                  ? 'Choisir date et heure'
-                  : '${_dateTime!.day.toString().padLeft(2, '0')}/'
-                    '${_dateTime!.month.toString().padLeft(2, '0')} '
-                    'à ${_dateTime!.hour.toString().padLeft(2, '0')}:${_dateTime!.minute.toString().padLeft(2, '0')}',
-            ),
+          InkWell(
             onTap: _pickDateTime,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: primaryGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.calendar_today,
+                      color: primaryGreen,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Date et heure',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _dateTime == null
+                              ? 'Choisir la date et l\'heure'
+                              : '${_dateTime!.day.toString().padLeft(2, '0')}/${_dateTime!.month.toString().padLeft(2, '0')}/${_dateTime!.year} à ${_dateTime!.hour.toString().padLeft(2, '0')}:${_dateTime!.minute.toString().padLeft(2, '0')}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: _dateTime == null ? Colors.grey[500] : accentBlack,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey[400],
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           TextField(

@@ -318,10 +318,7 @@ const rideSchema = new mongoose.Schema({
   
   // Annulation
   cancellation: {
-    reason: {
-      type: String,
-      enum: ['passenger_cancelled', 'driver_cancelled', 'no_driver_found', 'payment_failed', 'system_error', 'weather', 'emergency']
-    },
+    reason: String,
     cancelledBy: {
       type: String,
       enum: ['passenger', 'driver', 'system']
@@ -331,6 +328,39 @@ const rideSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     }
+  },
+  
+  // Refus par chauffeurs (pour rotation automatique)
+  refusedBy: [{
+    driver: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Driver'
+    },
+    reason: String,
+    refusedAt: Date
+  }],
+  
+  // Litiges et support
+  dispute: {
+    isDisputed: {
+      type: Boolean,
+      default: false
+    },
+    reportedBy: {
+      type: String,
+      enum: ['passenger', 'driver']
+    },
+    reason: String,
+    description: String,
+    status: {
+      type: String,
+      enum: ['pending', 'investigating', 'resolved', 'closed'],
+      default: 'pending'
+    },
+    reportedAt: Date,
+    resolvedAt: Date,
+    resolution: String,
+    adminNotes: String
   },
   
   // Données de performance

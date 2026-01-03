@@ -477,7 +477,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               _buildPhoneField(),
                               const SizedBox(height: 20),
                               _buildPasswordField(),
-                              const SizedBox(height: 15),
+                              const SizedBox(height: 12),
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
@@ -492,18 +492,18 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                     );
                                   },
                                   child: const Text(
-                                    'Mot de passe oublié ?',
+                                    'Mot de passe oublié',
                                     style: TextStyle(
                                       color: primaryGreen,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 16),
                               _buildLoginButton(),
                               const SizedBox(height: 16),
-                              OutlinedButton.icon(
+                              TextButton(
                                 onPressed: () {
                                   Navigator.push(
                                     context,
@@ -512,24 +512,16 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                     ),
                                   );
                                 },
-                                icon: const Icon(Icons.app_registration, color: primaryGreen),
-                                label: const Text(
-                                  'S\'inscrire comme chauffeur',
+                                child: const Text(
+                                  'S\'inscrire',
                                   style: TextStyle(
                                     color: primaryGreen,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: primaryGreen, width: 1.5),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(15),
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              TextButton.icon(
+                              TextButton(
                                 onPressed: () {
                                   Navigator.push(
                                     context,
@@ -538,20 +530,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                     ),
                                   );
                                 },
-                                icon: const Icon(Icons.lock_reset, color: primaryGreen, size: 20),
-                                label: const Text(
-                                  'Modifier mon mot de passe',
+                                child: const Text(
+                                  'Modifier',
                                   style: TextStyle(
                                     color: primaryGreen,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    side: const BorderSide(color: primaryGreen, width: 1.5),
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),

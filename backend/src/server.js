@@ -20,8 +20,18 @@ const server = createServer(app);
 // Configuration Socket.io
 const io = new Server(server, {
   cors: {
-    origin: process.env.SOCKET_CORS_ORIGIN || "http://localhost:3000",
-    methods: ["GET", "POST"]
+    origin: process.env.NODE_ENV === 'production'
+      ? [
+          'https://dudu.sn',
+          'https://admin.dudu.sn',
+          'https://dudugroup.sn',
+          'http://dudugroup.sn',
+          'https://www.dudugroup.sn',
+          'http://www.dudugroup.sn'
+        ]
+      : true,
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -33,7 +43,14 @@ app.use(morgan('combined'));
 // Configuration CORS - Autoriser toutes les origines en développement
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://dudu.sn', 'https://admin.dudu.sn'] 
+    ? [
+        'https://dudu.sn', 
+        'https://admin.dudu.sn',
+        'https://dudugroup.sn',
+        'http://dudugroup.sn',
+        'https://www.dudugroup.sn',
+        'http://www.dudugroup.sn'
+      ] 
     : true, // Autoriser toutes les origines en dev
   credentials: true
 }));
@@ -75,6 +92,7 @@ app.use('/api/v1/subscriptions', require('./routes/subscriptions'));
 app.use('/api/v1/admin', require('./routes/admin'));
 app.use('/api/v1/carpool', require('./routes/carpool'));
 app.use('/api/v1/notifications', require('./routes/notifications'));
+app.use('/api/v1/disputes', require('./routes/disputes'));
 
 // Route de santé
 app.get('/api/v1/health', (req, res) => {
