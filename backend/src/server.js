@@ -77,7 +77,7 @@ app.use('/api/v1/carpool', require('./routes/carpool'));
 app.use('/api/v1/notifications', require('./routes/notifications'));
 
 // Route de santé
-app.get('/api/health', (req, res) => {
+app.get('/api/v1/health', (req, res) => {
   res.json({
     status: 'OK',
     message: 'DUDU API est opérationnelle',

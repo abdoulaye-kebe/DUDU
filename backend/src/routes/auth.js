@@ -145,6 +145,8 @@ router.post('/register', [
 
   } catch (error) {
     console.error('❌ Erreur lors de l\'inscription:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Données reçues:', { firstName, lastName, phone, gender, language });
     
     // Gestion des erreurs MongoDB
     if (error.code === 11000) {
@@ -155,10 +157,21 @@ router.post('/register', [
       });
     }
 
+    // Erreur de validation Mongoose
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation',
+        errors: messages
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Erreur interne du serveur',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
