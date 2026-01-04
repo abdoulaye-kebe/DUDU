@@ -533,6 +533,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               icon: Icons.local_taxi,
               title: 'Devenir chauffeur (DUDU Pro)',
               color: primaryGreen,
+              highlight: true,
               onTap: () async {
                 Navigator.pop(context);
                 const url = 'https://dudugroup.sn/downloads/dudu-driver.apk';
@@ -597,24 +598,32 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     required String title,
     required Color color,
     required VoidCallback onTap,
+    bool highlight = false,
   }) {
+    final Color highlightColor = Colors.green.shade700;
+    final Color effectiveColor = highlight ? highlightColor : color;
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: effectiveColor.withOpacity(highlight ? 0.16 : 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: color, size: 24),
+        child: Icon(icon, color: effectiveColor, size: 24),
       ),
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16,
-          fontWeight: FontWeight.w500,
+          fontWeight: highlight ? FontWeight.w800 : FontWeight.w500,
+          color: highlight ? highlightColor : null,
         ),
       ),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      trailing: Icon(
+        Icons.arrow_forward_ios,
+        size: 16,
+        color: highlight ? highlightColor : null,
+      ),
       onTap: onTap,
     );
   }
