@@ -133,8 +133,10 @@ router.get('/scheduled-rides', auth, async (req, res) => {
   try {
     const now = new Date();
 
+    const userId = (req.user && req.user.id) ? req.user.id : req.userId;
+
     const rides = await Ride.find({
-      passenger: req.userId,
+      passenger: userId,
       scheduledFor: { $gte: now }
     })
       .sort({ scheduledFor: 1 });

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -6,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../themes/app_theme.dart';
 import '../services/search_history_service.dart';
+import '../services/places_service.dart';
 import 'unified_ride_screen.dart';
 import 'delivery_request_screen.dart';
 import 'scheduled_rides_screen.dart';
@@ -35,6 +38,249 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   static const Color darkGreen = Color(0xFF094d2a);
   static const Color lightGreen = Color(0xFF10b981);
   static const Color accentBlack = Color(0xFF1A1A1A);
+
+  List<Map<String, String>> _getPopularPlaces() {
+    return [
+      {
+        'name': 'Aéroport Blaise Diagne',
+        'address': 'AIBD, Diass',
+        'lat': '14.6700',
+        'lng': '-17.0728',
+      },
+      {
+        'name': 'Place de l\'Indépendance',
+        'address': 'Plateau, Dakar',
+        'lat': '14.6697',
+        'lng': '-17.4389',
+      },
+      {
+        'name': 'UCAD',
+        'address': 'Université Cheikh Anta Diop, Dakar',
+        'lat': '14.6937',
+        'lng': '-17.4441',
+      },
+      {
+        'name': 'Marché Sandaga',
+        'address': 'Sandaga, Dakar',
+        'lat': '14.6667',
+        'lng': '-17.4333',
+      },
+    ];
+  }
+
+  Future<void> _openDestinationSearch() async {
+    final controller = TextEditingController();
+    Timer? debounce;
+    var isSearching = false;
+    var suggestions = <PlaceSuggestion>[];
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, modalSetState) {
+            Future<void> search(String query) async {
+              modalSetState(() {
+                isSearching = true;
+              });
+
+              final userLat = _currentPosition?.latitude;
+              final userLng = _currentPosition?.longitude;
+
+              final results = await PlacesService.getPlaceSuggestions(
+                query,
+                userLat: userLat,
+                userLng: userLng,
+              );
+
+              modalSetState(() {
+                suggestions = results;
+                isSearching = false;
+              });
+            }
+
+            return Container(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                      child: TextField(
+                        controller: controller,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          hintText: 'Où allez-vous ?',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: isSearching
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                )
+                              : (controller.text.isNotEmpty
+                                  ? IconButton(
+                                      onPressed: () {
+                                        controller.clear();
+                                        modalSetState(() {
+                                          suggestions = [];
+                                          isSearching = false;
+                                        });
+                                      },
+                                      icon: const Icon(Icons.clear),
+                                    )
+                                  : null),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onChanged: (value) {
+                          final q = value.trim();
+                          debounce?.cancel();
+
+                          if (q.length < 2) {
+                            modalSetState(() {
+                              suggestions = [];
+                              isSearching = false;
+                            });
+                            return;
+                          }
+
+                          debounce = Timer(const Duration(milliseconds: 200), () {
+                            if (!mounted) return;
+                            final current = controller.text.trim();
+                            if (current.length < 2) return;
+                            search(current);
+                          });
+                        },
+                      ),
+                    ),
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                        children: [
+                          if (controller.text.trim().length < 2 && suggestions.isEmpty) ...[
+                            if (_searchHistory.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Recherches récentes',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 8),
+                              ..._searchHistory.take(3).map(
+                                    (item) => ListTile(
+                                      leading: const Icon(Icons.history),
+                                      title: Text(item.title),
+                                      subtitle: Text(item.subtitle),
+                                      onTap: () async {
+                                        Navigator.pop(context);
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (context) => const UnifiedRideScreen()),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                              const SizedBox(height: 10),
+                            ],
+                            const Text(
+                              'Lieux populaires',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 8),
+                            ..._getPopularPlaces().take(3).map(
+                                  (place) => ListTile(
+                                    leading: const Icon(Icons.star, color: Colors.amber),
+                                    title: Text(place['name'] ?? ''),
+                                    subtitle: Text(place['address'] ?? ''),
+                                    onTap: () async {
+                                      await SearchHistoryService.addToHistory(
+                                        SearchHistoryItem(
+                                          title: place['name'] ?? '',
+                                          subtitle: place['address'] ?? '',
+                                          latitude: double.tryParse(place['lat'] ?? ''),
+                                          longitude: double.tryParse(place['lng'] ?? ''),
+                                        ),
+                                      );
+                                      if (!mounted) return;
+                                      await _loadSearchHistory();
+                                      if (!mounted) return;
+                                      Navigator.pop(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (context) => const UnifiedRideScreen()),
+                                      );
+                                    },
+                                  ),
+                                ),
+                          ] else ...[
+                            ...suggestions.take(10).map(
+                                  (s) => ListTile(
+                                    leading: Icon(
+                                      s.isLocal ? Icons.star : Icons.location_on,
+                                      color: s.isLocal ? Colors.amber : null,
+                                    ),
+                                    title: Text(s.mainText),
+                                    subtitle: Text(s.secondaryText),
+                                    onTap: () async {
+                                      await SearchHistoryService.addToHistory(
+                                        SearchHistoryItem(
+                                          title: s.mainText,
+                                          subtitle: s.description,
+                                          latitude: s.localLat,
+                                          longitude: s.localLng,
+                                        ),
+                                      );
+                                      if (!mounted) return;
+                                      await _loadSearchHistory();
+                                      if (!mounted) return;
+                                      Navigator.pop(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (context) => const UnifiedRideScreen()),
+                                      );
+                                    },
+                                  ),
+                                ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    debounce?.cancel();
+    controller.dispose();
+  }
 
   @override
   void initState() {
@@ -743,10 +989,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           const SizedBox(height: 20),
           InkWell(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const UnifiedRideScreen()),
-              );
+              _openDestinationSearch();
             },
             borderRadius: BorderRadius.circular(16),
             child: Container(

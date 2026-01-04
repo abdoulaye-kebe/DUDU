@@ -1399,6 +1399,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            _buildPriceInput(),
+            const SizedBox(height: 10),
             // Moyen de paiement
             _buildPaymentMethodSelector(),
 
@@ -1458,7 +1460,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                 onPressed: _pickupAddress.isNotEmpty && 
                            _destinationAddress.isNotEmpty &&
                            _pickupLatLng != null &&
-                           _destinationLatLng != null
+                           _destinationLatLng != null &&
+                           _customPrice > 0
                     ? _navigateToConfirmation
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -1563,6 +1566,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           distance: _estimatedDistance,
           selectedRideType: _selectedRideType,
           selectedMode: _selectedMode,
+          initialPrice: _customPrice,
+          initialPaymentMethod: _selectedPaymentMethod,
         ),
       ),
     );

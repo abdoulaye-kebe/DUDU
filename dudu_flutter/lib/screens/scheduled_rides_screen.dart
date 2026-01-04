@@ -1016,33 +1016,6 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
   Future<void> _savePlannedRide() async {
     if (!_canSave()) return;
 
-    final auth = SecureAuthService();
-    final biometricEnabled = await auth.isBiometricEnabled();
-    if (biometricEnabled) {
-      final biometricAvailable = await auth.isBiometricAvailable();
-
-      bool ok = false;
-      if (biometricAvailable) {
-        ok = await auth.authenticateWithBiometrics(
-          reason: 'Confirmer la planification du trajet',
-        );
-      } else {
-        ok = await _verifyPinDialog();
-      }
-
-      if (!ok) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Authentification requise'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
-    }
-
     final rideType = _mode == 'delivery' ? 'delivery' : 'standard';
 
     ScaffoldMessenger.of(context).showSnackBar(

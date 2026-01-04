@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class RideConfirmationScreen extends StatefulWidget {
@@ -10,6 +9,8 @@ class RideConfirmationScreen extends StatefulWidget {
   final double distance;
   final String selectedRideType;
   final String selectedMode;
+  final int initialPrice;
+  final String initialPaymentMethod;
 
   const RideConfirmationScreen({
     Key? key,
@@ -20,6 +21,8 @@ class RideConfirmationScreen extends StatefulWidget {
     required this.distance,
     required this.selectedRideType,
     required this.selectedMode,
+    required this.initialPrice,
+    required this.initialPaymentMethod,
   }) : super(key: key);
 
   @override
@@ -27,7 +30,6 @@ class RideConfirmationScreen extends StatefulWidget {
 }
 
 class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
-  final TextEditingController _priceController = TextEditingController();
   String _selectedPaymentMethod = 'cash';
   int _customPrice = 0;
 
@@ -43,9 +45,12 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
   };
 
   @override
-  void dispose() {
-    _priceController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _customPrice = widget.initialPrice;
+    _selectedPaymentMethod = widget.initialPaymentMethod.isNotEmpty
+        ? widget.initialPaymentMethod
+        : 'cash';
   }
 
   @override
@@ -249,49 +254,37 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _priceController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: primaryGreen,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: primaryGreen.withOpacity(0.3)),
             ),
-            decoration: InputDecoration(
-              hintText: '0',
-              hintStyle: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[400],
-              ),
-              suffixText: 'FCFA',
-              suffixStyle: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: primaryGreen,
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: primaryGreen.withOpacity(0.3)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: primaryGreen.withOpacity(0.3)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: primaryGreen, width: 2),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _customPrice.toString(),
+                    textAlign: TextAlign.left,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: primaryGreen,
+                    ),
+                  ),
+                ),
+                const Text(
+                  'FCFA',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: primaryGreen,
+                  ),
+                ),
+              ],
             ),
-            onChanged: (value) {
-              setState(() {
-                _customPrice = int.tryParse(value) ?? 0;
-              });
-            },
           ),
           const SizedBox(height: 12),
           Text(
