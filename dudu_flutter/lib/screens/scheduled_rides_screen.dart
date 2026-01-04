@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
@@ -838,28 +839,69 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();
-    final date = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 30)),
-    );
-    if (date == null) return;
+    DateTime temp = _dateTime ?? now.add(const Duration(minutes: 10));
+    if (temp.isBefore(now)) {
+      temp = now.add(const Duration(minutes: 10));
+    }
 
-    final time = await showTimePicker(
+    final picked = await showModalBottomSheet<DateTime>(
       context: context,
-      initialTime: TimeOfDay.now(),
+      isScrollControlled: false,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        DateTime localTemp = temp;
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                  child: Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Annuler'),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, localTemp),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 250,
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.dateAndTime,
+                    initialDateTime: temp,
+                    minimumDate: now,
+                    maximumDate: now.add(const Duration(days: 30)),
+                    minuteInterval: 5,
+                    use24hFormat: true,
+                    onDateTimeChanged: (value) {
+                      localTemp = value;
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        );
+      },
     );
-    if (time == null) return;
 
+    if (picked == null) return;
+    if (!mounted) return;
     setState(() {
-      _dateTime = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time.hour,
-        time.minute,
-      );
+      _dateTime = picked;
     });
   }
 
