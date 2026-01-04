@@ -29,6 +29,14 @@ const auth = async (req, res, next) => {
 
     // Vérifier le token JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Token admin (sans enregistrement User/Driver)
+    if (decoded && decoded.role === 'admin') {
+      req.user = { id: 'admin', role: 'admin', email: decoded.email };
+      req.userId = 'admin';
+      next();
+      return;
+    }
     
     // Essayer de trouver un chauffeur d'abord
     let driver = await Driver.findById(decoded.userId || decoded.id);

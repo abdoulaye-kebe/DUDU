@@ -952,20 +952,89 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     return 12742 * math.asin(math.sqrt(a)); // 2 * R; R = 6371 km
   }
 
+  Future<bool> _verifyPinDialog() async {
+    final controller = TextEditingController();
+    String? error;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Text('Confirmer avec PIN'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    obscureText: true,
+                    maxLength: 4,
+                    decoration: InputDecoration(
+                      labelText: 'Code PIN',
+                      counterText: '',
+                      errorText: error,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('Annuler'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final pin = controller.text.trim();
+                    if (pin.length != 4) {
+                      setDialogState(() => error = 'PIN invalide');
+                      return;
+                    }
+                    final ok = await SecureAuthService().verifyPin(pin);
+                    if (!ctx.mounted) return;
+                    if (!ok) {
+                      setDialogState(() => error = 'PIN incorrect');
+                      return;
+                    }
+                    Navigator.of(ctx).pop(true);
+                  },
+                  child: const Text('Confirmer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
+    return result == true;
+  }
+
   Future<void> _savePlannedRide() async {
     if (!_canSave()) return;
 
     final auth = SecureAuthService();
     final biometricEnabled = await auth.isBiometricEnabled();
     if (biometricEnabled) {
-      final ok = await auth.authenticateWithBiometrics(
-        reason: 'Confirmer la planification du trajet',
-      );
+      final biometricAvailable = await auth.isBiometricAvailable();
+
+      bool ok = false;
+      if (biometricAvailable) {
+        ok = await auth.authenticateWithBiometrics(
+          reason: 'Confirmer la planification du trajet',
+        );
+      } else {
+        ok = await _verifyPinDialog();
+      }
+
       if (!ok) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Authentification Face ID requise'),
+              content: Text('Authentification requise'),
               backgroundColor: Colors.red,
             ),
           );

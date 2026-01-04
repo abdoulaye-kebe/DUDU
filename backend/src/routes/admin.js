@@ -10,14 +10,21 @@ const router = express.Router();
 
 // Middleware pour vérifier les droits d'administration
 const requireAdmin = (req, res, next) => {
-  // TODO: Implémenter un système de rôles d'administration
-  // Pour l'instant, on considère que tous les utilisateurs sont admin
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Accès réservé aux administrateurs'
+    });
+  }
   next();
 };
 
+// Toutes les routes admin sont protégées
+router.use(auth, requireAdmin);
+
 // @route   GET /api/v1/admin/dashboard
 // @desc    Obtenir les statistiques du tableau de bord
-// @access  Public (temporaire pour tests)
+// @access  Private (admin)
 router.get('/dashboard', async (req, res) => {
   try {
     const now = new Date();

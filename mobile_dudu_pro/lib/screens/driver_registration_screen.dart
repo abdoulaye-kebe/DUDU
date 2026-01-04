@@ -492,11 +492,10 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
-                    if (value == null || value.isEmpty) return null;
-                    if (!value.contains('@') || !value.contains('.')) {
-                      return 'Email invalide';
-                    }
-                    return null;
+                    final v = value?.trim() ?? '';
+                    if (v.isEmpty) return null;
+                    final ok = RegExp(r'^\S+@\S+\.\S+$').hasMatch(v);
+                    return ok ? null : 'Email invalide';
                   },
                 ),
                 _buildDateField(

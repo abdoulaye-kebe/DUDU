@@ -21,7 +21,7 @@ const navItems = [
   { id: 'promotions', label: 'Promotions', icon: Bell },
 ];
 
-function Navbar({ currentPage, onNavigate }) {
+function Navbar({ currentPage, onNavigate, onLogout }) {
   return (
     <nav className="navbar">
       <div className="navbar-container">
@@ -95,6 +95,19 @@ function Navbar({ currentPage, onNavigate }) {
             whileTap={{ scale: 0.95 }}
           >
             <Settings />
+          </motion.button>
+
+          {/* Logout */}
+          <motion.button
+            className="icon-btn"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              if (typeof onLogout === 'function') onLogout();
+            }}
+            title="Déconnexion"
+          >
+            <LogOut />
           </motion.button>
 
           {/* User Menu */}

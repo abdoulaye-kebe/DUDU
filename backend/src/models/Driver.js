@@ -48,6 +48,7 @@ const driverSchema = new mongoose.Schema({
     type: String,
     required: false,
     unique: true,
+    sparse: true,
     lowercase: true
   },
   dateOfBirth: {

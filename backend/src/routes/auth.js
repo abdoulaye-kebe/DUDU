@@ -276,6 +276,62 @@ router.post('/login', [
   }
 });
 
+// @route   POST /api/v1/auth/admin/login
+// @desc    Connexion administrateur
+// @access  Public
+router.post('/admin/login', [
+  body('email').isEmail().withMessage('Email invalide'),
+  body('password').notEmpty().withMessage('Le mot de passe est requis')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const { email, password } = req.body;
+
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!adminEmail || !adminPassword) {
+      return res.status(500).json({
+        success: false,
+        message: 'Configuration admin manquante'
+      });
+    }
+
+    if (email.toLowerCase() !== adminEmail.toLowerCase() || password !== adminPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Email ou mot de passe incorrect'
+      });
+    }
+
+    const token = jwt.sign(
+      { role: 'admin', email: adminEmail },
+      process.env.JWT_SECRET || 'dudu_secret_key',
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Connexion admin réussie',
+      data: { token }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la connexion admin:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
 // @route   POST /api/v1/auth/verify
 // @desc    Vérifier le numéro de téléphone avec un code SMS
 // @access  Public

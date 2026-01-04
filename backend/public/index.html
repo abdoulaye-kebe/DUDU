@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DuDu - La plateforme de transport centrée sur le client</title>
+  <meta name="description" content="DuDu est une plateforme de transport centrée sur le client : c’est le client qui fixe son prix, planifie sa course et reçoit des notifications de rappel jusqu’à la fin de la course." />
+  <style>
+    :root {
+      --green-900: #0d5d36;
+      --green-700: #0f7a45;
+      --green-500: #10b981;
+      --bg: #0b1220;
+      --card: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.12);
+      --text: rgba(255, 255, 255, 0.92);
+      --muted: rgba(255, 255, 255, 0.72);
+      --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: radial-gradient(1200px 600px at 20% 10%, rgba(16, 185, 129, 0.25), transparent 60%),
+                  radial-gradient(900px 600px at 80% 30%, rgba(13, 93, 54, 0.25), transparent 60%),
+                  linear-gradient(180deg, #060a12 0%, #0b1220 55%, #050912 100%);
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(10px);
+      background: rgba(5, 9, 18, 0.65);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 900;
+      letter-spacing: 0.6px;
+    }
+    .brand-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--green-900), var(--green-500));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 26px rgba(16, 185, 129, 0.25);
+      font-size: 18px;
+    }
+    .nav-links { display: flex; gap: 16px; align-items: center; }
+    .nav-links a {
+      opacity: 0.9;
+      font-weight: 600;
+      font-size: 14px;
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
+    .nav-links a:hover { background: rgba(255, 255, 255, 0.06); }
+
+    .hero {
+      padding: 64px 0 40px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .hero-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 34px;
+    }
+
+    .kicker {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.22);
+      color: rgba(255, 255, 255, 0.92);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-size: 46px;
+      line-height: 1.05;
+      letter-spacing: -0.8px;
+      margin-bottom: 14px;
+    }
+
+    .lead {
+      font-size: 16px;
+      color: var(--muted);
+      max-width: 58ch;
+      margin-bottom: 22px;
+    }
+
+    .cta-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-weight: 800;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.92);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .btn:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.09); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--green-900), var(--green-500));
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      box-shadow: 0 18px 40px rgba(16, 185, 129, 0.18);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .stat {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .stat-title { font-weight: 900; font-size: 15px; margin-bottom: 6px; }
+    .stat-desc { color: var(--muted); font-size: 13px; }
+
+    .section { padding: 46px 0; }
+
+    .section-title {
+      font-size: 28px;
+      letter-spacing: -0.4px;
+      margin-bottom: 14px;
+    }
+
+    .section-sub {
+      color: var(--muted);
+      margin-bottom: 22px;
+      max-width: 72ch;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .feature {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 18px;
+      padding: 18px;
+      min-height: 150px;
+    }
+
+    .feature h3 { font-size: 16px; margin-bottom: 8px; }
+    .feature p { color: var(--muted); font-size: 13px; }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .box {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .box h3 { font-size: 16px; margin-bottom: 8px; }
+    .box p { color: var(--muted); font-size: 13px; }
+
+    .footer {
+      padding: 26px 0 40px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 38px; }
+      .grid { grid-template-columns: 1fr; }
+      .split { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <div class="brand">
+        <div class="brand-badge">D</div>
+        <div>DuDu</div>
+      </div>
+      <nav class="nav-links">
+        <a href="#client">Client</a>
+        <a href="#prix">Prix</a>
+        <a href="#planification">Planification</a>
+        <a href="#chauffeurs">Chauffeurs</a>
+        <a href="#securite">Sécurité</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <div class="hero-grid">
+          <div class="hero-card">
+            <div class="kicker">Plateforme de transport centrée sur le client</div>
+            <h1>Avec DuDu, le client est au centre.</h1>
+            <p class="lead">
+              DuDu est une plateforme de transport où le client garde la main :
+              le client fixe son prix, peut planifier sa course et reçoit des notifications de rappel
+              depuis la prise en charge jusqu’à la terminaison de la course.
+            </p>
+
+            <div class="cta-row">
+              <a class="btn btn-primary" href="/download-client.html">Télécharger l'app Client</a>
+              <a class="btn" href="/download-driver.html">Télécharger l'app Chauffeur</a>
+            </div>
+
+            <div class="cta-row" style="margin-top: 10px;">
+              <a class="btn" href="#chauffeurs">Découvrir l'offre Chauffeur</a>
+              <a class="btn" href="#planification">Planifier une course</a>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-title">Le client fixe son prix</div>
+              <div class="stat-desc">Une approche plus juste et plus transparente : c’est le client qui propose le prix de la course.</div>
+            </div>
+            <div class="stat">
+              <div class="stat-title">Planification + rappels</div>
+              <div class="stat-desc">Planifie ta course à l’avance et reçois des notifications de rappel tout au long du trajet.</div>
+            </div>
+            <div class="stat">
+              <div class="stat-title">Forfaits chauffeurs</div>
+              <div class="stat-desc">Pas de commissions retirées sur chaque course : les chauffeurs souscrivent à des forfaits attractifs.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="client" class="section">
+      <div class="container">
+        <h2 class="section-title">Le client au centre</h2>
+        <p class="section-sub">
+          DuDu a été conçu pour donner au client le contrôle et la tranquillité.
+          De la création de course au suivi, l’expérience est fluide, simple et transparente.
+        </p>
+
+        <div class="grid">
+          <div class="feature">
+            <h3>Contrôle total</h3>
+            <p>Le client choisit son point de départ, sa destination, et garde le contrôle des décisions clés.</p>
+          </div>
+          <div class="feature">
+            <h3>Notifications tout au long de la course</h3>
+            <p>Des notifications de rappel à chaque étape : prise de la course, arrivée, démarrage et fin de course.</p>
+          </div>
+          <div class="feature">
+            <h3>Planification</h3>
+            <p>Possibilité de planifier une course à l’avance, avec rappel automatique avant l’heure prévue.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="prix" class="section">
+      <div class="container">
+        <h2 class="section-title">Le client fixe son prix</h2>
+        <p class="section-sub">
+          Le prix est proposé par le client. Les chauffeurs disponibles peuvent accepter.
+          Cette logique place le client au centre et favorise un accord clair.
+        </p>
+
+        <div class="split">
+          <div class="box">
+            <h3>Transparence</h3>
+            <p>Le prix est défini à l’avance : pas de surprise, pas de calcul opaque.</p>
+          </div>
+          <div class="box">
+            <h3>Flexibilité</h3>
+            <p>Le client ajuste son prix selon l’urgence, l’heure, la distance et le contexte.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="planification" class="section">
+      <div class="container">
+        <h2 class="section-title">Planification & notifications de rappel</h2>
+        <p class="section-sub">
+          Planifie ta course (ex: demain 8h00) et reçois des rappels automatiques.
+          DuDu t’informe à chaque étape, jusqu’à la terminaison.
+        </p>
+
+        <div class="grid">
+          <div class="feature">
+            <h3>Rappel avant l'heure</h3>
+            <p>Notification avant l’heure prévue pour éviter les oublis.</p>
+          </div>
+          <div class="feature">
+            <h3>Suivi en temps réel</h3>
+            <p>Tu reçois des mises à jour sur l’état de la course pendant toute la durée du trajet.</p>
+          </div>
+          <div class="feature">
+            <h3>Fin de course confirmée</h3>
+            <p>Notification de clôture une fois la course terminée.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="chauffeurs" class="section">
+      <div class="container">
+        <h2 class="section-title">Pour les chauffeurs : forfaits attractifs, pas de commission par course</h2>
+        <p class="section-sub">
+          DuDu fonctionne avec des forfaits d’abonnement attractifs.
+          Les chauffeurs ne subissent pas une commission retirée sur chaque course.
+        </p>
+
+        <div class="split">
+          <div class="box">
+            <h3>Modèle abonnement</h3>
+            <p>Accès à la plateforme via des forfaits, pour travailler sereinement et prévoir ses coûts.</p>
+          </div>
+          <div class="box">
+            <h3>Plus équitable</h3>
+            <p>Pas de prélèvement systématique par course : les revenus du chauffeur restent plus stables.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="securite" class="section">
+      <div class="container">
+        <h2 class="section-title">Sécurité & choix</h2>
+        <p class="section-sub">
+          DuDu propose des options qui renforcent la confiance :
+          notamment la possibilité pour les femmes de choisir des chauffeurs femmes.
+        </p>
+
+        <div class="grid">
+          <div class="feature">
+            <h3>Option femmes uniquement</h3>
+            <p>Les femmes peuvent choisir des chauffeurs femmes selon la disponibilité.</p>
+          </div>
+          <div class="feature">
+            <h3>Traçabilité</h3>
+            <p>Chaque course suit un cycle clair, avec notifications et états pour éviter les zones d’ombre.</p>
+          </div>
+          <div class="feature">
+            <h3>Communauté</h3>
+            <p>Une plateforme pensée pour améliorer l’expérience client et la qualité du service.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="hero-card" style="padding: 22px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>
+              <div style="font-weight: 900; font-size: 18px; margin-bottom: 6px;">Prêt à tester DuDu ?</div>
+              <div style="color: var(--muted); font-size: 13px;">Télécharge l’application et commence dès maintenant.</div>
+            </div>
+            <div class="cta-row" style="margin: 0;">
+              <a class="btn btn-primary" href="/download-client.html">Télécharger Client</a>
+              <a class="btn" href="/download-driver.html">Télécharger Chauffeur</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      © 2026 DuDu. Tous droits réservés.
+    </div>
+  </footer>
+</body>
+</html>
