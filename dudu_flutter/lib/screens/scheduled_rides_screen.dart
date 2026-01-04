@@ -844,6 +844,18 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       temp = now.add(const Duration(minutes: 10));
     }
 
+    DateTime roundToInterval(DateTime dt, int intervalMinutes) {
+      final minute = dt.minute;
+      final roundedMinute = (minute ~/ intervalMinutes) * intervalMinutes;
+      return DateTime(dt.year, dt.month, dt.day, dt.hour, roundedMinute);
+    }
+
+    temp = roundToInterval(temp, 5);
+    final minDate = roundToInterval(now, 5);
+    if (temp.isBefore(minDate)) {
+      temp = minDate;
+    }
+
     final picked = await showModalBottomSheet<DateTime>(
       context: context,
       isScrollControlled: false,
@@ -881,7 +893,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                   child: CupertinoDatePicker(
                     mode: CupertinoDatePickerMode.dateAndTime,
                     initialDateTime: temp,
-                    minimumDate: now,
+                    minimumDate: minDate,
                     maximumDate: now.add(const Duration(days: 30)),
                     minuteInterval: 5,
                     use24hFormat: true,

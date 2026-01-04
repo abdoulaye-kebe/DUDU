@@ -5,6 +5,7 @@ import '../models/ride.dart';
 import '../services/tracking_service.dart';
 import '../services/notification_service.dart';
 import '../services/directions_service.dart';
+import '../services/socket_service.dart';
 
 class RideTrackingScreen extends StatefulWidget {
   final Ride ride;
@@ -22,6 +23,8 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   GoogleMapController? _mapController;
   TrackingService _trackingService = TrackingService();
   NotificationService _notificationService = NotificationService();
+  RideStatus? _rideStatus;
+  DateTime? _rideStartTime;
   
   LatLng? _currentPosition;
   List<RideTracking> _trackingPoints = [];
@@ -38,6 +41,9 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   @override
   void initState() {
     super.initState();
+    final initial = widget.ride.status;
+    _rideStatus = initial == RideStatus.accepted ? RideStatus.arriving : initial;
+    _rideStartTime = widget.ride.timing.startedAt;
     _initializeTracking();
   }
 
@@ -64,9 +70,10 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
 
       // Démarrer le timer de durée
       _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        final start = _rideStartTime;
         setState(() {
           _rideDuration = Duration(
-            seconds: DateTime.now().difference(widget.ride.timing.startedAt ?? DateTime.now()).inSeconds,
+            seconds: DateTime.now().difference(start ?? DateTime.now()).inSeconds,
           );
         });
       });
@@ -178,6 +185,13 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   }
 
   void _onRideStatusUpdate(String rideId, RideStatus status) {
+    if (!mounted) return;
+    setState(() {
+      _rideStatus = status;
+      if (status == RideStatus.started && _rideStartTime == null) {
+        _rideStartTime = DateTime.now();
+      }
+    });
     // Gérer les changements de statut
     switch (status) {
       case RideStatus.completed:
@@ -213,6 +227,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final status = _rideStatus ?? widget.ride.status;
     return Scaffold(
       appBar: AppBar(
         title: Text('Course ${widget.ride.rideId}'),
@@ -321,7 +336,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
               child: Column(
                 children: [
                   // Statut de la course
-                  _buildStatusCard(),
+                  _buildStatusCard(status),
                   const SizedBox(height: 16),
                   
                   // Informations de suivi
@@ -329,7 +344,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                   const SizedBox(height: 16),
                   
                   // Actions
-                  _buildActionButtons(),
+                  _buildActionButtons(status),
                 ],
               ),
             ),
@@ -339,17 +354,17 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     );
   }
 
-  Widget _buildStatusCard() {
+  Widget _buildStatusCard(RideStatus status) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _getStatusColor(widget.ride.status),
+        color: _getStatusColor(status),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
           Icon(
-            _getStatusIcon(widget.ride.status),
+            _getStatusIcon(status),
             color: Colors.white,
             size: 24,
           ),
@@ -359,7 +374,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.ride.status.displayName,
+                  status.displayName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -463,46 +478,78 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(RideStatus status) {
+    String primaryLabel;
+    IconData primaryIcon;
+    Color primaryColor;
+    VoidCallback? primaryAction;
+
+    if (status == RideStatus.arriving || status == RideStatus.accepted) {
+      primaryLabel = 'Arrivé au point';
+      primaryIcon = Icons.location_on;
+      primaryColor = Colors.purple;
+      primaryAction = _markArrivedAtPickup;
+    } else if (status == RideStatus.arrived) {
+      primaryLabel = 'Démarrer la course';
+      primaryIcon = Icons.play_arrow;
+      primaryColor = Colors.green;
+      primaryAction = _startRideNow;
+    } else if (status == RideStatus.started) {
+      primaryLabel = 'Terminer la course';
+      primaryIcon = Icons.check;
+      primaryColor = Colors.blue;
+      primaryAction = _completeRide;
+    } else {
+      primaryLabel = 'Course terminée';
+      primaryIcon = Icons.check_circle;
+      primaryColor = Colors.grey;
+      primaryAction = null;
+    }
+
     return Row(
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: _isTracking ? _pauseTracking : _resumeTracking,
-            icon: Icon(_isTracking ? Icons.pause : Icons.play_arrow),
-            label: Text(_isTracking ? 'Pause' : 'Reprendre'),
+            onPressed: primaryAction,
+            icon: Icon(primaryIcon),
+            label: Text(primaryLabel),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _isTracking ? Colors.orange : Colors.green,
+              backgroundColor: primaryColor,
               foregroundColor: Colors.white,
             ),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: ElevatedButton.icon(
-            onPressed: _completeRide,
-            icon: const Icon(Icons.check),
-            label: const Text('Terminer'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ElevatedButton.icon(
+          child: OutlinedButton.icon(
             onPressed: _cancelRide,
             icon: const Icon(Icons.cancel),
             label: const Text('Annuler'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Colors.red, width: 1.5),
             ),
           ),
         ),
       ],
     );
+  }
+
+  void _markArrivedAtPickup() {
+    final rideId = widget.ride.id;
+    SocketService().arrivedAtPickup(rideId);
+    setState(() {
+      _rideStatus = RideStatus.arrived;
+    });
+  }
+
+  void _startRideNow() {
+    final rideId = widget.ride.id;
+    SocketService().startTrip(rideId);
+    setState(() {
+      _rideStatus = RideStatus.started;
+      _rideStartTime ??= DateTime.now();
+    });
   }
 
   Set<Marker> _buildMarkers() {
@@ -704,6 +751,12 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
 
   Future<void> _completeRide() async {
     try {
+      SocketService().completeRide(widget.ride.id);
+      if (mounted) {
+        setState(() {
+          _rideStatus = RideStatus.completed;
+        });
+      }
       await _trackingService.completeRide(widget.ride.id);
       _handleRideCompleted();
     } catch (e) {
@@ -719,6 +772,11 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   Future<void> _cancelRide() async {
     try {
       await _trackingService.cancelRide(widget.ride.id);
+      if (mounted) {
+        setState(() {
+          _rideStatus = RideStatus.cancelled;
+        });
+      }
       _handleRideCancelled();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
