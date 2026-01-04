@@ -1,8 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Ride = require('../models/Ride');
-const { auth } = require('../middleware/auth');
-const { requireDriver } = require('../middleware/driverAuth');
+const { auth, requireDriver } = require('../middleware/auth');
 const router = express.Router();
 
 // Middleware pour vérifier les droits d'administration
