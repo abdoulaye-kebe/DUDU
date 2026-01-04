@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/ride.dart';
-import 'api_service.dart';
 import 'socket_service.dart';
 
 class TrackingService {

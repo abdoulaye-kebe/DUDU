@@ -14,6 +14,32 @@ class AuthProvider extends ChangeNotifier {
   String? _errorMessage;
   bool _isAuthenticated = false;
 
+  Future<void> bootstrapFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      final userRaw = prefs.getString('user_data');
+
+      if (token != null && token.isNotEmpty && userRaw != null && userRaw.isNotEmpty) {
+        final decoded = json.decode(userRaw);
+        if (decoded is Map<String, dynamic>) {
+          _user = User.fromJson(decoded);
+          _authToken = token;
+          _isAuthenticated = true;
+          try {
+            SocketService().connect(_authToken!);
+          } catch (_) {}
+          try {
+            await NotificationService().registerToken(AppConfig.apiUrl, _authToken!);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {
+      // ignore
+    }
+    notifyListeners();
+  }
+
   // Getters
   User? get user => _user;
   bool get isLoading => _isLoading;
@@ -60,8 +86,6 @@ class AuthProvider extends ChangeNotifier {
         
         await _saveUserData(_user!);
         await _saveToken(_authToken!);
-        SocketService().connect(_authToken!);
-        // Connecter Socket.io pour recevoir les événements (ride-accepted, tracking, ...)
         SocketService().connect(_authToken!);
 
         try {

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:provider/provider.dart';
 import '../themes/app_theme.dart';
+import '../providers/auth_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -59,9 +61,16 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
     Timer(const Duration(seconds: 3), () {
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+        _bootstrapAndRoute();
       }
     });
+  }
+
+  Future<void> _bootstrapAndRoute() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.bootstrapFromStorage();
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, authProvider.isAuthenticated ? '/app' : '/login');
   }
 
   @override
