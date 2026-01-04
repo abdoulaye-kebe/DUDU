@@ -163,6 +163,10 @@ class ApiService {
         headers: await _getHeaders(),
       ).timeout(timeout);
 
+      if (kDebugMode) {
+        print('📡 getScheduledRides: ${response.statusCode} - ${response.body}');
+      }
+
       return _handleResponse(response, (data) {
         final List<dynamic> list = data['rides'] ?? [];
         return list.map((e) => Ride.fromJson(e)).toList();

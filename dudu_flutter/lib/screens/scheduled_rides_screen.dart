@@ -433,8 +433,20 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
         _scheduledRides
           ..clear()
           ..addAll(response.data!);
+      } else {
+        _scheduledRides.clear();
       }
     });
+
+    if (!mounted) return;
+    if (!response.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur trajets planifiés: ${response.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
