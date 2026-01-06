@@ -14,6 +14,8 @@ import 'delivery_request_screen.dart';
 import 'scheduled_rides_screen.dart';
 import 'rides_screen.dart';
 import 'profile_screen.dart';
+import 'settings_screen.dart';
+import 'support_screen.dart';
 import 'login_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -513,8 +515,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               color: Colors.grey[700]!,
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Paramètres - Bientôt disponible')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
                 );
               },
             ),
@@ -524,8 +527,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               color: Colors.blue,
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Support - Bientôt disponible')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SupportScreen()),
                 );
               },
             ),

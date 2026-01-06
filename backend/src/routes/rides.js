@@ -6,6 +6,8 @@ const User = require('../models/User');
 const { auth, requireVerification, requireDriver, requireActiveSubscription, requireOnline, requireAvailable } = require('../middleware/auth');
 const router = express.Router();
 
+const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started'];
+
 // Fonction pour calculer la distance entre deux points (formule de Haversine)
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371; // Rayon de la Terre en km
@@ -241,15 +243,40 @@ router.post('/:id/accept', [
       });
     }
 
+    // Règle livreur: max 2 livraisons actives en même temps
+    let activeDeliveryCount = 0;
+    if (ride.rideType === 'delivery') {
+      activeDeliveryCount = await Ride.countDocuments({
+        driver: driver._id,
+        rideType: 'delivery',
+        status: { $in: ACTIVE_RIDE_STATUSES }
+      });
+
+      if (activeDeliveryCount >= 2) {
+        return res.status(403).json({
+          success: false,
+          message: 'Vous avez déjà 2 livraisons en cours. Terminez-en une avant d\'en accepter une autre.'
+        });
+      }
+    }
+
     // Assigner la course au chauffeur
     ride.driver = driver._id;
     ride.status = 'accepted';
     ride.acceptedAt = new Date();
     await ride.save();
 
-    // Mettre le chauffeur en mode occupé
-    driver.status = 'busy';
-    driver.isAvailable = false;
+    // Mettre à jour la disponibilité chauffeur
+    if (ride.rideType === 'delivery') {
+      // Le livreur peut encore accepter une 2ème livraison
+      const nextActiveCount = activeDeliveryCount + 1;
+      driver.status = 'online';
+      driver.isAvailable = nextActiveCount < 2;
+    } else {
+      // Règle existante: 1 course à la fois
+      driver.status = 'busy';
+      driver.isAvailable = false;
+    }
     await driver.save();
 
     // ============================================================
@@ -500,8 +527,19 @@ router.post('/:id/complete', [
     driver.earnings.thisWeek += ride.pricing.totalPrice;
     driver.earnings.thisMonth += ride.pricing.totalPrice;
     driver.earnings.total += ride.pricing.totalPrice;
-    driver.status = 'online';
-    driver.isAvailable = true;
+
+    if (ride.rideType === 'delivery') {
+      const remainingActive = await Ride.countDocuments({
+        driver: driver._id,
+        rideType: 'delivery',
+        status: { $in: ACTIVE_RIDE_STATUSES }
+      });
+      driver.status = 'online';
+      driver.isAvailable = remainingActive < 2;
+    } else {
+      driver.status = 'online';
+      driver.isAvailable = true;
+    }
     await driver.save();
 
     // Mettre à jour les statistiques du passager
@@ -608,8 +646,19 @@ router.post('/:id/cancel', [
     // Si c'est le chauffeur qui annule, le remettre en ligne
     if (isDriver) {
       const driver = await Driver.findById(req.driver._id);
-      driver.status = 'online';
-      driver.isAvailable = true;
+
+      if (ride.rideType === 'delivery') {
+        const remainingActive = await Ride.countDocuments({
+          driver: driver._id,
+          rideType: 'delivery',
+          status: { $in: ACTIVE_RIDE_STATUSES }
+        });
+        driver.status = 'online';
+        driver.isAvailable = remainingActive < 2;
+      } else {
+        driver.status = 'online';
+        driver.isAvailable = true;
+      }
       await driver.save();
     }
 

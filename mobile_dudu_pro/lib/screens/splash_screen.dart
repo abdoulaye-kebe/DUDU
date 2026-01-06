@@ -56,12 +56,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     ));
 
     _controller.forward();
-
-    Timer(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
-    });
   }
 
   @override

@@ -139,11 +139,10 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
       _errorMessage = null;
     });
 
-    final payload = {
+    final payload = <String, dynamic>{
       'firstName': _firstNameController.text.trim(),
       'lastName': _lastNameController.text.trim(),
       'phone': _phoneController.text.trim(),
-      'email': _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
       'password': _passwordController.text.trim(),
       'dateOfBirth': _dateOfBirth?.toIso8601String().split('T')[0],
       'gender': _gender,
@@ -180,6 +179,11 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
         'minPrice': _isMotoCourier ? 500 : 1000,
       },
     };
+
+    final email = _emailController.text.trim();
+    if (email.isNotEmpty) {
+      payload['email'] = email;
+    }
 
     try {
       final response = await ApiService.applyAsDriver(payload);

@@ -3,7 +3,7 @@ const { body, validationResult } = require('express-validator');
 const Subscription = require('../models/Subscription');
 const Payment = require('../models/Payment');
 const Driver = require('../models/Driver');
-const { auth, requireDriver } = require('../middleware/auth');
+const { auth, requireDriver, requireDriverApproved } = require('../middleware/auth');
 const router = express.Router();
 
 // @route   GET /api/v1/subscriptions/plans
@@ -70,6 +70,7 @@ router.get('/plans', (req, res) => {
 router.post('/purchase', [
   auth,
   requireDriver,
+  requireDriverApproved,
   body('planType').isIn(['daily', 'weekly', 'monthly']).withMessage('Type de plan invalide'),
   body('paymentMethod').isIn(['orange_money', 'wave', 'free_money', 'cash']).withMessage('Méthode de paiement invalide'),
   body('phone').optional().matches(/^(\+221|221)?[0-9]{9}$/).withMessage('Format de téléphone invalide'),
@@ -255,7 +256,7 @@ router.post('/purchase', [
 // @route   GET /api/v1/subscriptions/current
 // @desc    Obtenir l'abonnement actuel du chauffeur
 // @access  Private (chauffeur)
-router.get('/current', auth, requireDriver, async (req, res) => {
+router.get('/current', auth, requireDriver, requireDriverApproved, async (req, res) => {
   try {
     const subscription = await Subscription.findOne({
       driver: req.driver._id,
@@ -306,7 +307,7 @@ router.get('/current', auth, requireDriver, async (req, res) => {
 // @route   GET /api/v1/subscriptions/history
 // @desc    Obtenir l'historique des abonnements
 // @access  Private (chauffeur)
-router.get('/history', auth, requireDriver, async (req, res) => {
+router.get('/history', auth, requireDriver, requireDriverApproved, async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
@@ -368,6 +369,7 @@ router.get('/history', auth, requireDriver, async (req, res) => {
 router.put('/:id/cancel', [
   auth,
   requireDriver,
+  requireDriverApproved,
   body('reason').optional().isString()
 ], async (req, res) => {
   try {
@@ -429,6 +431,7 @@ router.put('/:id/cancel', [
 router.put('/:id/auto-renew', [
   auth,
   requireDriver,
+  requireDriverApproved,
   body('autoRenew').isBoolean().withMessage('Valeur de renouvellement automatique requise')
 ], async (req, res) => {
   try {
@@ -492,7 +495,7 @@ router.put('/:id/auto-renew', [
 // @route   GET /api/v1/subscriptions/expiring
 // @desc    Obtenir les abonnements expirant bientôt
 // @access  Private (chauffeur)
-router.get('/expiring', auth, requireDriver, async (req, res) => {
+router.get('/expiring', auth, requireDriver, requireDriverApproved, async (req, res) => {
   try {
     const { days = 3 } = req.query;
 
@@ -593,7 +596,7 @@ router.post('/:id/bonus', [
 // @route   GET /api/v1/subscriptions/:id/bonus-history
 // @desc    Obtenir l'historique des bonus pour livreur moto
 // @access  Private (chauffeur)
-router.get('/:id/bonus-history', auth, requireDriver, async (req, res) => {
+router.get('/:id/bonus-history', auth, requireDriver, requireDriverApproved, async (req, res) => {
   try {
     const subscription = await Subscription.findById(req.params.id);
     if (!subscription) {

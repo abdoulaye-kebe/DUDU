@@ -520,24 +520,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 16),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const ChangePasswordScreen(),
-                                    ),
-                                  );
-                                },
-                                child: const Text(
-                                  'Modifier',
-                                  style: TextStyle(
-                                    color: primaryGreen,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
                               const SizedBox(height: 30),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,

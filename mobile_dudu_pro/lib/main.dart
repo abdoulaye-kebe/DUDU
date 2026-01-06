@@ -4,6 +4,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/pro_startup_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/pro_app_gate.dart';
 import 'services/notification_service.dart';
 import 'config/app_config.dart';
 
@@ -86,6 +88,10 @@ class DUDUProApp extends StatelessWidget {
         useMaterial3: true,
       ),
       navigatorKey: proNavigatorKey,
+      routes: {
+        '/login': (_) => const LoginScreen(),
+        '/dashboard': (_) => const ProAppGate(),
+      },
       home: const ProStartupScreen(),
     );
   }

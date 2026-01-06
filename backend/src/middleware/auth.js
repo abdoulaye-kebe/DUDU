@@ -220,6 +220,17 @@ const requireAvailable = (req, res, next) => {
   next();
 };
 
+// Middleware pour restreindre certaines actions aux chauffeurs approuvés uniquement
+const requireDriverApproved = (req, res, next) => {
+  if (!req.driver || req.driver.verificationStatus !== 'approved') {
+    return res.status(403).json({
+      success: false,
+      message: 'Votre compte est en attente de validation. Cette fonctionnalité sera disponible après approbation.'
+    });
+  }
+  next();
+};
+
 module.exports = {
   auth,
   requireVerification,
@@ -228,7 +239,8 @@ module.exports = {
   requireActiveSubscription,
   requireLocation,
   requireOnline,
-  requireAvailable
+  requireAvailable,
+  requireDriverApproved
 };
 
 

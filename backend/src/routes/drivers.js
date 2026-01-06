@@ -137,25 +137,6 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    if (!driver.isVerified || driver.verificationStatus !== 'approved') {
-      return res.status(403).json({
-        success: false,
-        message: 'Votre compte chauffeur est en attente de validation par l\'administration.'
-      });
-    }
-    
-    // Activer automatiquement un abonnement hebdomadaire valide pour le chauffeur au moment du login si aucun abonnement actif n’est présent
-    if (!driver.subscription || !driver.subscription.isActive) {
-      const subscription = {
-        type: 'weekly',
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        isActive: true
-      };
-      driver.subscription = subscription;
-      await driver.save();
-    }
-
     // Générer un token JWT
     const token = jwt.sign(
       { 

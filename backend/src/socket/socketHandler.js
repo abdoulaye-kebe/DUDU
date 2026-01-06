@@ -3,6 +3,8 @@ const User = require('../models/User');
 const Driver = require('../models/Driver');
 const Ride = require('../models/Ride');
 
+const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started'];
+
 module.exports = (io) => {
   // Middleware d'authentification Socket.io
   io.use(async (socket, next) => {
@@ -246,6 +248,27 @@ module.exports = (io) => {
           return socket.emit('error', { message: 'Cette course ne peut plus être acceptée' });
         }
 
+        // Règle livreur: max 2 livraisons actives en même temps
+        let activeDeliveryCount = 0;
+        if (ride.rideType === 'delivery') {
+          activeDeliveryCount = await Ride.countDocuments({
+            driver: socket.driverId,
+            rideType: 'delivery',
+            status: { $in: ACTIVE_RIDE_STATUSES }
+          });
+
+          if (activeDeliveryCount >= 2) {
+            console.log('❌ accept-ride: limite livraisons atteinte', {
+              rideId,
+              driverId: socket.driverId,
+              activeDeliveryCount
+            });
+            return socket.emit('error', {
+              message: 'Vous avez déjà 2 livraisons en cours. Terminez-en une avant d\'en accepter une autre.'
+            });
+          }
+        }
+
         // Assigner la course au chauffeur
         ride.driver = socket.driverId;
         ride.status = 'accepted';
@@ -256,8 +279,14 @@ module.exports = (io) => {
 
         // Mettre le chauffeur en mode occupé
         const driver = await Driver.findById(socket.driverId);
-        driver.status = 'busy';
-        driver.isAvailable = false;
+        if (ride.rideType === 'delivery') {
+          const nextActiveCount = activeDeliveryCount + 1;
+          driver.status = 'online';
+          driver.isAvailable = nextActiveCount < 2;
+        } else {
+          driver.status = 'busy';
+          driver.isAvailable = false;
+        }
         await driver.save();
 
         const passenger = await User.findById(ride.passenger);
@@ -384,8 +413,19 @@ module.exports = (io) => {
         driver.stats.completedRides += 1;
         driver.stats.totalEarnings += ride.pricing.totalPrice;
         driver.earnings.today += ride.pricing.totalPrice;
-        driver.status = 'online';
-        driver.isAvailable = true;
+
+        if (ride.rideType === 'delivery') {
+          const remainingActive = await Ride.countDocuments({
+            driver: driver._id,
+            rideType: 'delivery',
+            status: { $in: ACTIVE_RIDE_STATUSES }
+          });
+          driver.status = 'online';
+          driver.isAvailable = remainingActive < 2;
+        } else {
+          driver.status = 'online';
+          driver.isAvailable = true;
+        }
         await driver.save();
 
         // Notifier le passager
@@ -443,8 +483,18 @@ module.exports = (io) => {
         // Si c'est le chauffeur qui annule, le remettre en ligne
         if (isDriver) {
           const driver = await Driver.findById(socket.driverId);
-          driver.status = 'online';
-          driver.isAvailable = true;
+          if (ride.rideType === 'delivery') {
+            const remainingActive = await Ride.countDocuments({
+              driver: driver._id,
+              rideType: 'delivery',
+              status: { $in: ACTIVE_RIDE_STATUSES }
+            });
+            driver.status = 'online';
+            driver.isAvailable = remainingActive < 2;
+          } else {
+            driver.status = 'online';
+            driver.isAvailable = true;
+          }
           await driver.save();
         }
 
