@@ -187,8 +187,8 @@ router.post('/apply', [
   body('phone').trim().isLength({ min: 9 }).withMessage('Téléphone requis'),
   body('email').optional().isEmail().withMessage('Email invalide'),
   body('password').isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
-  body('dateOfBirth').optional().isISO8601().withMessage('Date de naissance invalide'),
-  body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Genre invalide'),
+  body('dateOfBirth').isISO8601().withMessage('Date de naissance invalide'),
+  body('gender').isIn(['male', 'female', 'other']).withMessage('Genre invalide'),
   body('nationalId').notEmpty().withMessage('La CNI est requise'),
   body('driverLicense.number').notEmpty().withMessage('Le numéro de permis est requis'),
   body('driverLicense.expiryDate').isISO8601().withMessage('La date d\'expiration du permis est requise'),
@@ -230,11 +230,14 @@ router.post('/apply', [
     } = req.body;
 
     const normalizedPhone = normalizePhoneNumber(phone);
+    const normalizedEmail = typeof email === 'string' && email.trim().length > 0
+      ? email.trim().toLowerCase()
+      : undefined;
 
     const duplicate = await Driver.findOne({
       $or: [
         { phone: normalizedPhone },
-        email ? { email: email.toLowerCase() } : null,
+        normalizedEmail ? { email: normalizedEmail } : null,
         nationalId ? { nationalId } : null
       ].filter(Boolean)
     });
@@ -246,11 +249,10 @@ router.post('/apply', [
       });
     }
 
-    const driver = new Driver({
+    const driverData = {
       firstName,
       lastName,
       phone: normalizedPhone,
-      email: email?.toLowerCase(),
       password,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
       gender,
@@ -306,7 +308,13 @@ router.post('/apply', [
       isAvailable: false,
       isVerified: false,
       verificationStatus: 'pending'
-    });
+    };
+
+    if (normalizedEmail) {
+      driverData.email = normalizedEmail;
+    }
+
+    const driver = new Driver(driverData);
 
     await driver.save();
 
@@ -338,6 +346,22 @@ router.post('/apply', [
     });
   } catch (error) {
     console.error('Erreur lors de la candidature chauffeur:', error);
+
+    if (error && (error.code === 11000 || error.name === 'MongoServerError')) {
+      const keyValue = error.keyValue || error.errorResponse?.keyValue;
+      if (keyValue && Object.prototype.hasOwnProperty.call(keyValue, 'email') && keyValue.email == null) {
+        return res.status(400).json({
+          success: false,
+          message: 'Impossible de créer un compte sans email (index email unique mal configuré en base). Contactez l\'administrateur pour corriger l\'index.'
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: 'Un compte existe déjà avec ces informations.'
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Erreur interne du serveur'

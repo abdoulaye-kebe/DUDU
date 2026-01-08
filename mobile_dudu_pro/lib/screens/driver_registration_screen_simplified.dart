@@ -43,21 +43,29 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
     setState(() {
       _isMotoCourier = isMotoCourier;
 
-      // Reset fields that depend on the selected profile type
+      _firstNameController.clear();
+      _lastNameController.clear();
+      _phoneController.clear();
+      _emailController.clear();
+      _passwordController.clear();
+      _confirmPasswordController.clear();
+      _nationalIdController.clear();
       _licenseNumberController.clear();
-      _licenseExpiry = null;
-
       _vehicleMakeController.clear();
       _vehicleModelController.clear();
       _vehicleYearController.clear();
       _vehicleColorController.clear();
       _vehiclePlateController.clear();
-
       _insuranceController.clear();
-      _insuranceExpiry = null;
       _technicalInspectionController.clear();
+
+      _dateOfBirth = null;
+      _licenseExpiry = null;
+      _insuranceExpiry = null;
       _technicalInspectionExpiry = null;
 
+      _gender = 'male';
+      _acceptTerms = false;
       _errorMessage = null;
     });
   }
@@ -625,12 +633,12 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                 _buildTextField(
                   _vehicleMakeController,
                   label: 'Marque',
-                  icon: Icons.directions_car_outlined,
+                  icon: _isMotoCourier ? Icons.motorcycle : Icons.directions_car_outlined,
                 ),
                 _buildTextField(
                   _vehicleModelController,
                   label: 'Modèle',
-                  icon: Icons.car_rental,
+                  icon: _isMotoCourier ? Icons.motorcycle : Icons.car_rental,
                 ),
                 _buildTextField(
                   _vehicleYearController,
@@ -646,7 +654,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                 _buildTextField(
                   _vehiclePlateController,
                   label: 'Plaque d\'immatriculation',
-                  icon: Icons.pin,
+                  icon: _isMotoCourier ? Icons.confirmation_number : Icons.pin,
                 ),
                 const SizedBox(height: 24),
 
