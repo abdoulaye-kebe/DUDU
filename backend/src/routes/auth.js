@@ -146,7 +146,14 @@ router.post('/register', [
   } catch (error) {
     console.error('❌ Erreur lors de l\'inscription:', error);
     console.error('❌ Stack trace:', error.stack);
-    console.error('❌ Données reçues:', { firstName, lastName, phone, gender, language });
+    const safeBody = req && req.body ? req.body : {};
+    console.error('❌ Données reçues:', {
+      firstName: safeBody.firstName,
+      lastName: safeBody.lastName,
+      phone: safeBody.phone,
+      gender: safeBody.gender,
+      language: safeBody.language,
+    });
     
     // Gestion des erreurs MongoDB
     if (error.code === 11000) {
