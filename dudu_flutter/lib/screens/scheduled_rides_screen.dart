@@ -561,6 +561,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                 child: _buildModeChip(
                   label: 'Course',
                   icon: Icons.directions_car,
+                  assetPath: 'assets/images/ride_types/coursemoto.png',
                   isSelected: _mode == 'ride',
                   onTap: () => _setMode('ride'),
                 ),
@@ -570,6 +571,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                 child: _buildModeChip(
                   label: 'Livraison (moto)',
                   icon: Icons.delivery_dining,
+                  assetPath: 'assets/images/ride_types/livraion.png',
                   isSelected: _mode == 'delivery',
                   onTap: () => _setMode('delivery'),
                 ),
@@ -719,6 +721,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
   Widget _buildModeChip({
     required String label,
     required IconData icon,
+    String? assetPath,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
@@ -737,11 +740,23 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected ? Colors.white : primaryGreen,
-            ),
+            if (assetPath != null)
+              Image.asset(
+                assetPath,
+                width: 18,
+                height: 18,
+                errorBuilder: (_, __, ___) => Icon(
+                  icon,
+                  size: 18,
+                  color: isSelected ? Colors.white : primaryGreen,
+                ),
+              )
+            else
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected ? Colors.white : primaryGreen,
+              ),
             const SizedBox(width: 6),
             Text(
               label,
@@ -796,13 +811,27 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
             children: [
               Row(
                 children: [
-                  Icon(
-                    ride.rideType == 'delivery'
-                        ? Icons.delivery_dining
-                        : Icons.directions_car,
-                    color: primaryGreen,
-                  ),
-                  const SizedBox(width: 8),
+                  if (ride.rideType == 'delivery')
+                    Image.asset(
+                      'assets/images/ride_types/livraion.png',
+                      width: 22,
+                      height: 22,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.delivery_dining,
+                        color: primaryGreen,
+                      ),
+                    )
+                  else
+                    Image.asset(
+                      'assets/images/ride_types/coursemoto.png',
+                      width: 22,
+                      height: 22,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.directions_car,
+                        color: primaryGreen,
+                      ),
+                    ),
+                  const SizedBox(width: 10),
                   Text(
                     ride.rideType == 'delivery'
                         ? 'Livraison (moto)'
