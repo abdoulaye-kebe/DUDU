@@ -109,6 +109,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       'id': 'moto',
       'name': 'Moto',
       'icon': Icons.motorcycle,
+      'assetPath': 'assets/images/ride_types/moto_course.png',
       'color': Colors.blueGrey,
       'description': 'Moto • Rapide • 1 passager',
       'badge': 'MOTO',
@@ -447,6 +448,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
             child: _buildModeChip(
               label: 'Livraison (moto)',
               icon: Icons.delivery_dining,
+              assetPath: 'assets/images/ride_types/livraison_moto.png',
               isSelected: _selectedMode == 'delivery',
               onTap: () {
                 _setMode('delivery');
@@ -492,6 +494,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   Widget _buildModeChip({
     required String label,
     required IconData icon,
+    String? assetPath,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
@@ -510,11 +513,23 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected ? Colors.white : primaryGreen,
-            ),
+            if (assetPath != null)
+              Image.asset(
+                assetPath,
+                width: 18,
+                height: 18,
+                errorBuilder: (_, __, ___) => Icon(
+                  icon,
+                  size: 18,
+                  color: isSelected ? Colors.white : primaryGreen,
+                ),
+              )
+            else
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected ? Colors.white : primaryGreen,
+              ),
             const SizedBox(width: 6),
             Text(
               label,
@@ -622,6 +637,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                   child: _buildRideTypeChip(
                     label: type['name'],
                     icon: type['icon'],
+                    assetPath: type['assetPath'],
                     color: type['color'],
                     description: type['description'],
                     capacity: capacity,
@@ -655,6 +671,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   Widget _buildRideTypeChip({
     required String label,
     required IconData icon,
+    String? assetPath,
     required Color color,
     required String description,
     required int capacity,
@@ -686,7 +703,14 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                     color: color.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, color: color, size: 18),
+                  child: assetPath != null
+                      ? Image.asset(
+                          assetPath,
+                          width: 18,
+                          height: 18,
+                          errorBuilder: (_, __, ___) => Icon(icon, color: color, size: 18),
+                        )
+                      : Icon(icon, color: color, size: 18),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
