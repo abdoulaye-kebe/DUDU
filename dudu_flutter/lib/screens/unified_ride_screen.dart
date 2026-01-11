@@ -2051,6 +2051,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           );
         }
       } else {
+        final lowerMsg = response.message.toLowerCase();
+        final isAuthExpired = lowerMsg.contains('token expir') ||
+            lowerMsg.contains('jwt') ||
+            lowerMsg.contains('unauthorized') ||
+            lowerMsg.contains('non autoris');
+
         if (mounted) {
           Navigator.pop(context);
           _clearNearbyCarMarkers();
@@ -2063,6 +2069,10 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
               backgroundColor: Colors.red,
             ),
           );
+
+          if (isAuthExpired) {
+            Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+          }
         }
       }
     } catch (e) {

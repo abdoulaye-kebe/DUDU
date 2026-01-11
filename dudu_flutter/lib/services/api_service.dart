@@ -494,6 +494,26 @@ class ApiService {
         }),
       ).timeout(timeout);
 
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('auth_token');
+        await prefs.remove('user_data');
+
+        String message = 'Token expiré';
+        try {
+          final decoded = response.body.isNotEmpty ? json.decode(response.body) : null;
+          if (decoded is Map && decoded['message'] != null) {
+            message = decoded['message'].toString();
+          }
+        } catch (_) {}
+
+        return ApiResponse<dynamic>(
+          success: false,
+          message: message,
+          data: null,
+        );
+      }
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         return ApiResponse<dynamic>(
@@ -502,7 +522,8 @@ class ApiService {
           data: data,
         );
       } else {
-        final error = json.decode(response.body);
+        final dynamic decoded = response.body.isNotEmpty ? json.decode(response.body) : null;
+        final Map<String, dynamic> error = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
         return ApiResponse<dynamic>(
           success: false,
           message: error['message'] ?? 'Erreur lors de la création de la course',
