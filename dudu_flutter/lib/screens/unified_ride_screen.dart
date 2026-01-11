@@ -109,7 +109,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       'id': 'moto',
       'name': 'Moto',
       'icon': Icons.motorcycle,
-      'assetPath': 'assets/images/ride_types/moto_course.png',
+      'assetPath': 'assets/images/ride_types/coursemoto.png',
       'color': Colors.blueGrey,
       'description': 'Moto • Rapide • 1 passager',
       'badge': 'MOTO',
@@ -448,7 +448,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
             child: _buildModeChip(
               label: 'Livraison (moto)',
               icon: Icons.delivery_dining,
-              assetPath: 'assets/images/ride_types/livraison_moto.png',
+              assetPath: 'assets/images/ride_types/livraion.png',
               isSelected: _selectedMode == 'delivery',
               onTap: () {
                 _setMode('delivery');
