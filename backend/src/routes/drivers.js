@@ -229,6 +229,19 @@ router.post('/apply', [
       documents = {},
     } = req.body;
 
+    const normalizedVehicleCategory = vehicle?.category || 'car';
+    let normalizedVehicleType = vehicle?.type;
+    if (normalizedVehicleCategory === 'moto') {
+      // Certains clients envoient 'motorbike', mais le type interne attendu est 'moto_delivery'
+      if (!normalizedVehicleType || normalizedVehicleType === 'motorbike') {
+        normalizedVehicleType = 'moto_delivery';
+      }
+    } else {
+      if (!normalizedVehicleType) {
+        normalizedVehicleType = 'sedan';
+      }
+    }
+
     const normalizedPhone = normalizePhoneNumber(phone);
     const normalizedEmail = typeof email === 'string' && email.trim().length > 0
       ? email.trim().toLowerCase()
@@ -276,9 +289,9 @@ router.post('/apply', [
         year: parseInt(vehicle.year, 10),
         color: vehicle.color,
         plateNumber: vehicle.plateNumber?.toUpperCase(),
-        category: vehicle.category || 'car',
-        type: vehicle.type || 'sedan',
-        capacity: vehicle.capacity || 4,
+        category: normalizedVehicleCategory,
+        type: normalizedVehicleType,
+        capacity: vehicle.capacity || (normalizedVehicleCategory === 'moto' ? 1 : 4),
         hasAirConditioning: vehicle.hasAirConditioning || false,
         features: vehicle.features || []
       },

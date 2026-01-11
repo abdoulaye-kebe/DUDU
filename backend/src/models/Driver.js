@@ -127,7 +127,7 @@ const driverSchema = new mongoose.Schema({
     },
     type: {
       type: String,
-      enum: ['sedan', 'suv', 'minivan', 'moto_delivery'],
+      enum: ['sedan', 'suv', 'minivan', 'moto_delivery', 'motorbike'],
       default: 'sedan'
     },
     capacity: {
