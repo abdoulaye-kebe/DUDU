@@ -128,6 +128,8 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
       'comfort': Colors.orange,
       'women_only': Colors.pink,
       'delivery': Colors.deepOrange,
+      'luxe': Colors.black,
+      'moto': Colors.blueGrey,
     };
 
     final rideTypeLabels = {
@@ -135,6 +137,8 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
       'comfort': 'Confort',
       'women_only': 'Femme',
       'delivery': 'Livraison',
+      'luxe': 'Luxe',
+      'moto': 'Moto',
     };
 
     final rawType = request.rideType;
@@ -317,6 +321,15 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
                                     color: Color(0xFF0d5d36),
                                   ),
                                 ),
+                                if (request.customPricePerKm != null)
+                                  Text(
+                                    '${request.customPricePerKm!.toStringAsFixed(0)} FCFA/km',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey[700],
+                                    ),
+                                  ),
                               ],
                             ),
                           ],
@@ -518,6 +531,7 @@ class RideRequest {
   final String destination;
   final double distance;
   final int customPrice;
+  final double? customPricePerKm;
   final String rideType;
   final int estimatedDuration;
   final DateTime requestedAt;
@@ -531,6 +545,7 @@ class RideRequest {
     required this.destination,
     required this.distance,
     required this.customPrice,
+    this.customPricePerKm,
     required this.rideType,
     required this.estimatedDuration,
     required this.requestedAt,
@@ -592,6 +607,9 @@ class RideRequest {
           pricing['totalPrice']?.toInt() ??
           data['customPrice']?.toInt() ??
           0,
+      customPricePerKm: (pricing is Map && pricing['customPricePerKm'] != null)
+          ? (pricing['customPricePerKm'] as num).toDouble()
+          : (data['customPricePerKm'] is num ? (data['customPricePerKm'] as num).toDouble() : null),
       rideType: data['rideType']?.toString() ?? 'standard',
       estimatedDuration: pricing['estimatedDuration']?.toInt() ??
           data['estimatedDuration']?.toInt() ??

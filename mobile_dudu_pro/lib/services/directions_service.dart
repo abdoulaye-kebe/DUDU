@@ -1,24 +1,26 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../config/app_config.dart';
 
 /// Service pour calculer les itinéraires avec Google Directions API
 class DirectionsService {
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/directions/json';
-  static const String _apiKey = 'AIzaSyBebPcA35Q6WKIiGxG1Xi4iW0ZErazWvZA';
 
   /// Calculer un itinéraire entre deux points
   static Future<DirectionsResult?> getDirections({
     required LatLng origin,
     required LatLng destination,
     String travelMode = 'driving', // driving, walking, bicycling, transit
+    bool alternatives = true,
   }) async {
     try {
       final url = Uri.parse(
         '$_baseUrl?origin=${origin.latitude},${origin.longitude}'
         '&destination=${destination.latitude},${destination.longitude}'
         '&mode=$travelMode'
-        '&key=$_apiKey'
+        '&alternatives=${alternatives ? 'true' : 'false'}'
+        '&key=${AppConfig.googleMapsApiKey}'
         '&language=fr'
         '&region=sn', // Sénégal
       );
@@ -27,34 +29,63 @@ class DirectionsService {
       
       final response = await http.get(url);
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        if (data['status'] == 'OK' && data['routes'].isNotEmpty) {
-          final route = data['routes'][0];
-          final leg = route['legs'][0];
-          
-          // Décoder la polyline
-          final points = _decodePolyline(route['overview_polyline']['points']);
-          
-          return DirectionsResult(
-            distance: leg['distance']['value'] / 1000.0, // en km
-            duration: leg['duration']['value'] / 60.0, // en minutes
-            distanceText: leg['distance']['text'],
-            durationText: leg['duration']['text'],
-            points: points,
-            startAddress: leg['start_address'],
-            endAddress: leg['end_address'],
-            steps: _parseSteps(leg['steps']),
-          );
-        } else {
-          print('❌ Erreur Directions API: ${data['status']}');
-          return null;
-        }
-      } else {
+      if (response.statusCode != 200) {
         print('❌ Erreur HTTP: ${response.statusCode}');
         return null;
       }
+
+      final data = json.decode(response.body);
+      if (data['status'] != 'OK' || data['routes'] == null || data['routes'].isEmpty) {
+        print('❌ Erreur Directions API: ${data['status']}');
+        return null;
+      }
+
+      Map<String, dynamic>? bestRoute;
+      Map<String, dynamic>? bestLeg;
+      int? bestDistance;
+
+      for (final r in data['routes']) {
+        if (r is! Map) continue;
+        final legs = r['legs'];
+        if (legs is! List || legs.isEmpty) continue;
+        final leg = legs[0];
+        if (leg is! Map) continue;
+        final dist = leg['distance'];
+        if (dist is! Map) continue;
+        final distValue = dist['value'];
+        if (distValue is! num) continue;
+
+        final d = distValue.toInt();
+        if (bestDistance == null || d < bestDistance!) {
+          bestDistance = d;
+          bestRoute = Map<String, dynamic>.from(r.map((k, v) => MapEntry(k.toString(), v)));
+          bestLeg = Map<String, dynamic>.from(leg.map((k, v) => MapEntry(k.toString(), v)));
+        }
+      }
+
+      if (bestRoute == null || bestLeg == null) {
+        print('⚠️ Impossible de sélectionner un itinéraire');
+        return null;
+      }
+
+      final overview = bestRoute!['overview_polyline'];
+      final polyline = overview is Map ? overview['points']?.toString() : null;
+      final points = polyline != null ? _decodePolyline(polyline) : <LatLng>[];
+
+      final distanceMap = bestLeg!['distance'] as Map;
+      final durationMap = bestLeg!['duration'] as Map;
+      final stepsData = bestLeg!['steps'];
+
+      return DirectionsResult(
+        distance: (distanceMap['value'] as num).toDouble() / 1000.0,
+        duration: (durationMap['value'] as num).toDouble() / 60.0,
+        distanceText: distanceMap['text']?.toString() ?? '',
+        durationText: durationMap['text']?.toString() ?? '',
+        points: points,
+        startAddress: bestLeg!['start_address']?.toString() ?? '',
+        endAddress: bestLeg!['end_address']?.toString() ?? '',
+        steps: stepsData is List ? _parseSteps(stepsData) : <RouteStep>[],
+      );
     } catch (e) {
       print('❌ Erreur calcul itinéraire: $e');
       return null;

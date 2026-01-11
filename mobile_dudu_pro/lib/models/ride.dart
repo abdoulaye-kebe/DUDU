@@ -279,7 +279,9 @@ enum RideType {
   standard,
   comfort,
   womenOnly,
-  delivery;
+  delivery,
+  luxe,
+  moto;
 
   String get value {
     switch (this) {
@@ -287,6 +289,8 @@ enum RideType {
       case RideType.womenOnly: return 'women_only';
       case RideType.comfort: return 'comfort';
       case RideType.delivery: return 'delivery';
+      case RideType.luxe: return 'luxe';
+      case RideType.moto: return 'moto';
     }
   }
 
@@ -297,6 +301,8 @@ enum RideType {
       case 'express': return RideType.comfort;
       case 'women_only': return RideType.womenOnly;
       case 'delivery': return RideType.delivery;
+      case 'luxe': return RideType.luxe;
+      case 'moto': return RideType.moto;
       default: return RideType.standard;
     }
   }
@@ -307,6 +313,8 @@ enum RideType {
       case RideType.comfort: return 'Confort';
       case RideType.womenOnly: return 'Femme';
       case RideType.delivery: return 'Livraison';
+      case RideType.luxe: return 'Luxe';
+      case RideType.moto: return 'Moto';
     }
   }
 }

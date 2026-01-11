@@ -231,14 +231,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (value) => setState(() => _locationEnabled = value),
               activeColor: const Color(0xFF00A651),
             ),
-            if (widget.driverProfile.isCar) ...[
-              _buildSettingItem(
-                icon: Icons.group,
-                title: 'Covoiturage',
-                subtitle: 'Paramètres de covoiturage',
-                onTap: _showCarpoolSettings,
-              ),
-            ],
             if (widget.driverProfile.isMoto) ...[
               _buildSettingItem(
                 icon: Icons.delivery_dining,
@@ -543,22 +535,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Conditions d\'utilisation'),
         content: const Text('Conditions d\'utilisation à implémenter'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCarpoolSettings() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Paramètres Covoiturage'),
-        content: const Text('Paramètres de covoiturage à implémenter'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

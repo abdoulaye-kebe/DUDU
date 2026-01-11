@@ -1065,8 +1065,10 @@ router.put('/ride-types', [
   auth,
   requireDriver,
   body('comfort').optional().isBoolean(),
+  body('luxe').optional().isBoolean(),
   body('women_only').optional().isBoolean(),
-  body('delivery').optional().isBoolean()
+  body('delivery').optional().isBoolean(),
+  body('moto').optional().isBoolean()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -1087,6 +1089,7 @@ router.put('/ride-types', [
     }
 
     const isMoto = driver.vehicle?.category === 'moto' || driver.vehicle?.type === 'moto_delivery';
+    const isCar = !isMoto;
 
     const nextRideTypes = {
       ...(driver.rideTypes || {}),
@@ -1096,15 +1099,25 @@ router.put('/ride-types', [
     if (req.body.comfort !== undefined) {
       nextRideTypes.comfort = req.body.comfort;
     }
+    if (req.body.luxe !== undefined) {
+      nextRideTypes.luxe = isCar ? req.body.luxe : false;
+    }
     if (req.body.women_only !== undefined) {
       nextRideTypes.women_only = req.body.women_only;
     }
     if (req.body.delivery !== undefined) {
       nextRideTypes.delivery = isMoto ? req.body.delivery : false;
     }
+    if (req.body.moto !== undefined) {
+      nextRideTypes.moto = isMoto ? req.body.moto : false;
+    }
 
     if (!isMoto) {
       nextRideTypes.delivery = false;
+      nextRideTypes.moto = false;
+    }
+    if (!isCar) {
+      nextRideTypes.luxe = false;
     }
     nextRideTypes.standard = true;
 

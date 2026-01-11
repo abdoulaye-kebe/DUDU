@@ -30,7 +30,6 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
 
   // États
   bool _isOnline = false;
-  bool _carpoolEnabled = false;
   bool _womenOnlyEnabled = false;
   Position? _currentPosition;
   GoogleMapController? _mapController;
@@ -91,6 +90,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
               'comfort': 'Confort',
               'women_only': 'Femme',
               'delivery': 'Livraison',
+              'luxe': 'Luxe',
+              'moto': 'Moto',
             };
             final rideTypeLabel = rideTypeLabels[normalizedRideType] ?? 'Standard';
             final passengerName = passenger?['name']?.toString() ?? 'Client DUDU';
@@ -115,6 +116,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                 pricing?['totalPrice'] ??
                 data['customPrice'] ?? 0;
             final price = priceValue.toString();
+            final perKmValue = pricing?['customPricePerKm'] ?? data['customPricePerKm'];
+            final perKmText = perKmValue != null ? perKmValue.toString() : null;
 
             return AlertDialog(
               title: const Text(
@@ -162,6 +165,15 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                       color: primaryGreen,
                     ),
                   ),
+                  if (perKmText != null && perKmText.isNotEmpty)
+                    Text(
+                      'Prix / km : $perKmText FCFA/km',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   const Text(
                     'Appuyez sur "VOIR LES DEMANDES" pour accepter ou refuser.',
@@ -370,7 +382,6 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         
         // Charger les préférences du chauffeur depuis le profil
         if (profile.rideTypes != null) {
-          _carpoolEnabled = profile.rideTypes!['shared'] ?? false;
           _womenOnlyEnabled = profile.rideTypes!['women_only'] ?? false;
         }
 
@@ -898,32 +909,11 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
           
           const SizedBox(height: 12),
 
-          // Boutons Convoiturage et Femmes uniquement
-          // Masqués pour les livreurs (courier/moto)
+          // Bouton Femmes uniquement
+          // Masqué pour les livreurs (courier/moto)
           if (!(_driverProfile?.isCourier ?? false))
             Row(
               children: [
-                Expanded(
-                  child: _buildModeButton(
-                    icon: Icons.people_outline,
-                    label: 'Convoiturage',
-                    isEnabled: _carpoolEnabled,
-                    onTap: () {
-                      setState(() => _carpoolEnabled = !_carpoolEnabled);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            _carpoolEnabled 
-                                ? '🚗 Mode convoiturage activé' 
-                                : 'Mode convoiturage désactivé',
-                          ),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: _buildModeButton(
                     icon: Icons.woman,
@@ -934,8 +924,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            _womenOnlyEnabled 
-                                ? '👩 Mode femmes uniquement activé' 
+                            _womenOnlyEnabled
+                                ? '👩 Mode femmes uniquement activé'
                                 : 'Mode femmes uniquement désactivé',
                           ),
                           duration: const Duration(seconds: 2),

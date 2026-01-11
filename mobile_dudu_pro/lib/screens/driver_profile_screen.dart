@@ -34,6 +34,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
 
     final current = _profile!.rideTypes ?? <String, bool>{};
     final isMoto = _profile!.isMoto;
+    final isCar = !isMoto;
 
     if (key == 'standard') return;
     if (key == 'delivery' && !isMoto) {
@@ -47,12 +48,38 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
       return;
     }
 
+    if ((key == 'moto') && !isMoto) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Moto disponible uniquement pour les véhicules moto.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if ((key == 'luxe') && !isCar) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Luxe disponible uniquement pour les voitures.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final next = Map<String, bool>.from(current);
     next['standard'] = true;
     next[key] = !(next[key] == true);
 
     if (!isMoto) {
       next['delivery'] = false;
+      next['moto'] = false;
+    }
+    if (!isCar) {
+      next['luxe'] = false;
     }
 
     setState(() {
@@ -79,8 +106,10 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
 
     final res = await ApiService.updateRideTypes(
       comfort: key == 'comfort' ? next['comfort'] : null,
+      luxe: key == 'luxe' ? next['luxe'] : null,
       womenOnly: key == 'women_only' ? next['women_only'] : null,
       delivery: key == 'delivery' ? next['delivery'] : null,
+      moto: key == 'moto' ? next['moto'] : null,
     );
 
     if (!mounted) return;
@@ -828,6 +857,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
   Widget _buildRideTypesCard() {
     final rideTypes = _profile!.rideTypes ?? {};
     final isMoto = _profile!.isMoto;
+    final isCar = !isMoto;
     
     return Container(
       padding: const EdgeInsets.all(20),
@@ -868,10 +898,24 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
               _buildRideTypeChip('Confort', rideTypes['comfort'] ?? false, Colors.orange, keyName: 'comfort'),
               _buildRideTypeChip('Femme', rideTypes['women_only'] ?? false, Colors.pink, keyName: 'women_only'),
               _buildRideTypeChip(
+                'Luxe',
+                rideTypes['luxe'] ?? false,
+                Colors.black,
+                keyName: 'luxe',
+                disabled: !isCar,
+              ),
+              _buildRideTypeChip(
                 'Livraison',
                 rideTypes['delivery'] ?? false,
                 Colors.deepOrange,
                 keyName: 'delivery',
+                disabled: !isMoto,
+              ),
+              _buildRideTypeChip(
+                'Moto',
+                rideTypes['moto'] ?? false,
+                Colors.blueGrey,
+                keyName: 'moto',
                 disabled: !isMoto,
               ),
             ],

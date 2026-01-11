@@ -886,8 +886,9 @@ router.post('/create', [
   body('destination.latitude').isFloat().withMessage('Latitude de destination invalide'),
   body('destination.longitude').isFloat().withMessage('Longitude de destination invalide'),
   body('destination.address').notEmpty().withMessage('Adresse de destination requise'),
-  body('rideType').isIn(['standard', 'comfort', 'women_only', 'delivery']).withMessage('Type de course invalide'),
-  body('customPrice').isInt({ min: 500 }).withMessage('Le prix minimum est 500 FCFA'),
+  body('rideType').isIn(['standard', 'comfort', 'women_only', 'delivery', 'luxe', 'moto']).withMessage('Type de course invalide'),
+  body('customPrice').optional().isInt({ min: 500 }).withMessage('Le prix minimum est 500 FCFA'),
+  body('customPricePerKm').optional().isFloat({ min: 500, max: 5000 }).withMessage('Prix par km invalide'),
   body('estimatedDistance').isFloat({ min: 0 }).withMessage('Distance invalide')
 ], async (req, res) => {
   try {
@@ -905,8 +906,42 @@ router.post('/create', [
       destination,
       rideType,
       customPrice,
+      customPricePerKm,
       estimatedDistance
     } = req.body;
+
+    // Calculer le prix total selon le type
+    let totalPrice;
+    let normalizedCustomPricePerKm = null;
+    if (rideType === 'moto') {
+      const perKm = Number(customPricePerKm);
+      if (!Number.isFinite(perKm) || perKm <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Pour les motos, le prix par km (customPricePerKm) est requis et doit être > 0'
+        });
+      }
+      normalizedCustomPricePerKm = perKm;
+      totalPrice = Math.round(perKm * Number(estimatedDistance));
+      if (totalPrice < 500) totalPrice = 500;
+    } else if (rideType === 'luxe') {
+      totalPrice = Math.round(5000 * Number(estimatedDistance));
+      if (totalPrice < 500) totalPrice = 500;
+    } else {
+      if (typeof customPrice !== 'number' && typeof customPrice !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'Le prix proposé (customPrice) est requis'
+        });
+      }
+      totalPrice = Number(customPrice);
+      if (!Number.isFinite(totalPrice) || totalPrice < 500) {
+        return res.status(400).json({
+          success: false,
+          message: 'Le prix minimum est 500 FCFA'
+        });
+      }
+    }
 
     // Générer un identifiant unique pour la course (rideId requis par le schéma)
     const rideId = `RIDE-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -944,10 +979,11 @@ router.post('/create', [
         distancePrice: 0,
         timePrice: 0,
         surgeMultiplier: 1.0,
-        totalPrice: customPrice, // PRIX LIBRE du client
+        totalPrice: totalPrice,
         currency: 'XOF',
         isPriceFixed: true,
-        customPrice: customPrice // Stocker le prix proposé
+        customPrice: totalPrice,
+        customPricePerKm: normalizedCustomPricePerKm
       },
       rideType,
       passengers: 1,
@@ -965,7 +1001,9 @@ router.post('/create', [
       standard: 5000,    // 5 km
       comfort: 7000,     // 7 km - Plus grand rayon pour trouver des véhicules confort
       women_only: 5000,  // 5 km
-      delivery: 3000     // 3 km - Motos plus proches
+      delivery: 3000,    // 3 km - Motos plus proches
+      moto: 3000,
+      luxe: 7000
     };
     
     const searchRadius = SEARCH_RADIUS[rideType] || 5000;
@@ -976,7 +1014,7 @@ router.post('/create', [
       isAvailable: true,
       'subscription.isActive': true,
       'subscription.endDate': { $gt: new Date() },
-      'preferences.minPrice': { $lte: customPrice }, // Prix proposé >= prix min du chauffeur
+      'preferences.minPrice': { $lte: totalPrice }, // Prix proposé >= prix min du chauffeur
       'location.latitude': { $exists: true, $ne: null },
       'location.longitude': { $exists: true, $ne: null }
     };
@@ -989,6 +1027,8 @@ router.post('/create', [
     } else if (rideType === 'women_only') {
       baseDriverQuery['rideTypes.women_only'] = true;
       baseDriverQuery.gender = 'female';
+    } else if (rideType === 'luxe') {
+      baseDriverQuery['rideTypes.luxe'] = true;
     }
     
     // Pour les livraisons, ne chercher que les motos
@@ -996,12 +1036,18 @@ router.post('/create', [
       baseDriverQuery['vehicle.category'] = 'moto';
       baseDriverQuery['rideTypes.delivery'] = true;
     }
+
+    if (rideType === 'moto') {
+      baseDriverQuery['vehicle.category'] = 'moto';
+      baseDriverQuery['rideTypes.moto'] = true;
+    }
     
     // Rechercher des chauffeurs disponibles
     console.log('🔍 Recherche de chauffeurs pour course PRIX LIBRE', {
       rideId,
       rideType,
-      customPrice,
+      customPrice: totalPrice,
+      customPricePerKm: normalizedCustomPricePerKm,
       pickup,
     });
 

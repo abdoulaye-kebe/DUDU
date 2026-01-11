@@ -40,6 +40,7 @@ module.exports = function startScheduledRidesDispatcher(io) {
           const pickup = ride.pickup.coordinates;
           const rideType = ride.rideType || 'standard';
           const customPrice = ride.pricing?.customPrice || ride.pricing?.totalPrice || 0;
+          const customPricePerKm = ride.pricing?.customPricePerKm || null;
 
           // Rayon de recherche similaire à la route prix libre
           const SEARCH_RADIUS = {
@@ -47,6 +48,8 @@ module.exports = function startScheduledRidesDispatcher(io) {
             comfort: 7000,
             women_only: 5000,
             delivery: 3000,
+            moto: 3000,
+            luxe: 7000,
           };
           const searchRadius = SEARCH_RADIUS[rideType] || 3000;
 
@@ -66,6 +69,10 @@ module.exports = function startScheduledRidesDispatcher(io) {
           }
 
           if (rideType === 'delivery') {
+            driverQuery['vehicle.category'] = 'moto';
+          }
+
+          if (rideType === 'moto') {
             driverQuery['vehicle.category'] = 'moto';
           }
 
@@ -113,6 +120,7 @@ module.exports = function startScheduledRidesDispatcher(io) {
               distance: ride.distance,
               rideType,
               customPrice,
+              customPricePerKm,
               estimatedDuration: ride.estimatedDuration,
               passengerName,
               passengerPhone,

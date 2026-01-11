@@ -150,7 +150,7 @@ const driverSchema = new mongoose.Schema({
   // Niveau de service du chauffeur (défini par l'admin après vérification du véhicule)
   serviceLevel: {
     type: String,
-    enum: ['standard', 'express'],  // standard = véhicule normal, express = véhicule haut de gamme
+    enum: ['standard', 'express', 'luxe'],  // standard = véhicule normal, express = véhicule haut de gamme, luxe = véhicule de luxe
     default: 'standard'
   },
   
@@ -164,9 +164,17 @@ const driverSchema = new mongoose.Schema({
       type: Boolean,
       default: false  // Seuls les chauffeurs validés "confort" peuvent faire du confort
     },
+    luxe: {
+      type: Boolean,
+      default: false  // Réservé aux véhicules de luxe
+    },
     delivery: {
       type: Boolean,
       default: false  // Pour les motos uniquement
+    },
+    moto: {
+      type: Boolean,
+      default: false  // Trajet classique en moto
     },
     women_only: {
       type: Boolean,

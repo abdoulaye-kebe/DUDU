@@ -54,6 +54,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   double _estimatedDistance = 0;
   List<PlaceSuggestion> _suggestions = [];
   String _selectedPaymentMethod = '';
+  double _motoPricePerKm = 500;
   // Véhicules simulés à proximité (pour affichage liste + markers)
   List<LatLng> _nearbyVehicles = [];
 
@@ -94,12 +95,34 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       'capacity': 4,
       'basePricePerKm': 650,
     },
+    {
+      'id': 'luxe',
+      'name': 'Luxe',
+      'icon': Icons.diamond,
+      'color': Colors.black,
+      'description': 'Luxe • Voiture premium • 1-4 passagers',
+      'badge': 'LUXE',
+      'capacity': 4,
+      'basePricePerKm': 5000,
+    },
+    {
+      'id': 'moto',
+      'name': 'Moto',
+      'icon': Icons.motorcycle,
+      'color': Colors.blueGrey,
+      'description': 'Moto • Rapide • 1 passager',
+      'badge': 'MOTO',
+      'capacity': 1,
+      'basePricePerKm': 500,
+    },
   ];
 
   String get _backendRideType {
     if (_selectedMode == 'delivery') return 'delivery';
     if (_selectedRideType == 'women_only') return 'women_only';
     if (_selectedRideType == 'comfort') return 'comfort';
+    if (_selectedRideType == 'luxe') return 'luxe';
+    if (_selectedRideType == 'moto') return 'moto';
     return 'standard';
   }
 
@@ -603,7 +626,21 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                     description: type['description'],
                     capacity: capacity,
                     isSelected: isSelected,
-                    onTap: () => setState(() => _selectedRideType = type['id']),
+                    onTap: () {
+                      setState(() {
+                        _selectedRideType = type['id'];
+
+                        if (_selectedMode != 'delivery') {
+                          if (_selectedRideType == 'luxe' && _estimatedDistance > 0) {
+                            _customPrice = (5000 * _estimatedDistance).round();
+                            _priceController.text = _customPrice.toString();
+                          }
+                          if (_selectedRideType == 'moto' && _estimatedDistance > 0) {
+                            _customPrice = (_motoPricePerKm * _estimatedDistance).round();
+                          }
+                        }
+                      });
+                    },
                     badge: type['badge'],
                   ),
                 );
@@ -1313,6 +1350,15 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       _destinationLatLng!.longitude,
     );
 
+    // Mettre à jour le prix estimé selon le type
+    if (_selectedMode != 'delivery' && _selectedRideType == 'luxe') {
+      _customPrice = (5000 * (_estimatedDistance <= 0 ? 0 : _estimatedDistance)).round();
+      _priceController.text = _customPrice.toString();
+    }
+    if (_selectedMode != 'delivery' && _selectedRideType == 'moto') {
+      _customPrice = (_motoPricePerKm * (_estimatedDistance <= 0 ? 0 : _estimatedDistance)).round();
+    }
+
     // Tracer une ligne simple (en production, utiliser Google Directions API)
     final polyline = Polyline(
       polylineId: const PolylineId('route'),
@@ -1461,7 +1507,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                            _destinationAddress.isNotEmpty &&
                            _pickupLatLng != null &&
                            _destinationLatLng != null &&
-                           _customPrice > 0
+                           (_customPrice > 0 || _backendRideType == 'luxe' || _backendRideType == 'moto')
                     ? _navigateToConfirmation
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -1489,6 +1535,117 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   }
 
   Widget _buildPriceInput() {
+    final isMoto = _selectedMode != 'delivery' && _selectedRideType == 'moto';
+    final isLuxe = _selectedMode != 'delivery' && _selectedRideType == 'luxe';
+
+    if (isMoto) {
+      final total = (_motoPricePerKm * (_estimatedDistance <= 0 ? 0 : _estimatedDistance)).round();
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: lightGreen.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: lightGreen.withOpacity(0.3), width: 2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.payments_outlined, color: primaryGreen, size: 18),
+                const SizedBox(width: 8),
+                const Text(
+                  'Prix / km (Moto)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: accentBlack,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${_motoPricePerKm.round()} FCFA/km',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: primaryGreen,
+                  ),
+                ),
+              ],
+            ),
+            Slider(
+              min: 500,
+              max: 5000,
+              divisions: 45,
+              value: _motoPricePerKm.clamp(500, 5000),
+              activeColor: primaryGreen,
+              onChanged: (v) {
+                setState(() {
+                  _motoPricePerKm = v;
+                  _customPrice = (_motoPricePerKm * (_estimatedDistance <= 0 ? 0 : _estimatedDistance)).round();
+                });
+              },
+            ),
+            Row(
+              children: [
+                Text(
+                  'Total estimé: $total FCFA',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: accentBlack,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  'Min 500 • Max 5000',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (isLuxe) {
+      final total = (5000 * (_estimatedDistance <= 0 ? 0 : _estimatedDistance)).round();
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: lightGreen.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: lightGreen.withOpacity(0.3), width: 2),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.payments_outlined, color: primaryGreen, size: 18),
+            const SizedBox(width: 8),
+            const Text(
+              'Prix (Luxe)',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: accentBlack,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              total > 0 ? '$total FCFA' : '—',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: primaryGreen,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -1577,6 +1734,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       setState(() {
         _customPrice = result['price'] ?? 0;
         _selectedPaymentMethod = result['paymentMethod'] ?? 'cash';
+        if (_selectedMode != 'delivery' && _selectedRideType == 'moto') {
+          final distance = _estimatedDistance <= 0 ? 0 : _estimatedDistance;
+          if (distance > 0) {
+            _motoPricePerKm = (_customPrice / distance).clamp(500, 5000).toDouble();
+          }
+        }
       });
       
       // Lancer la confirmation de la course
@@ -1704,6 +1867,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
     try {
       // Envoyer la demande au backend
+      final isMotoRide = _backendRideType == 'moto';
+      final isLuxeRide = _backendRideType == 'luxe';
+
       final response = await ApiService.createRide(
         pickupLatitude: _pickupLatLng!.latitude,
         pickupLongitude: _pickupLatLng!.longitude,
@@ -1712,7 +1878,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         destinationLongitude: _destinationLatLng!.longitude,
         destinationAddress: _destinationAddress,
         rideType: _backendRideType,
-        customPrice: _customPrice,
+        customPrice: (!isMotoRide && !isLuxeRide && _customPrice > 0) ? _customPrice : null,
+        customPricePerKm: isMotoRide ? _motoPricePerKm : null,
         estimatedDistance: _estimatedDistance,
         paymentMethod: _selectedPaymentMethod,
       );

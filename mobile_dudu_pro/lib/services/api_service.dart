@@ -18,14 +18,18 @@ class ApiService {
 
   static Future<Map<String, dynamic>> updateRideTypes({
     bool? comfort,
+    bool? luxe,
     bool? womenOnly,
     bool? delivery,
+    bool? moto,
   }) async {
     try {
       final body = <String, dynamic>{};
       if (comfort != null) body['comfort'] = comfort;
+      if (luxe != null) body['luxe'] = luxe;
       if (womenOnly != null) body['women_only'] = womenOnly;
       if (delivery != null) body['delivery'] = delivery;
+      if (moto != null) body['moto'] = moto;
 
       final response = await http.put(
         Uri.parse('$baseUrl/drivers/ride-types'),

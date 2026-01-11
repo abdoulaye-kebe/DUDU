@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/ride.dart';
@@ -37,6 +38,9 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   // Itinéraire calculé
   DirectionsResult? _routeResult;
   bool _isCalculatingRoute = false;
+  String? _routeTarget;
+  DateTime? _lastRouteCalcAt;
+  LatLng? _lastRouteCalcOrigin;
 
   @override
   void initState() {
@@ -56,10 +60,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   Future<void> _initializeTracking() async {
     try {
       await _trackingService.initialize();
-      
-      // Calculer l'itinéraire entre le point de départ et la destination
-      await _calculateRoute();
-      
+
       // Démarrer le suivi
       await _trackingService.startTracking(
         rideId: widget.ride.id,
@@ -91,26 +92,55 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     }
   }
 
-  /// Calculer l'itinéraire entre le point de départ et la destination
-  Future<void> _calculateRoute() async {
+  double _distanceMeters(LatLng a, LatLng b) {
+    const r = 6371000.0;
+    final dLat = (b.latitude - a.latitude) * math.pi / 180.0;
+    final dLng = (b.longitude - a.longitude) * math.pi / 180.0;
+    final lat1 = a.latitude * math.pi / 180.0;
+    final lat2 = b.latitude * math.pi / 180.0;
+
+    final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1) * math.cos(lat2) * math.sin(dLng / 2) * math.sin(dLng / 2);
+    final c = 2 * math.atan2(math.sqrt(h), math.sqrt(1 - h));
+    return r * c;
+  }
+
+  bool _shouldRecalculateRoute({required LatLng origin, required String targetKey}) {
+    if (_isCalculatingRoute) return false;
+    if (_routeTarget != targetKey) return true;
+
+    final lastAt = _lastRouteCalcAt;
+    final lastOrigin = _lastRouteCalcOrigin;
+    if (lastAt == null || lastOrigin == null) return true;
+
+    final secondsSince = DateTime.now().difference(lastAt).inSeconds;
+    final movedMeters = _distanceMeters(lastOrigin, origin);
+
+    // Limiter les appels API
+    if (secondsSince < 30 && movedMeters < 250) return false;
+    return true;
+  }
+
+  /// Calculer l'itinéraire le plus court entre deux points
+  Future<void> _calculateRoute({
+    required LatLng origin,
+    required LatLng destination,
+    required String targetKey,
+  }) async {
     setState(() {
       _isCalculatingRoute = true;
     });
 
     try {
-      final origin = LatLng(
-        widget.ride.pickup.latitude,
-        widget.ride.pickup.longitude,
-      );
-      final destination = LatLng(
-        widget.ride.destination.latitude,
-        widget.ride.destination.longitude,
-      );
+      _routeTarget = targetKey;
+      _lastRouteCalcAt = DateTime.now();
+      _lastRouteCalcOrigin = origin;
 
       final result = await DirectionsService.getDirections(
         origin: origin,
         destination: destination,
         travelMode: 'driving',
+        alternatives: true,
       );
 
       if (result != null) {
@@ -124,7 +154,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
           _fitRouteBounds(result.points);
         }
 
-        print('✅ Itinéraire calculé: ${result.distance.toStringAsFixed(2)} km, ${result.duration.toStringAsFixed(0)} min');
+        print('✅ Itinéraire (plus court) calculé: ${result.distance.toStringAsFixed(2)} km, ${result.duration.toStringAsFixed(0)} min');
       } else {
         setState(() {
           _isCalculatingRoute = false;
@@ -171,6 +201,24 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
       _currentSpeed = speed;
     });
 
+    final status = _rideStatus ?? widget.ride.status;
+    final pickup = LatLng(widget.ride.pickup.latitude, widget.ride.pickup.longitude);
+    final destination = LatLng(widget.ride.destination.latitude, widget.ride.destination.longitude);
+
+    // Itinéraire chauffeur -> pickup (avant départ)
+    if (status == RideStatus.arriving || status == RideStatus.accepted || status == RideStatus.requested) {
+      if (_shouldRecalculateRoute(origin: position, targetKey: 'to_pickup')) {
+        _calculateRoute(origin: position, destination: pickup, targetKey: 'to_pickup');
+      }
+    }
+
+    // Itinéraire chauffeur -> destination (pendant la course)
+    if (status == RideStatus.started) {
+      if (_shouldRecalculateRoute(origin: position, targetKey: 'to_destination')) {
+        _calculateRoute(origin: position, destination: destination, targetKey: 'to_destination');
+      }
+    }
+
     // Mettre à jour la caméra de la carte
     _mapController?.animateCamera(
       CameraUpdate.newLatLng(position),
@@ -192,6 +240,20 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
         _rideStartTime = DateTime.now();
       }
     });
+
+    // Recalculer l'itinéraire selon le statut
+    final current = _currentPosition;
+    if (current != null) {
+      final pickup = LatLng(widget.ride.pickup.latitude, widget.ride.pickup.longitude);
+      final destination = LatLng(widget.ride.destination.latitude, widget.ride.destination.longitude);
+
+      if (status == RideStatus.arriving || status == RideStatus.accepted || status == RideStatus.requested) {
+        _calculateRoute(origin: current, destination: pickup, targetKey: 'to_pickup');
+      }
+      if (status == RideStatus.started) {
+        _calculateRoute(origin: current, destination: destination, targetKey: 'to_destination');
+      }
+    }
     // Gérer les changements de statut
     switch (status) {
       case RideStatus.completed:

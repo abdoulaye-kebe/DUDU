@@ -120,6 +120,10 @@ const rideSchema = new mongoose.Schema({
     isPriceFixed: {
       type: Boolean,
       default: false
+    },
+    customPricePerKm: {
+      type: Number,
+      default: null
     }
   },
   
@@ -148,7 +152,9 @@ const rideSchema = new mongoose.Schema({
       'standard',        // Course standard - Véhicule normal, tarif de base
       'comfort',         // Course confort - Véhicule plus confortable
       'women_only',      // Course femme - Chauffeuse uniquement
-      'delivery'         // Livraison - Moto uniquement
+      'delivery',        // Livraison - Moto uniquement
+      'luxe',            // Luxe - Voiture de luxe
+      'moto'             // Moto - Trajet classique en moto
     ],
     default: 'standard'
   },

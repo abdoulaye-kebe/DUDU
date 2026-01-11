@@ -23,8 +23,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   
   // État du chauffeur
   bool _isOnline = false;
-  bool _carpoolMode = false;
-  int _availableSeats = 1;
   bool _acceptDeliveries = false;
   bool _acceptLuggage = false;
   Position? _currentPosition;
@@ -145,84 +143,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
       SnackBar(
         content: Text(_isOnline ? 'Vous êtes maintenant en ligne' : 'Vous êtes hors ligne'),
         backgroundColor: _isOnline ? Colors.green : Colors.grey,
-      ),
-    );
-  }
-
-  void _toggleCarpoolMode() {
-    if (!_carpoolMode) {
-      // Ouvrir dialogue pour choisir le nombre de places
-      _showSeatsDialog();
-    } else {
-      setState(() {
-        _carpoolMode = false;
-        _availableSeats = 1;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Mode covoiturage désactivé'),
-        ),
-      );
-    }
-  }
-
-  void _showSeatsDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Covoiturage'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Combien de places disponibles ?'),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                for (int i = 1; i <= (_driverProfile?.vehicle.capacity ?? 4); i++)
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _carpoolMode = true;
-                        _availableSeats = i;
-                      });
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Covoiturage activé : $i place${i > 1 ? 's' : ''} disponible${i > 1 ? 's' : ''}'),
-                          backgroundColor: const Color(0xFF00A651),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00A651),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '$i',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-        ],
       ),
     );
   }
@@ -489,14 +409,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     }
     
     // Options pour VOITURE
-    List<Widget> options = [
-      _buildOptionButton(
-        icon: Icons.group,
-        label: _carpoolMode ? 'Covoiturage ($_availableSeats)' : 'Covoiturage',
-        isActive: _carpoolMode,
-        onTap: _toggleCarpoolMode,
-      ),
-    ];
+    List<Widget> options = [];
     
     // Ajouter option bagages si voiture cargo
     if (_driverProfile!.canAcceptLuggage) {
