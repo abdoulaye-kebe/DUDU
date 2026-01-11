@@ -441,12 +441,22 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
 
     if (!mounted) return;
     if (!response.success) {
+      final lowerMsg = response.message.toLowerCase();
+      final isAuthExpired = lowerMsg.contains('token expir') ||
+          lowerMsg.contains('jwt') ||
+          lowerMsg.contains('unauthorized') ||
+          lowerMsg.contains('non autoris');
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erreur trajets planifiés: ${response.message}'),
           backgroundColor: Colors.red,
         ),
       );
+
+      if (isAuthExpired && mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
     }
   }
 
@@ -1119,9 +1129,19 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       await _loadScheduledRides();
       _tabController.animateTo(1);
     } else {
+      final lowerMsg = response.message.toLowerCase();
+      final isAuthExpired = lowerMsg.contains('token expir') ||
+          lowerMsg.contains('jwt') ||
+          lowerMsg.contains('unauthorized') ||
+          lowerMsg.contains('non autoris');
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur: ${response.message}')),
       );
+
+      if (isAuthExpired && mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
     }
   }
 

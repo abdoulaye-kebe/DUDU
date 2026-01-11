@@ -145,6 +145,26 @@ class ApiService {
         }),
       ).timeout(timeout);
 
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('auth_token');
+        await prefs.remove('user_data');
+
+        String message = 'Token expiré';
+        try {
+          final decoded = response.body.isNotEmpty ? json.decode(response.body) : null;
+          if (decoded is Map && decoded['message'] != null) {
+            message = decoded['message'].toString();
+          }
+        } catch (_) {}
+
+        return ApiResponse<Ride>(
+          success: false,
+          message: message,
+          data: null,
+        );
+      }
+
       return _handleResponse(response, (data) => Ride.fromJson(data['ride']));
     } catch (e) {
       return ApiResponse<Ride>(
@@ -162,6 +182,26 @@ class ApiService {
         Uri.parse('$baseUrl/users/scheduled-rides'),
         headers: await _getHeaders(),
       ).timeout(timeout);
+
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('auth_token');
+        await prefs.remove('user_data');
+
+        String message = 'Token expiré';
+        try {
+          final decoded = response.body.isNotEmpty ? json.decode(response.body) : null;
+          if (decoded is Map && decoded['message'] != null) {
+            message = decoded['message'].toString();
+          }
+        } catch (_) {}
+
+        return ApiResponse<List<Ride>>(
+          success: false,
+          message: message,
+          data: null,
+        );
+      }
 
       if (kDebugMode) {
         print('📡 getScheduledRides: ${response.statusCode} - ${response.body}');
