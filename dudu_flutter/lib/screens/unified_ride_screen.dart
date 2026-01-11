@@ -1748,7 +1748,14 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   }
 
   void _confirmRide() async {
-    if (_pickupLatLng == null || _destinationLatLng == null || _customPrice == 0) {
+    final isMotoRide = _backendRideType == 'moto';
+    final isLuxeRide = _backendRideType == 'luxe';
+
+    final hasLocations = _pickupLatLng != null && _destinationLatLng != null;
+    final hasClassicPrice = _customPrice > 0;
+    final hasMotoPricePerKm = _motoPricePerKm >= 500 && _motoPricePerKm <= 5000;
+
+    if (!hasLocations || (!isLuxeRide && !isMotoRide && !hasClassicPrice) || (isMotoRide && !hasMotoPricePerKm)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez remplir tous les champs')),
       );
