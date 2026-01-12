@@ -185,8 +185,8 @@ const driverSchema = new mongoose.Schema({
   // Informations de validation par l'admin
   adminValidation: {
     validatedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      type: String,
+      default: 'admin'
     },
     validatedAt: Date,
     vehicleInspected: {
