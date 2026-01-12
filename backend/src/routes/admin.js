@@ -296,7 +296,7 @@ router.put('/drivers/:id/verify', [
 
     // Informations de validation par l'admin
     driver.adminValidation = {
-      validatedBy: req.userId,
+      validatedBy: 'admin',
       validatedAt: new Date(),
       vehicleInspected,
       vehicleCondition,

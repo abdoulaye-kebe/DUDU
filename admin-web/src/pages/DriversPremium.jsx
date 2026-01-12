@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
 import DriverApplicationCard from '../components/DriverApplicationCard';
 import DataTable from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
@@ -37,16 +35,22 @@ function DriversPremium() {
       setLoading(true);
       setError('');
 
+      const token = localStorage.getItem('admin_token');
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+
       const [pendingRes, approvedRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/admin/driver-applications`),
-        axios.get(`${API_BASE_URL}/admin/drivers`, { params: { verificationStatus: 'approved', limit: 50 } })
+        fetch('/api/v1/admin/driver-applications', { headers }).then(r => r.json()),
+        fetch('/api/v1/admin/drivers?verificationStatus=approved&limit=50', { headers }).then(r => r.json())
       ]);
 
-      setPending(pendingRes.data.applications || []);
-      setApproved(approvedRes.data.drivers || []);
+      setPending(pendingRes.applications || []);
+      setApproved(approvedRes.drivers || []);
     } catch (err) {
       console.error('Erreur chargement chauffeurs:', err);
-      setError(err.response?.data?.message || 'Impossible de charger les données');
+      setError(err.message || 'Impossible de charger les données');
     } finally {
       setLoading(false);
     }
@@ -73,7 +77,21 @@ function DriversPremium() {
         payload.documentsVerified = validationData.documentsVerified;
       }
 
-      await axios.put(`${API_BASE_URL}/admin/drivers/${driverId}/verify`, payload);
+      const token = localStorage.getItem('admin_token');
+      const response = await fetch(`/api/v1/admin/drivers/${driverId}/verify`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Erreur lors de la mise à jour');
+      }
+
       await loadData();
       
       if (decision === 'approved') {
@@ -83,7 +101,7 @@ function DriversPremium() {
       }
     } catch (err) {
       console.error('Erreur décision:', err);
-      alert(err.response?.data?.message || 'Erreur lors de la mise à jour');
+      alert(err.message || 'Erreur lors de la mise à jour');
     }
   };
 
