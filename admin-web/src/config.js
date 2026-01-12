@@ -6,8 +6,8 @@ const isDevelopment = window.location.hostname === 'localhost' || window.locatio
 
 // URL du backend API
 // - Développement local: http://localhost:3000
-// - Production: https://www.dudugroup.sn
-const PROD_API_URL = 'https://www.dudugroup.sn/api/v1';
+// - Production: utilise le proxy nginx local /api
+const PROD_API_URL = '/api/v1';
 const DEV_API_URL = 'http://localhost:3000/api/v1';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isDevelopment ? DEV_API_URL : PROD_API_URL);
