@@ -161,6 +161,8 @@ router.post('/login', async (req, res) => {
         phone: driver.phone,
         email: driver.email,
         status: driver.status,
+        isVerified: driver.isVerified,
+        verificationStatus: driver.verificationStatus,
         vehicle: driver.vehicle,
         rideTypes: driver.rideTypes,
         stats: driver.stats,

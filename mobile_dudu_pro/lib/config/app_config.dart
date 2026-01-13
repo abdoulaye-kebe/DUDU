@@ -16,7 +16,7 @@ class AppConfig {
   // ============================================
 
   /// URL du serveur de production (AWS)
-  static const String productionServerUrl = 'http://213.154.90.11:3000';
+  static const String productionServerUrl = 'https://www.dudugroup.sn';
   
   /// URL du serveur local
   static const String localServerUrl = 'http://localhost:3000';

@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
 import StatCard from '../components/StatCard';
 import DataTable from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
@@ -39,8 +37,15 @@ function ClientsPremium() {
   const loadClients = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/admin/users`);
-      const users = response.data.data?.users || response.data.users || [];
+      const token = localStorage.getItem('admin_token');
+      const response = await fetch('/api/v1/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+      const users = data.data?.users || data.users || [];
       setClients(users);
     } catch (error) {
       console.error('Erreur chargement clients:', error);
@@ -52,9 +57,16 @@ function ClientsPremium() {
 
   const loadStats = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/admin/dashboard`);
-      if (response.data.success) {
-        const data = response.data.data;
+      const token = localStorage.getItem('admin_token');
+      const response = await fetch('/api/v1/admin/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const result = await response.json();
+      if (result.success) {
+        const data = result.data;
         const overview = data.overview || {};
         const today = data.today || {};
         
