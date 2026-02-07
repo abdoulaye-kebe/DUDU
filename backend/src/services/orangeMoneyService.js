@@ -104,12 +104,17 @@ class OrangeMoneyService {
         }
       );
 
-      console.log('✅ QR Code Orange Money généré:', response.data.qrCode?.substring(0, 50));
+      console.log('✅ QR Code Orange Money généré');
 
       return {
         success: true,
         qrCode: response.data.qrCode,
         qrCodeUrl: response.data.qrCodeUrl,
+        // Deeplinks pour ouverture directe des apps
+        deeplinks: {
+          maxIt: response.data.deeplinks?.maxIt || response.data.deeplinks?.MAXIT,
+          orangeMoney: response.data.deeplinks?.om || response.data.deeplinks?.OM,
+        },
         orderId: orderId,
         amount: amount,
         currency: this.currency,

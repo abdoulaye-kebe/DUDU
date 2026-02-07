@@ -84,12 +84,14 @@ router.post('/orange-money/initiate', [
       message: 'Paiement Orange Money initié avec succès',
       data: {
         paymentId: payment._id,
-        paymentToken: omPayment.paymentToken,
-        paymentUrl: omPayment.paymentUrl,
+        qrCode: omPayment.qrCode,
+        qrCodeUrl: omPayment.qrCodeUrl,
+        // Deeplinks pour ouverture directe des apps
+        deeplinks: omPayment.deeplinks,
         amount: amount,
         currency: 'XOF',
         expiresAt: omPayment.expiresAt,
-        instructions: 'Suivez le lien pour compléter le paiement sur Orange Money'
+        instructions: 'Scannez le QR Code ou utilisez les deeplinks pour payer avec MAX IT ou Orange Money'
       }
     });
 
