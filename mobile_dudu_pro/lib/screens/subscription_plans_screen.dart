@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'subscription_payment_screen.dart';
+import 'subscription_payment_om_screen.dart';
 
 class SubscriptionPlansScreen extends StatefulWidget {
   const SubscriptionPlansScreen({Key? key}) : super(key: key);
@@ -357,17 +358,91 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
   void _confirmSubscription() {
     final selectedPlanData = _plans.firstWhere((p) => p['id'] == _selectedPlan);
     
-    // Naviguer directement vers l'écran de paiement Wave
+    // Afficher le choix du mode de paiement
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Choisir le mode de paiement',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildPaymentMethodButton(
+              'Wave',
+              Icons.payment,
+              Colors.blue,
+              () {
+                Navigator.pop(context);
+                _navigateToWavePayment(selectedPlanData);
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildPaymentMethodButton(
+              'Orange Money',
+              Icons.qr_code,
+              Colors.orange,
+              () {
+                Navigator.pop(context);
+                _navigateToOrangeMoneyPayment(selectedPlanData);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentMethodButton(String name, IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: color.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(12),
+          color: color.withOpacity(0.1),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(width: 16),
+            Text(
+              name,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const Spacer(),
+            Icon(Icons.arrow_forward_ios, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _navigateToWavePayment(Map<String, dynamic> planData) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SubscriptionPaymentScreen(
           subscription: {
-            '_id': selectedPlanData['id'],
-            'id': selectedPlanData['id'],
-            'name': selectedPlanData['name'],
-            'price': selectedPlanData['price'],
-            'duration': selectedPlanData['duration'],
+            '_id': planData['id'],
+            'id': planData['id'],
+            'name': planData['name'],
+            'price': planData['price'],
+            'duration': planData['duration'],
             'features': [
               'Courses illimitées',
               'Support prioritaire',
@@ -379,8 +454,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
       ),
     ).then((success) {
       if (success == true && mounted) {
-        // Paiement réussi - retourner au dashboard
-        Navigator.pop(context, _selectedPlan);
+        Navigator.pop(context, planData['id']);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ Abonnement activé avec succès !'),
@@ -390,6 +464,19 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
         );
       }
     });
+  }
+
+  void _navigateToOrangeMoneyPayment(Map<String, dynamic> planData) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SubscriptionPaymentOMScreen(
+          subscriptionId: planData['id'],
+          amount: planData['price'],
+          planName: planData['name'],
+        ),
+      ),
+    );
   }
 
   Widget _buildPaymentOption(String name, IconData icon) {

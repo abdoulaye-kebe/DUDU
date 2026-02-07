@@ -762,6 +762,44 @@ extension SubscriptionPaymentExtension on ApiService {
     }
   }
 
+  /// Initier un paiement d'abonnement via Orange Money
+  Future<Map<String, dynamic>> initiateSubscriptionPaymentOM({
+    required String subscriptionId,
+    required int amount,
+    required String phone,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/mobile-payments/subscription/orange-money/initiate'),
+        headers: _headers,
+        body: jsonEncode({
+          'subscriptionId': subscriptionId,
+          'amount': amount,
+          'phone': phone,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {
+          'success': true,
+          'data': data['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Erreur lors de l\'initiation du paiement',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erreur de connexion au serveur: $e',
+      };
+    }
+  }
+
   /// Vérifier le statut d'un paiement
   static Future<Map<String, dynamic>> checkPaymentStatus(String paymentId) async {
     try {
