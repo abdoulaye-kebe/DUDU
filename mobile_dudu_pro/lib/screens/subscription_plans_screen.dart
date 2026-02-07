@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'subscription_payment_screen.dart';
 
 class SubscriptionPlansScreen extends StatefulWidget {
   const SubscriptionPlansScreen({Key? key}) : super(key: key);
@@ -356,53 +357,39 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
   void _confirmSubscription() {
     final selectedPlanData = _plans.firstWhere((p) => p['id'] == _selectedPlan);
     
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Confirmer l\'abonnement'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Plan: ${selectedPlanData['name']}'),
-            const SizedBox(height: 8),
-            Text('Prix: ${selectedPlanData['price']} FCFA'),
-            const SizedBox(height: 16),
-            const Text(
-              'Méthode de paiement:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            _buildPaymentOption('Orange Money', Icons.phone_android),
-            _buildPaymentOption('Wave', Icons.account_balance_wallet),
-            _buildPaymentOption('Carte bancaire', Icons.credit_card),
-          ],
+    // Naviguer directement vers l'écran de paiement Wave
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SubscriptionPaymentScreen(
+          subscription: {
+            '_id': selectedPlanData['id'],
+            'id': selectedPlanData['id'],
+            'name': selectedPlanData['name'],
+            'price': selectedPlanData['price'],
+            'duration': selectedPlanData['duration'],
+            'features': [
+              'Courses illimitées',
+              'Support prioritaire',
+              'Statistiques détaillées',
+              'Pas de commission',
+            ],
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context, _selectedPlan);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Abonnement activé avec succès !'),
-                  backgroundColor: lightGreen,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryGreen,
-            ),
-            child: const Text('Payer', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
-    );
+    ).then((success) {
+      if (success == true && mounted) {
+        // Paiement réussi - retourner au dashboard
+        Navigator.pop(context, _selectedPlan);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Abonnement activé avec succès !'),
+            backgroundColor: lightGreen,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    });
   }
 
   Widget _buildPaymentOption(String name, IconData icon) {

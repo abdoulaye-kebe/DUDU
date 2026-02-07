@@ -381,12 +381,48 @@ router.post('/wave/webhook', express.raw({ type: 'application/json' }), async (r
     payment.transaction.processedAt = result.paidAt;
     payment.mobileMoney.confirmationCode = result.transactionId;
     
+    // Si c'est un paiement de course
     if (result.status === 'completed' && payment.ride) {
       const ride = await Ride.findById(payment.ride);
       if (ride) {
         ride.payment.status = 'completed';
         ride.payment.paidAt = new Date();
         await ride.save();
+      }
+    }
+    
+    // Si c'est un paiement d'abonnement
+    if (result.status === 'completed' && payment.metadata?.type === 'subscription') {
+      const Driver = require('../models/Driver');
+      const driver = await Driver.findById(payment.driver);
+      
+      if (driver) {
+        const subscriptionId = payment.metadata.subscriptionId;
+        
+        // Déterminer la durée selon le type d'abonnement
+        let durationDays = 30; // Par défaut mensuel
+        let planType = 'monthly';
+        
+        if (subscriptionId.includes('daily')) {
+          durationDays = 1;
+          planType = 'daily';
+        } else if (subscriptionId.includes('weekly')) {
+          durationDays = 7;
+          planType = 'weekly';
+        } else if (subscriptionId.includes('yearly')) {
+          durationDays = 365;
+          planType = 'yearly';
+        }
+        
+        // Activer l'abonnement
+        driver.subscription.plan = planType;
+        driver.subscription.startDate = new Date();
+        driver.subscription.endDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+        driver.subscription.isActive = true;
+        
+        await driver.save();
+        
+        console.log(`✅ Abonnement ${planType} activé pour le chauffeur ${driver._id}`);
       }
     }
     
@@ -398,6 +434,84 @@ router.post('/wave/webhook', express.raw({ type: 'application/json' }), async (r
   } catch (error) {
     console.error('Erreur lors du traitement du webhook Wave:', error);
     res.status(500).json({ success: false, message: 'Erreur lors du traitement du webhook' });
+  }
+});
+
+// @route   POST /api/v1/mobile-payments/subscription/wave/initiate
+// @desc    Initier un paiement d'abonnement via Wave
+// @access  Private
+router.post('/subscription/wave/initiate', auth, async (req, res) => {
+  try {
+    const { subscriptionId, amount, phone } = req.body;
+
+    // Validation
+    if (!subscriptionId || !amount || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données manquantes (subscriptionId, amount, phone requis)'
+      });
+    }
+
+    // Vérifier que l'utilisateur est un chauffeur
+    if (!req.user.isDriver) {
+      return res.status(403).json({
+        success: false,
+        message: 'Seuls les chauffeurs peuvent souscrire à un abonnement'
+      });
+    }
+
+    // Créer un paiement pour l'abonnement
+    const payment = new Payment({
+      user: req.user.userId,
+      driver: req.user.userId,
+      amount,
+      currency: 'XOF',
+      method: 'wave',
+      status: 'pending',
+      description: `Paiement abonnement - ${subscriptionId}`,
+      metadata: {
+        subscriptionId,
+        type: 'subscription'
+      }
+    });
+
+    await payment.save();
+
+    // Initier le paiement Wave
+    const result = await waveService.initiatePayment({
+      orderId: payment.paymentId,
+      amount,
+      phone,
+      description: `Abonnement DUDU - ${subscriptionId}`
+    });
+
+    // Mettre à jour le paiement
+    payment.transaction.externalId = result.sessionId;
+    payment.mobileMoney.provider = 'wave';
+    payment.mobileMoney.phoneNumber = phone;
+    payment.mobileMoney.transactionId = result.sessionId;
+    await payment.save();
+
+    res.json({
+      success: true,
+      message: 'Paiement d\'abonnement initié avec succès',
+      data: {
+        paymentId: payment.paymentId,
+        sessionId: result.sessionId,
+        checkoutUrl: result.checkoutUrl,
+        amount: result.amount,
+        currency: result.currency,
+        expiresAt: result.expiresAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de l\'initiation du paiement d\'abonnement:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'initiation du paiement',
+      error: error.message
+    });
   }
 });
 

@@ -69,6 +69,29 @@ class ApiService {
     if (_authToken != null) 'Authorization': 'Bearer $_authToken',
   };
 
+  // Changer le mot de passe
+  static Future<void> changePassword(String currentPassword, String newPassword) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/drivers/change-password'),
+        headers: _headers,
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return;
+      } else {
+        final decoded = jsonDecode(response.body);
+        throw Exception(decoded['message'] ?? 'Erreur lors du changement de mot de passe');
+      }
+    } catch (e) {
+      throw Exception('Erreur réseau: $e');
+    }
+  }
+
   static Future<Map<String, dynamic>> deleteAccount() async {
     try {
       final response = await http.delete(
@@ -698,6 +721,69 @@ class SubscriptionPlan {
         return '365 jours';
       default:
         return '$duration jours';
+    }
+  }
+}
+
+// Extension pour les paiements d'abonnement
+extension SubscriptionPaymentExtension on ApiService {
+  /// Initier un paiement d'abonnement via Wave
+  static Future<Map<String, dynamic>> initiateSubscriptionPayment({
+    required String subscriptionId,
+    required int amount,
+    required String phone,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/mobile-payments/subscription/wave/initiate'),
+        headers: _headers,
+        body: jsonEncode({
+          'subscriptionId': subscriptionId,
+          'amount': amount,
+          'phone': phone,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {
+          'success': true,
+          'paymentId': data['data']['paymentId'],
+          'sessionId': data['data']['sessionId'],
+          'checkoutUrl': data['data']['checkoutUrl'],
+          'amount': data['data']['amount'],
+        };
+      } else {
+        throw Exception(data['message'] ?? 'Erreur lors de l\'initiation du paiement');
+      }
+    } catch (e) {
+      throw Exception('Erreur de connexion au serveur: $e');
+    }
+  }
+
+  /// Vérifier le statut d'un paiement
+  static Future<Map<String, dynamic>> checkPaymentStatus(String paymentId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/mobile-payments/$paymentId/status'),
+        headers: _headers,
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {
+          'success': true,
+          'paymentId': data['data']['paymentId'],
+          'status': data['data']['status'],
+          'amount': data['data']['amount'],
+        };
+      } else {
+        throw Exception(data['message'] ?? 'Erreur lors de la vérification');
+      }
+    } catch (e) {
+      throw Exception('Erreur de connexion: $e');
     }
   }
 }
