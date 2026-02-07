@@ -7,7 +7,7 @@ module.exports = {
   // Configuration Orange Money
   orangeMoney: {
     // Mode: 'sandbox' pour les tests, 'production' pour la prod
-    mode: process.env.ORANGE_MONEY_MODE || 'sandbox',
+    mode: process.env.ORANGE_MONEY_MODE || 'production',
     
     // Sandbox (Test)
     sandbox: {
@@ -23,9 +23,9 @@ module.exports = {
     // Production
     production: {
       apiUrl: 'https://api.orange.com/orange-money-webpay/v1',
-      merchantKey: process.env.ORANGE_MONEY_MERCHANT_KEY || '',
-      merchantSecret: process.env.ORANGE_MONEY_MERCHANT_SECRET || '',
-      merchantId: process.env.ORANGE_MONEY_MERCHANT_ID || '',
+      merchantKey: process.env.ORANGE_MONEY_MERCHANT_KEY || 'c98da064-dd7e-4aae-9a80-6bbe4360b8e3',
+      merchantSecret: process.env.ORANGE_MONEY_MERCHANT_SECRET || 'de8266ac-2a46-42a1-ae26-aa162b5ceafd',
+      merchantId: process.env.ORANGE_MONEY_MERCHANT_ID || 'DuDu',
       returnUrl: process.env.ORANGE_MONEY_RETURN_URL || 'https://www.dudugroup.sn/api/v1/mobile-payments/orange-money/callback',
       cancelUrl: process.env.ORANGE_MONEY_CANCEL_URL || 'https://www.dudugroup.sn/api/v1/mobile-payments/orange-money/cancel',
       notifyUrl: process.env.ORANGE_MONEY_NOTIFY_URL || 'https://www.dudugroup.sn/api/v1/mobile-payments/orange-money/notify',
