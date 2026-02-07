@@ -7,15 +7,15 @@ module.exports = {
   // Configuration Orange Money
   orangeMoney: {
     // Mode: 'sandbox' pour les tests, 'production' pour la prod
-    mode: process.env.ORANGE_MONEY_MODE || 'production',
+    mode: process.env.ORANGE_MONEY_MODE || 'sandbox',
     
     // Sandbox (Test)
     sandbox: {
       apiUrl: 'https://api.sandbox.orange-sonatel.com',
       oauthUrl: 'https://api.sandbox.orange-sonatel.com/oauth/v1/token',
-      merchantKey: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_KEY || '',
-      merchantSecret: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_SECRET || '',
-      merchantCode: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_CODE || '',
+      merchantKey: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_KEY || 'c98da064-dd7e-4aae-9a80-6bbe4360b8e3',
+      merchantSecret: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_SECRET || 'de8266ac-2a46-42a1-ae26-aa162b5ceafd',
+      merchantCode: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_CODE || '599242',
       callbackUrl: process.env.ORANGE_MONEY_SANDBOX_CALLBACK_URL || 'http://localhost:3000/api/v1/mobile-payments/orange-money/callback',
     },
     
