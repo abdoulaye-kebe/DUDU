@@ -53,11 +53,14 @@ module.exports = function startScheduledRidesDispatcher(io) {
           };
           const searchRadius = SEARCH_RADIUS[rideType] || 3000;
 
+          // Vérifier que l'abonnement couvre la date planifiée
+          const scheduledDate = ride.scheduledFor || now;
+          
           const driverQuery = {
             status: 'online',
             isAvailable: true,
             'subscription.isActive': true,
-            'subscription.endDate': { $gt: new Date() },
+            'subscription.endDate': { $gte: scheduledDate }, // L'abonnement doit couvrir la date planifiée
             [`rideTypes.${rideType}`]: true,
             'preferences.minPrice': { $lte: customPrice },
             'location.latitude': { $exists: true, $ne: null },
