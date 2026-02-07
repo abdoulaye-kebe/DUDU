@@ -11,24 +11,22 @@ module.exports = {
     
     // Sandbox (Test)
     sandbox: {
-      apiUrl: 'https://api.orange.com/orange-money-webpay/dev/v1',
+      apiUrl: 'https://api.sandbox.orange-sonatel.com',
+      oauthUrl: 'https://api.sandbox.orange-sonatel.com/oauth/v1/token',
       merchantKey: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_KEY || '',
       merchantSecret: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_SECRET || '',
-      merchantId: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_ID || '',
-      returnUrl: process.env.ORANGE_MONEY_SANDBOX_RETURN_URL || 'http://localhost:3000/api/v1/payments/orange-money/callback',
-      cancelUrl: process.env.ORANGE_MONEY_SANDBOX_CANCEL_URL || 'http://localhost:3000/api/v1/payments/orange-money/cancel',
-      notifyUrl: process.env.ORANGE_MONEY_SANDBOX_NOTIFY_URL || 'http://localhost:3000/api/v1/payments/orange-money/notify',
+      merchantCode: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_CODE || '',
+      callbackUrl: process.env.ORANGE_MONEY_SANDBOX_CALLBACK_URL || 'http://localhost:3000/api/v1/mobile-payments/orange-money/callback',
     },
     
     // Production
     production: {
-      apiUrl: 'https://api.orange.com/orange-money-webpay/v1',
+      apiUrl: 'https://api.orange-sonatel.com',
+      oauthUrl: 'https://api.orange-sonatel.com/oauth/v1/token',
       merchantKey: process.env.ORANGE_MONEY_MERCHANT_KEY || 'c98da064-dd7e-4aae-9a80-6bbe4360b8e3',
       merchantSecret: process.env.ORANGE_MONEY_MERCHANT_SECRET || 'de8266ac-2a46-42a1-ae26-aa162b5ceafd',
-      merchantId: process.env.ORANGE_MONEY_MERCHANT_ID || 'DuDu',
-      returnUrl: process.env.ORANGE_MONEY_RETURN_URL || 'https://www.dudugroup.sn/api/v1/mobile-payments/orange-money/callback',
-      cancelUrl: process.env.ORANGE_MONEY_CANCEL_URL || 'https://www.dudugroup.sn/api/v1/mobile-payments/orange-money/cancel',
-      notifyUrl: process.env.ORANGE_MONEY_NOTIFY_URL || 'https://www.dudugroup.sn/api/v1/mobile-payments/orange-money/notify',
+      merchantCode: process.env.ORANGE_MONEY_MERCHANT_CODE || '123456',
+      callbackUrl: process.env.ORANGE_MONEY_CALLBACK_URL || 'https://www.dudugroup.sn/api/v1/mobile-payments/orange-money/callback',
     },
     
     // Paramètres communs

@@ -3,8 +3,9 @@ const crypto = require('crypto');
 const paymentConfig = require('../../config/payment.config');
 
 /**
- * Service d'intégration Orange Money API
- * Documentation: https://developer.orange.com/apis/orange-money-webpay/
+ * Service d'intégration Orange Money API (Orange Sonatel)
+ * Documentation: https://developers.orange-sonatel.com
+ * API Version: v1.0.0
  */
 class OrangeMoneyService {
   constructor() {
@@ -12,90 +13,103 @@ class OrangeMoneyService {
     this.config = paymentConfig.orangeMoney[mode];
     this.currency = paymentConfig.orangeMoney.currency;
     this.country = paymentConfig.orangeMoney.country;
+    this.accessToken = null;
+    this.tokenExpiry = null;
   }
 
   /**
-   * Obtenir un token d'accès OAuth
+   * Obtenir un token d'accès OAuth 2.0
    */
   async getAccessToken() {
     try {
-      const auth = Buffer.from(
-        `${this.config.merchantKey}:${this.config.merchantSecret}`
-      ).toString('base64');
+      // Vérifier si le token existe et n'est pas expiré
+      if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+        return this.accessToken;
+      }
+
+      const params = new URLSearchParams();
+      params.append('client_id', this.config.merchantKey);
+      params.append('client_secret', this.config.merchantSecret);
+      params.append('grant_type', 'client_credentials');
 
       const response = await axios.post(
-        `${this.config.apiUrl}/oauth/token`,
-        'grant_type=client_credentials',
+        this.config.oauthUrl,
+        params,
         {
           headers: {
-            'Authorization': `Basic ${auth}`,
             'Content-Type': 'application/x-www-form-urlencoded',
           },
-          timeout: paymentConfig.general.transactionTimeout * 1000,
+          timeout: paymentConfig.orangeMoney.timeout,
         }
       );
 
-      return response.data.access_token;
+      this.accessToken = response.data.access_token;
+      // Expiration à 80% de la durée (par sécurité)
+      this.tokenExpiry = Date.now() + (response.data.expires_in * 0.8 * 1000);
+      
+      console.log('✅ Token OAuth Orange Money obtenu');
+      return this.accessToken;
     } catch (error) {
-      console.error('Erreur lors de l\'obtention du token Orange Money:', error.response?.data || error.message);
+      console.error('❌ Erreur lors de l\'obtention du token Orange Money:', error.response?.data || error.message);
       throw new Error('Impossible d\'obtenir le token d\'accès Orange Money');
     }
   }
 
   /**
-   * Initier un paiement Orange Money
+   * Initier un paiement Orange Money via QR Code
    * @param {Object} params - Paramètres du paiement
    * @param {string} params.orderId - ID unique de la commande
    * @param {number} params.amount - Montant en FCFA
-   * @param {string} params.phone - Numéro de téléphone du client (+221XXXXXXXXX)
    * @param {string} params.description - Description du paiement
    */
-  async initiatePayment({ orderId, amount, phone, description }) {
+  async initiatePayment({ orderId, amount, description }) {
     try {
       // Validation
       if (amount < paymentConfig.general.minAmount || amount > paymentConfig.general.maxAmount) {
         throw new Error(`Le montant doit être entre ${paymentConfig.general.minAmount} et ${paymentConfig.general.maxAmount} FCFA`);
       }
 
-      // Normaliser le numéro de téléphone
-      const normalizedPhone = this.normalizePhoneNumber(phone);
-
       // Obtenir le token d'accès
       const accessToken = await this.getAccessToken();
 
-      // Préparer les données de paiement
-      const paymentData = {
-        merchant_key: this.config.merchantKey,
-        currency: this.currency,
-        order_id: orderId,
-        amount: amount,
-        return_url: this.config.returnUrl,
-        cancel_url: this.config.cancelUrl,
-        notif_url: this.config.notifyUrl,
-        lang: paymentConfig.orangeMoney.language,
-        reference: `DUDU-${orderId}`,
-        customer_phone: normalizedPhone,
-        customer_country: this.country,
-        description: description || `Paiement DUDU - ${orderId}`,
+      // Préparer les données pour générer le QR Code
+      const qrData = {
+        code: this.config.merchantCode,
+        name: 'DUDU',
+        amount: {
+          value: amount,
+          unit: this.currency
+        },
+        validity: 300, // 5 minutes
+        callbackSuccessUrl: this.config.callbackUrl,
+        callbackCancelUrl: this.config.callbackUrl,
+        metadata: {
+          orderId: orderId,
+          description: description || `Paiement DUDU - ${orderId}`,
+          reference: `DUDU-${orderId}`
+        }
       };
 
-      // Créer la requête de paiement
+      // Générer le QR Code
       const response = await axios.post(
-        `${this.config.apiUrl}/webpayment`,
-        paymentData,
+        `${this.config.apiUrl}/api/eWallet/v4/qrcode`,
+        qrData,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
+            'X-Callback-Url': this.config.callbackUrl
           },
-          timeout: paymentConfig.general.transactionTimeout * 1000,
+          timeout: paymentConfig.orangeMoney.timeout,
         }
       );
 
+      console.log('✅ QR Code Orange Money généré:', response.data.qrCode?.substring(0, 50));
+
       return {
         success: true,
-        paymentToken: response.data.payment_token,
-        paymentUrl: response.data.payment_url,
+        qrCode: response.data.qrCode,
+        qrCodeUrl: response.data.qrCodeUrl,
         orderId: orderId,
         amount: amount,
         currency: this.currency,
@@ -108,35 +122,27 @@ class OrangeMoneyService {
   }
 
   /**
-   * Vérifier le statut d'un paiement
-   * @param {string} paymentToken - Token du paiement
+   * Vérifier le statut d'un paiement via l'API de recherche de transactions
+   * @param {string} transactionId - ID de la transaction Orange Money
    */
-  async checkPaymentStatus(paymentToken) {
+  async checkPaymentStatus(transactionId) {
     try {
       const accessToken = await this.getAccessToken();
 
       const response = await axios.get(
-        `${this.config.apiUrl}/webpayment/${paymentToken}`,
+        `${this.config.apiUrl}/api/eWallet/v1/transactions/${transactionId}/status`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
           },
-          timeout: paymentConfig.general.transactionTimeout * 1000,
+          timeout: paymentConfig.orangeMoney.timeout,
         }
       );
 
-      const status = response.data.status;
-      const transactionId = response.data.txnid;
-
       return {
         success: true,
-        status: this.mapStatus(status),
+        status: this.mapStatus(response.data.status),
         transactionId: transactionId,
-        amount: response.data.amount,
-        currency: response.data.currency,
-        orderId: response.data.order_id,
-        paidAt: response.data.pay_date ? new Date(response.data.pay_date) : null,
-        rawData: response.data,
       };
     } catch (error) {
       console.error('Erreur lors de la vérification du paiement Orange Money:', error.response?.data || error.message);
@@ -150,26 +156,26 @@ class OrangeMoneyService {
    */
   async handleCallback(callbackData) {
     try {
-      // Vérifier la signature si nécessaire
-      // const isValid = this.verifySignature(callbackData);
-      // if (!isValid) {
-      //   throw new Error('Signature invalide');
-      // }
+      console.log('📥 Callback Orange Money reçu:', callbackData);
 
+      // Extraire les données du callback
+      const orderId = callbackData.reference || callbackData.metadata?.orderId;
       const status = this.mapStatus(callbackData.status);
+      const transactionId = callbackData.transactionId;
+      const amount = callbackData.amount?.value || callbackData.amount;
       
       return {
         success: true,
-        orderId: callbackData.order_id,
-        transactionId: callbackData.txnid,
+        orderId: orderId,
+        transactionId: transactionId,
         status: status,
-        amount: parseFloat(callbackData.amount),
-        currency: callbackData.currency,
-        paidAt: callbackData.pay_date ? new Date(callbackData.pay_date) : null,
-        message: callbackData.message,
+        amount: amount,
+        currency: callbackData.amount?.unit || this.currency,
+        paidAt: new Date(),
+        event: callbackData.type,
       };
     } catch (error) {
-      console.error('Erreur lors du traitement du callback Orange Money:', error.message);
+      console.error('❌ Erreur lors du traitement du callback Orange Money:', error.message);
       throw error;
     }
   }
@@ -180,10 +186,12 @@ class OrangeMoneyService {
   mapStatus(orangeStatus) {
     const statusMap = {
       'INITIATED': 'pending',
+      'PRE_INITIATED': 'pending',
       'PENDING': 'processing',
+      'ACCEPTED': 'processing',
       'SUCCESS': 'completed',
       'FAILED': 'failed',
-      'EXPIRED': 'failed',
+      'REJECTED': 'failed',
       'CANCELLED': 'cancelled',
     };
 
