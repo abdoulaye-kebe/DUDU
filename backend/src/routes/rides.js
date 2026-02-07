@@ -925,8 +925,20 @@ router.post('/create', [
       totalPrice = Math.round(perKm * Number(estimatedDistance));
       if (totalPrice < 500) totalPrice = 500;
     } else if (rideType === 'luxe') {
-      totalPrice = Math.round(5000 * Number(estimatedDistance));
-      if (totalPrice < 500) totalPrice = 500;
+      // Pour les courses luxe : prix de base 15000 FCFA, le client propose son prix
+      if (typeof customPrice !== 'number' && typeof customPrice !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'Le prix proposé (customPrice) est requis pour les courses luxe'
+        });
+      }
+      totalPrice = Number(customPrice);
+      if (!Number.isFinite(totalPrice) || totalPrice < 15000) {
+        return res.status(400).json({
+          success: false,
+          message: 'Le prix minimum pour les courses luxe est 15000 FCFA'
+        });
+      }
     } else {
       if (typeof customPrice !== 'number' && typeof customPrice !== 'string') {
         return res.status(400).json({
