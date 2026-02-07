@@ -1,0 +1,458 @@
+const express = require('express');
+const { body, validationResult } = require('express-validator');
+const Payment = require('../models/Payment');
+const Ride = require('../models/Ride');
+const orangeMoneyService = require('../services/orangeMoneyService');
+const waveService = require('../services/waveService');
+const { auth, requireVerification } = require('../middleware/auth');
+const router = express.Router();
+
+// @route   POST /api/v1/mobile-payments/orange-money/initiate
+// @desc    Initier un paiement Orange Money
+// @access  Private
+router.post('/orange-money/initiate', [
+  auth,
+  requireVerification,
+  body('rideId').optional().isMongoId().withMessage('ID de course invalide'),
+  body('amount').isFloat({ min: 100 }).withMessage('Le montant minimum est 100 FCFA'),
+  body('phone').matches(/^(\+221|221)?[0-9]{9}$/).withMessage('Numéro de téléphone invalide'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const { rideId, amount, phone } = req.body;
+
+    // Vérifier la course si fournie
+    let ride = null;
+    if (rideId) {
+      ride = await Ride.findById(rideId);
+      if (!ride) {
+        return res.status(404).json({
+          success: false,
+          message: 'Course non trouvée'
+        });
+      }
+
+      if (ride.passenger.toString() !== req.userId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Vous n\'êtes pas autorisé à payer cette course'
+        });
+      }
+    }
+
+    // Créer le paiement dans la base de données
+    const payment = new Payment({
+      user: req.userId,
+      ride: rideId,
+      type: rideId ? 'ride_payment' : 'subscription',
+      amount: amount,
+      currency: 'XOF',
+      method: 'orange_money',
+      status: 'pending',
+      mobileMoney: {
+        phone: phone,
+        operator: 'orange'
+      }
+    });
+
+    await payment.save();
+
+    // Initier le paiement via Orange Money API
+    const omPayment = await orangeMoneyService.initiatePayment({
+      orderId: payment.paymentId,
+      amount: amount,
+      phone: phone,
+      description: ride ? `Course DUDU ${ride.rideId}` : 'Paiement DUDU'
+    });
+
+    // Mettre à jour le paiement avec les infos Orange Money
+    payment.transaction.externalId = omPayment.paymentToken;
+    payment.status = 'processing';
+    payment.updateStatus('processing', 'Paiement Orange Money initié', 'system');
+    await payment.save();
+
+    res.json({
+      success: true,
+      message: 'Paiement Orange Money initié avec succès',
+      data: {
+        paymentId: payment._id,
+        paymentToken: omPayment.paymentToken,
+        paymentUrl: omPayment.paymentUrl,
+        amount: amount,
+        currency: 'XOF',
+        expiresAt: omPayment.expiresAt,
+        instructions: 'Suivez le lien pour compléter le paiement sur Orange Money'
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de l\'initiation du paiement Orange Money:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Erreur lors de l\'initiation du paiement'
+    });
+  }
+});
+
+// @route   POST /api/v1/mobile-payments/wave/initiate
+// @desc    Initier un paiement Wave
+// @access  Private
+router.post('/wave/initiate', [
+  auth,
+  requireVerification,
+  body('rideId').optional().isMongoId().withMessage('ID de course invalide'),
+  body('amount').isFloat({ min: 100 }).withMessage('Le montant minimum est 100 FCFA'),
+  body('phone').matches(/^(\+221|221)?[0-9]{9}$/).withMessage('Numéro de téléphone invalide'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const { rideId, amount, phone } = req.body;
+
+    // Vérifier la course si fournie
+    let ride = null;
+    if (rideId) {
+      ride = await Ride.findById(rideId);
+      if (!ride) {
+        return res.status(404).json({
+          success: false,
+          message: 'Course non trouvée'
+        });
+      }
+
+      if (ride.passenger.toString() !== req.userId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Vous n\'êtes pas autorisé à payer cette course'
+        });
+      }
+    }
+
+    // Créer le paiement dans la base de données
+    const payment = new Payment({
+      user: req.userId,
+      ride: rideId,
+      type: rideId ? 'ride_payment' : 'subscription',
+      amount: amount,
+      currency: 'XOF',
+      method: 'wave',
+      status: 'pending',
+      mobileMoney: {
+        phone: phone,
+        operator: 'wave'
+      }
+    });
+
+    await payment.save();
+
+    // Initier le paiement via Wave API
+    const wavePayment = await waveService.initiatePayment({
+      orderId: payment.paymentId,
+      amount: amount,
+      phone: phone,
+      description: ride ? `Course DUDU ${ride.rideId}` : 'Paiement DUDU'
+    });
+
+    // Mettre à jour le paiement avec les infos Wave
+    payment.transaction.externalId = wavePayment.sessionId;
+    payment.status = 'processing';
+    payment.updateStatus('processing', 'Paiement Wave initié', 'system');
+    await payment.save();
+
+    res.json({
+      success: true,
+      message: 'Paiement Wave initié avec succès',
+      data: {
+        paymentId: payment._id,
+        sessionId: wavePayment.sessionId,
+        checkoutUrl: wavePayment.checkoutUrl,
+        amount: amount,
+        currency: 'XOF',
+        expiresAt: wavePayment.expiresAt,
+        instructions: 'Suivez le lien pour compléter le paiement sur Wave'
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de l\'initiation du paiement Wave:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Erreur lors de l\'initiation du paiement'
+    });
+  }
+});
+
+// @route   GET /api/v1/mobile-payments/:id/status
+// @desc    Vérifier le statut d'un paiement
+// @access  Private
+router.get('/:id/status', auth, async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.id);
+    
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Paiement non trouvé'
+      });
+    }
+
+    if (payment.user.toString() !== req.userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès non autorisé'
+      });
+    }
+
+    // Si le paiement est déjà complété ou échoué, retourner le statut actuel
+    if (['completed', 'failed', 'cancelled', 'refunded'].includes(payment.status)) {
+      return res.json({
+        success: true,
+        data: {
+          paymentId: payment._id,
+          status: payment.status,
+          amount: payment.amount,
+          currency: payment.currency,
+          method: payment.method,
+          completedAt: payment.completedAt,
+          failedAt: payment.failedAt,
+        }
+      });
+    }
+
+    // Vérifier le statut auprès du fournisseur
+    let providerStatus;
+    
+    if (payment.method === 'orange_money') {
+      providerStatus = await orangeMoneyService.checkPaymentStatus(payment.transaction.externalId);
+    } else if (payment.method === 'wave') {
+      providerStatus = await waveService.checkPaymentStatus(payment.transaction.externalId);
+    } else {
+      return res.json({
+        success: true,
+        data: {
+          paymentId: payment._id,
+          status: payment.status,
+          amount: payment.amount,
+          currency: payment.currency,
+          method: payment.method,
+        }
+      });
+    }
+
+    // Mettre à jour le statut si changé
+    if (providerStatus.status !== payment.status) {
+      payment.updateStatus(providerStatus.status, 'Statut mis à jour depuis le fournisseur', 'system');
+      
+      if (providerStatus.status === 'completed') {
+        payment.transaction.processedAt = providerStatus.paidAt;
+        payment.mobileMoney.confirmationCode = providerStatus.transactionId;
+        
+        // Mettre à jour la course si applicable
+        if (payment.ride) {
+          const ride = await Ride.findById(payment.ride);
+          if (ride) {
+            ride.payment.status = 'completed';
+            ride.payment.paidAt = new Date();
+            await ride.save();
+          }
+        }
+      }
+      
+      await payment.save();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        paymentId: payment._id,
+        status: payment.status,
+        amount: payment.amount,
+        currency: payment.currency,
+        method: payment.method,
+        transactionId: providerStatus.transactionId,
+        completedAt: payment.completedAt,
+        failedAt: payment.failedAt,
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la vérification du statut:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la vérification du statut du paiement'
+    });
+  }
+});
+
+// @route   POST /api/v1/mobile-payments/orange-money/callback
+// @desc    Callback Orange Money
+// @access  Public (avec validation)
+router.post('/orange-money/callback', async (req, res) => {
+  try {
+    const callbackData = req.body;
+    
+    // Traiter le callback
+    const result = await orangeMoneyService.handleCallback(callbackData);
+    
+    // Trouver le paiement
+    const payment = await Payment.findOne({ paymentId: result.orderId });
+    
+    if (!payment) {
+      console.error('Paiement non trouvé pour le callback Orange Money:', result.orderId);
+      return res.status(404).json({ success: false, message: 'Paiement non trouvé' });
+    }
+
+    // Mettre à jour le paiement
+    payment.updateStatus(result.status, `Callback Orange Money: ${result.message}`, 'system');
+    payment.transaction.externalId = result.transactionId;
+    payment.transaction.processedAt = result.paidAt;
+    payment.mobileMoney.confirmationCode = result.transactionId;
+    
+    if (result.status === 'completed' && payment.ride) {
+      const ride = await Ride.findById(payment.ride);
+      if (ride) {
+        ride.payment.status = 'completed';
+        ride.payment.paidAt = new Date();
+        await ride.save();
+      }
+    }
+    
+    await payment.save();
+
+    res.json({ success: true, message: 'Callback traité avec succès' });
+
+  } catch (error) {
+    console.error('Erreur lors du traitement du callback Orange Money:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors du traitement du callback' });
+  }
+});
+
+// @route   POST /api/v1/mobile-payments/wave/webhook
+// @desc    Webhook Wave
+// @access  Public (avec validation signature)
+router.post('/wave/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    // Récupérer le payload brut pour la vérification de signature
+    const rawBody = req.body.toString('utf8');
+    const signature = req.headers['x-wave-signature'];
+    
+    // Vérifier la signature du webhook
+    const isValid = waveService.verifyWebhookSignature(rawBody, signature);
+    
+    if (!isValid) {
+      console.error('❌ Signature webhook Wave invalide');
+      return res.status(401).json({ success: false, message: 'Signature invalide' });
+    }
+    
+    console.log('✅ Signature webhook Wave vérifiée');
+    
+    // Parser les données
+    const webhookData = JSON.parse(rawBody);
+    
+    // Traiter le webhook
+    const result = await waveService.handleWebhook(webhookData, signature);
+    
+    // Trouver le paiement
+    const payment = await Payment.findOne({ paymentId: result.orderId });
+    
+    if (!payment) {
+      console.error('Paiement non trouvé pour le webhook Wave:', result.orderId);
+      return res.status(404).json({ success: false, message: 'Paiement non trouvé' });
+    }
+
+    // Mettre à jour le paiement
+    payment.updateStatus(result.status, `Webhook Wave: ${result.event}`, 'system');
+    payment.transaction.externalId = result.transactionId;
+    payment.transaction.processedAt = result.paidAt;
+    payment.mobileMoney.confirmationCode = result.transactionId;
+    
+    if (result.status === 'completed' && payment.ride) {
+      const ride = await Ride.findById(payment.ride);
+      if (ride) {
+        ride.payment.status = 'completed';
+        ride.payment.paidAt = new Date();
+        await ride.save();
+      }
+    }
+    
+    await payment.save();
+
+    console.log(`✅ Webhook Wave traité: ${result.orderId} - ${result.status}`);
+    res.json({ success: true, message: 'Webhook traité avec succès' });
+
+  } catch (error) {
+    console.error('Erreur lors du traitement du webhook Wave:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors du traitement du webhook' });
+  }
+});
+
+// @route   POST /api/v1/mobile-payments/:id/cancel
+// @desc    Annuler un paiement en attente
+// @access  Private
+router.post('/:id/cancel', auth, async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.id);
+    
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Paiement non trouvé'
+      });
+    }
+
+    if (payment.user.toString() !== req.userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès non autorisé'
+      });
+    }
+
+    if (!payment.canBeCancelled()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce paiement ne peut pas être annulé'
+      });
+    }
+
+    // Annuler auprès du fournisseur si nécessaire
+    if (payment.method === 'wave' && payment.transaction.externalId) {
+      await waveService.cancelPayment(payment.transaction.externalId);
+    }
+
+    payment.updateStatus('cancelled', 'Annulé par l\'utilisateur', 'user');
+    await payment.save();
+
+    res.json({
+      success: true,
+      message: 'Paiement annulé avec succès',
+      data: {
+        paymentId: payment._id,
+        status: payment.status
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de l\'annulation du paiement:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'annulation du paiement'
+    });
+  }
+});
+
+module.exports = router;

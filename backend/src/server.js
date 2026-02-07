@@ -88,6 +88,7 @@ app.use('/api/v1/users', require('./routes/users'));
 app.use('/api/v1/drivers', require('./routes/drivers'));
 app.use('/api/v1/rides', require('./routes/rides'));
 app.use('/api/v1/payments', require('./routes/payments'));
+app.use('/api/v1/mobile-payments', require('./routes/mobile-payments'));
 app.use('/api/v1/subscriptions', require('./routes/subscriptions'));
 app.use('/api/v1/admin', require('./routes/admin'));
 app.use('/api/v1/carpool', require('./routes/carpool'));
@@ -135,6 +136,15 @@ try {
   console.log('⏰ Scheduler des courses planifiées initialisé');
 } catch (err) {
   console.error('❌ Impossible d\'initialiser le scheduler des courses planifiées:', err);
+}
+
+// Service de rappel automatique (1h avant la course)
+try {
+  const startScheduledRidesReminder = require('./jobs/scheduledRidesReminder');
+  startScheduledRidesReminder(io);
+  console.log('🔔 Service de rappel automatique initialisé');
+} catch (err) {
+  console.error('❌ Impossible d\'initialiser le service de rappel:', err);
 }
 
 const PORT = process.env.PORT || 3000;
