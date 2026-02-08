@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../services/places_service.dart';
+import '../services/places_service.dart' as places;
 
 class AddressAutocomplete extends StatefulWidget {
   final String label;
   final String hint;
   final IconData icon;
-  final Function(PlaceSuggestion) onPlaceSelected;
+  final Function(places.PlaceSuggestion) onPlaceSelected;
   final String? initialValue;
 
   const AddressAutocomplete({
@@ -26,7 +26,7 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
   final FocusNode _focusNode = FocusNode();
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
-  List<PlaceSuggestion> _suggestions = [];
+  List<places.PlaceSuggestion> _suggestions = [];
   bool _isLoading = false;
 
   @override
@@ -143,21 +143,8 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
     });
 
     try {
-      final placeSuggestions = await PlacesService.getPlaceSuggestions(query);
+      final suggestions = await places.PlacesService.getPlaceSuggestions(query);
       if (mounted) {
-        // Convertir PlaceSuggestion en format attendu par le widget
-        final suggestions = placeSuggestions.map((ps) {
-          return PlaceSuggestion(
-            name: ps.mainText,
-            address: ps.description,
-            latitude: ps.localLat ?? 0.0,
-            longitude: ps.localLng ?? 0.0,
-            type: 'place',
-            placeId: ps.placeId,
-            isLocal: ps.isLocal,
-          );
-        }).toList();
-        
         setState(() {
           _suggestions = suggestions;
           _isLoading = false;
@@ -183,52 +170,49 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
     }
   }
 
-  Future<void> _selectPlace(PlaceSuggestion place) async {
-    // Mettre à jour le texte du champ AVANT de retirer le focus
-    setState(() {
-      _controller.text = place.address;
-    });
+  Future<void> _selectPlace(places.PlaceSuggestion place) async {
+    print('🔍 Sélection de: ${place.description}');
     
+    // Mettre à jour le texte du champ immédiatement
+    _controller.text = place.description;
+    
+    // Retirer l'overlay
     _removeOverlay();
     
-    // Attendre un peu avant de retirer le focus pour que le texte soit bien affiché
-    await Future.delayed(const Duration(milliseconds: 100));
+    // Retirer le focus après un court délai
+    await Future.delayed(const Duration(milliseconds: 50));
     _focusNode.unfocus();
     
-    // Si c'est une suggestion locale, on a déjà les coordonnées
-    if (place.isLocal || (place.latitude != 0.0 && place.longitude != 0.0)) {
-      print('✅ Adresse sélectionnée: ${place.address}');
-      print('📍 Coordonnées: ${place.latitude}, ${place.longitude}');
+    // Si c'est une suggestion locale avec coordonnées, on a tout ce qu'il faut
+    if (place.isLocal && place.localLat != null && place.localLng != null) {
+      print('✅ Suggestion locale: ${place.description}');
+      print('📍 Coordonnées: ${place.localLat}, ${place.localLng}');
       widget.onPlaceSelected(place);
       return;
     }
     
     // Sinon, récupérer les coordonnées via l'API
-    if (place.placeId != null) {
-      try {
-        final details = await PlacesService.getPlaceDetails(place.placeId!);
-        if (details != null) {
-          final updatedPlace = PlaceSuggestion(
-            name: place.name,
-            address: place.address,
-            latitude: details.latitude,
-            longitude: details.longitude,
-            type: place.type,
-            region: place.region,
-            placeId: place.placeId,
-            isLocal: false,
-          );
-          print('✅ Adresse sélectionnée: ${updatedPlace.address}');
-          print('📍 Coordonnées: ${updatedPlace.latitude}, ${updatedPlace.longitude}');
-          widget.onPlaceSelected(updatedPlace);
-        } else {
-          widget.onPlaceSelected(place);
-        }
-      } catch (e) {
-        print('❌ Erreur récupération coordonnées: $e');
+    try {
+      print('🔄 Récupération des coordonnées pour: ${place.placeId}');
+      final details = await places.PlacesService.getPlaceDetails(place.placeId);
+      if (details != null) {
+        // Créer une nouvelle suggestion avec les coordonnées
+        final updatedPlace = places.PlaceSuggestion(
+          placeId: place.placeId,
+          description: place.description,
+          mainText: place.mainText,
+          secondaryText: place.secondaryText,
+          localLat: details.latitude,
+          localLng: details.longitude,
+        );
+        print('✅ Coordonnées récupérées: ${details.latitude}, ${details.longitude}');
+        widget.onPlaceSelected(updatedPlace);
+      } else {
+        print('⚠️ Pas de détails trouvés, utilisation de la suggestion originale');
         widget.onPlaceSelected(place);
       }
-    } else {
+    } catch (e) {
+      print('❌ Erreur récupération coordonnées: $e');
       widget.onPlaceSelected(place);
     }
   }
@@ -300,7 +284,7 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
     );
   }
 
-  Widget _buildSuggestionItem(PlaceSuggestion suggestion) {
+  Widget _buildSuggestionItem(places.PlaceSuggestion suggestion) {
     return InkWell(
       onTap: () => _selectPlace(suggestion),
       child: Container(
@@ -319,7 +303,7 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                _getIconForType(suggestion.type),
+                suggestion.isLocal ? Icons.location_on : Icons.place,
                 color: const Color(0xFF1B5E20),
                 size: 20,
               ),
@@ -330,7 +314,7 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    suggestion.name,
+                    suggestion.mainText,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
@@ -339,7 +323,9 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    suggestion.address,
+                    suggestion.secondaryText.isNotEmpty 
+                        ? suggestion.secondaryText 
+                        : suggestion.description,
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 13,
@@ -350,7 +336,7 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
                 ],
               ),
             ),
-            if (suggestion.region != null)
+            if (suggestion.isLocal)
               Container(
                 margin: const EdgeInsets.only(left: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -358,9 +344,9 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
                   color: const Color(0xFF1B5E20).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  suggestion.region!,
-                  style: const TextStyle(
+                child: const Text(
+                  'Local',
+                  style: TextStyle(
                     color: Color(0xFF1B5E20),
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
@@ -372,56 +358,7 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
       ),
     );
   }
-
-  IconData _getIconForType(String type) {
-    switch (type) {
-      case 'city':
-        return Icons.location_city;
-      case 'airport':
-        return Icons.flight;
-      case 'landmark':
-        return Icons.place;
-      case 'university':
-        return Icons.school;
-      case 'market':
-        return Icons.store;
-      case 'station':
-        return Icons.train;
-      case 'port':
-        return Icons.dock;
-      default:
-        return Icons.location_on;
-    }
-  }
 }
-
-/// Classe pour représenter une suggestion de lieu
-class PlaceSuggestion {
-  final String name;
-  final String address;
-  final double latitude;
-  final double longitude;
-  final String type;
-  final String? region;
-  final String? placeId;
-  final bool isLocal;
-
-  PlaceSuggestion({
-    required this.name,
-    required this.address,
-    required this.latitude,
-    required this.longitude,
-    required this.type,
-    this.region,
-    this.placeId,
-    this.isLocal = false,
-  });
-}
-
-
-
-
-
 
 
 

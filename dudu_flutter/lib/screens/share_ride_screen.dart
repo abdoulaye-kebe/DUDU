@@ -232,7 +232,7 @@ En cas d'urgence, contacte:
                   const SizedBox(height: 16),
                   
                   _buildShareOption(
-                    icon: Icons.whatsapp,
+                    icon: Icons.chat,
                     title: 'WhatsApp',
                     subtitle: 'Partager via WhatsApp',
                     color: const Color(0xFF25D366),
