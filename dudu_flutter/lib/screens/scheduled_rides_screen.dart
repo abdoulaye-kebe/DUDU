@@ -923,9 +923,32 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
           const SizedBox(height: 12),
           TextField(
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: primaryGreen,
+            ),
+            decoration: InputDecoration(
               labelText: 'Prix proposé (FCFA)',
-              border: OutlineInputBorder(),
+              labelStyle: const TextStyle(
+                color: primaryGreen,
+                fontWeight: FontWeight.w600,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: primaryGreen, width: 2),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: primaryGreen.withOpacity(0.5), width: 1.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: primaryGreen, width: 2),
+              ),
+              filled: true,
+              fillColor: primaryGreen.withOpacity(0.05),
+              prefixIcon: const Icon(Icons.attach_money, color: primaryGreen),
             ),
             onChanged: (v) {
               setState(() {
