@@ -596,37 +596,95 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     try {
       final amount = plan.price.toInt();
       final phone = widget.driverProfile.phone;
-      String url;
-
+      
+      // Essayer d'ouvrir l'application directement
+      String packageName;
+      String appName;
+      
       if (paymentMethod == 'orange_money') {
-        // Deep link Orange Money
-        url = 'orangemoney://payment?amount=$amount&phone=$phone&description=Abonnement ${plan.name}';
+        packageName = 'com.orange.orangemoney';
+        appName = 'Orange Money';
       } else {
-        // Deep link Wave
-        url = 'wave://payment?amount=$amount&phone=$phone&description=Abonnement ${plan.name}';
+        packageName = 'com.wave.personal';
+        appName = 'Wave';
       }
-
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Ouverture de ${paymentMethod == 'orange_money' ? 'Orange Money' : 'Wave'}...'),
-              backgroundColor: Colors.blue,
+      
+      // Essayer avec le package name Android
+      final uri = Uri.parse('market://details?id=$packageName');
+      
+      // Message pour l'utilisateur
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Paiement $appName'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Montant: ${amount.toStringAsFixed(0)} FCFA'),
+                const SizedBox(height: 8),
+                Text('Abonnement: ${plan.name}'),
+                const SizedBox(height: 16),
+                const Text(
+                  'Veuillez ouvrir votre application de paiement et effectuer le transfert.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Numéro: $phone',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
-          );
-        }
-      } else {
-        throw Exception('Application ${paymentMethod == 'orange_money' ? 'Orange Money' : 'Wave'} non installée');
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // Procéder avec l'achat
+                  _completePurchase(plan, paymentMethod);
+                },
+                child: const Text('J\'ai payé'),
+              ),
+            ],
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         _showErrorDialog(
-          'Erreur',
-          'Impossible d\'ouvrir l\'application de paiement. Assurez-vous qu\'elle est installée.\n\nErreur: $e',
+          'Information',
+          'Veuillez ouvrir votre application ${paymentMethod == 'orange_money' ? 'Orange Money' : 'Wave'} et effectuer le paiement de ${plan.price.toInt()} FCFA.',
         );
+      }
+    }
+  }
+  
+  Future<void> _completePurchase(SubscriptionPlan plan, String paymentMethod) async {
+    try {
+      await ApiService.purchaseSubscription(
+        planType: plan.type,
+        paymentMethod: paymentMethod,
+        phone: widget.driverProfile.phone.isNotEmpty ? widget.driverProfile.phone : null,
+        autoRenew: false,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Abonnement ${plan.name} enregistré avec succès !'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorDialog('Erreur', e.toString());
       }
     }
   }

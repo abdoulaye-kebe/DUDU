@@ -1215,20 +1215,28 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                               subtitle: Text(suggestion.secondaryText),
                               onTap: () async {
                                 Navigator.pop(context);
+                                print('🔍 Suggestion sélectionnée: ${suggestion.description}');
+                                print('📍 localLat: ${suggestion.localLat}, localLng: ${suggestion.localLng}');
+                                print('🆔 placeId: ${suggestion.placeId}, isLocal: ${suggestion.isLocal}');
 
                                 double? lat;
                                 double? lng;
 
-                                // Si c'est une suggestion locale, utiliser les coordonnées directement
-                                if (suggestion.isLocal && suggestion.localLat != null && suggestion.localLng != null) {
+                                // Si les coordonnées sont déjà présentes (HERE Maps ou suggestions locales)
+                                if (suggestion.localLat != null && suggestion.localLng != null) {
                                   lat = suggestion.localLat;
                                   lng = suggestion.localLng;
+                                  print('✅ Coordonnées disponibles directement: $lat, $lng');
                                 } else {
                                   // Sinon, appeler l'API pour obtenir les coordonnées
+                                  print('🔄 Récupération des coordonnées via API...');
                                   final details = await PlacesService.getPlaceDetails(suggestion.placeId);
                                   if (details != null) {
                                     lat = details.latitude;
                                     lng = details.longitude;
+                                    print('✅ Coordonnées récupérées: $lat, $lng');
+                                  } else {
+                                    print('❌ Impossible de récupérer les coordonnées');
                                   }
                                 }
 
@@ -1238,10 +1246,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                                       _pickupAddress = suggestion.description;
                                       _pickupLatLng = LatLng(lat!, lng!);
                                       _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
+                                      print('✅ Pickup défini: $_pickupAddress');
                                     } else {
                                       _destinationAddress = suggestion.description;
                                       _destinationLatLng = LatLng(lat!, lng!);
                                       _addMarker(_destinationLatLng!, 'Destination', Colors.red);
+                                      print('✅ Destination définie: $_destinationAddress');
                                     }
                                   });
                                   if (_pickupLatLng != null && _destinationLatLng != null) {
@@ -1250,6 +1260,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                                   } else {
                                     _focusOnLatLng(LatLng(lat!, lng!));
                                   }
+                                } else {
+                                  print('❌ Aucune coordonnée disponible pour cette suggestion');
                                 }
                               },
                             );
