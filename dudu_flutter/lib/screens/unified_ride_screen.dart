@@ -1531,7 +1531,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                            _destinationAddress.isNotEmpty &&
                            _pickupLatLng != null &&
                            _destinationLatLng != null &&
-                           (_customPrice > 0 || _backendRideType == 'luxe' || _backendRideType == 'moto')
+                           (_backendRideType == 'luxe' ? _customPrice >= 15000 : 
+                            _backendRideType == 'moto' ? _customPrice > 0 : 
+                            _customPrice > 0)
                     ? _navigateToConfirmation
                     : null,
                 style: ElevatedButton.styleFrom(
