@@ -26,9 +26,8 @@ class PlacesService {
             description: place.address,
             mainText: place.title,
             secondaryText: place.address.replaceFirst('${place.title}, ', ''),
-            localLat: place.latitude ?? 0.0,
-            localLng: place.longitude ?? 0.0,
-            isLocal: false,
+            localLat: place.latitude,
+            localLng: place.longitude,
           );
         }).toList();
         
