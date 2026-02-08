@@ -409,6 +409,7 @@ class ApiService {
     required String paymentMethod,
     String? phone,
     bool autoRenew = false,
+    String? transactionCode,
   }) async {
     try {
       final response = await http.post(
@@ -419,6 +420,8 @@ class ApiService {
           'paymentMethod': paymentMethod,
           if (phone != null && phone.isNotEmpty) 'phone': phone,
           'autoRenew': autoRenew,
+          if (transactionCode != null && transactionCode.isNotEmpty) 'transactionCode': transactionCode,
+          'status': 'pending', // En attente de validation
         }),
       );
 

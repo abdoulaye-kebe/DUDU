@@ -595,89 +595,263 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Future<void> _openPaymentApp(String paymentMethod, SubscriptionPlan plan) async {
     try {
       final amount = plan.price.toInt();
-      final phone = widget.driverProfile.phone;
       
-      // Essayer d'ouvrir l'application directement
-      String packageName;
+      // Numéro DUDU pour recevoir les paiements d'abonnement
+      const String duduPaymentNumber = '221771234567'; // À remplacer par le vrai numéro DUDU
+      
       String appName;
+      String deepLinkUrl;
+      String fallbackUrl;
       
       if (paymentMethod == 'orange_money') {
-        packageName = 'com.orange.orangemoney';
         appName = 'Orange Money';
+        // Deep link Orange Money Sénégal
+        deepLinkUrl = 'orangemoney://send?phone=$duduPaymentNumber&amount=$amount&reason=Abonnement ${plan.name}';
+        fallbackUrl = 'https://www.orangemoney.sn';
       } else {
-        packageName = 'com.wave.personal';
         appName = 'Wave';
+        // Deep link Wave Sénégal - Format correct
+        deepLinkUrl = 'wave://send?phone=$duduPaymentNumber&amount=$amount&note=Abonnement ${plan.name} - ${widget.driverProfile.phone}';
+        fallbackUrl = 'https://www.wave.com/sn';
       }
       
-      // Essayer avec le package name Android
-      final uri = Uri.parse('market://details?id=$packageName');
+      print('🔗 Tentative d\'ouverture: $deepLinkUrl');
       
-      // Message pour l'utilisateur
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Paiement $appName'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Montant: ${amount.toStringAsFixed(0)} FCFA'),
-                const SizedBox(height: 8),
-                Text('Abonnement: ${plan.name}'),
-                const SizedBox(height: 16),
-                const Text(
-                  'Veuillez ouvrir votre application de paiement et effectuer le transfert.',
-                  style: TextStyle(fontSize: 14),
+      // Essayer d'ouvrir l'application avec le deep link
+      final uri = Uri.parse(deepLinkUrl);
+      bool launched = false;
+      
+      try {
+        if (await canLaunchUrl(uri)) {
+          launched = await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
+          );
+          print('✅ Deep link lancé avec succès');
+        }
+      } catch (e) {
+        print('⚠️ Erreur deep link: $e');
+      }
+      
+      if (!launched) {
+        // Si le deep link échoue, afficher un dialogue avec instructions
+        if (mounted) {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(
+                    paymentMethod == 'wave' ? Icons.payment : Icons.phone_android,
+                    color: paymentMethod == 'wave' ? const Color(0xFF00D9A5) : const Color(0xFFFF6600),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Paiement $appName'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Informations de paiement:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('💰 Montant: $amount FCFA'),
+                        const SizedBox(height: 4),
+                        Text('📦 Abonnement: ${plan.name}'),
+                        const SizedBox(height: 4),
+                        Text('📞 Numéro DUDU: $duduPaymentNumber'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '1. Ouvrez votre application de paiement',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('2. Envoyez $amount FCFA au numéro ci-dessus'),
+                  const SizedBox(height: 4),
+                  const Text('3. Notez le code de transaction'),
+                  const SizedBox(height: 4),
+                  const Text('4. Revenez ici et confirmez le paiement'),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Votre abonnement sera activé après vérification du paiement par notre équipe.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Annuler'),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Numéro: $phone',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00A651),
+                  ),
+                  child: Text('Ouvrir $appName'),
                 ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Annuler'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // Procéder avec l'achat
-                  _completePurchase(plan, paymentMethod);
-                },
-                child: const Text('J\'ai payé'),
-              ),
-            ],
-          ),
-        );
+          );
+          
+          if (confirmed == true) {
+            // Ouvrir l'application ou le site web
+            final fallbackUri = Uri.parse(fallbackUrl);
+            await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
+            
+            // Afficher dialogue de confirmation de paiement
+            if (mounted) {
+              _showPaymentConfirmationDialog(plan, paymentMethod);
+            }
+          }
+        }
+      } else {
+        // Deep link réussi, afficher dialogue de confirmation
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) {
+          _showPaymentConfirmationDialog(plan, paymentMethod);
+        }
       }
     } catch (e) {
+      print('❌ Erreur ouverture paiement: $e');
       if (mounted) {
         _showErrorDialog(
-          'Information',
-          'Veuillez ouvrir votre application ${paymentMethod == 'orange_money' ? 'Orange Money' : 'Wave'} et effectuer le paiement de ${plan.price.toInt()} FCFA.',
+          'Erreur',
+          'Impossible d\'ouvrir l\'application de paiement.\n\nVeuillez effectuer le paiement manuellement et contacter le support.',
         );
       }
     }
   }
   
-  Future<void> _completePurchase(SubscriptionPlan plan, String paymentMethod) async {
+  Future<void> _showPaymentConfirmationDialog(SubscriptionPlan plan, String paymentMethod) async {
+    final codeController = TextEditingController();
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmer le paiement'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Avez-vous effectué le paiement ?',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: codeController,
+              decoration: const InputDecoration(
+                labelText: 'Code de transaction (optionnel)',
+                hintText: 'Ex: WV123456789',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.receipt),
+              ),
+              textCapitalization: TextCapitalization.characters,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.timer, color: Colors.blue, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Votre abonnement sera activé dans quelques minutes après vérification.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Pas encore'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00A651),
+            ),
+            child: const Text('J\'ai payé'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed == true) {
+      await _completePurchase(plan, paymentMethod, codeController.text.trim());
+    }
+  }
+  
+  Future<void> _completePurchase(SubscriptionPlan plan, String paymentMethod, [String? transactionCode]) async {
     try {
+      // Envoyer la demande d'abonnement avec le code de transaction
       await ApiService.purchaseSubscription(
         planType: plan.type,
         paymentMethod: paymentMethod,
         phone: widget.driverProfile.phone.isNotEmpty ? widget.driverProfile.phone : null,
         autoRenew: false,
+        transactionCode: transactionCode,
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Abonnement ${plan.name} enregistré avec succès !'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('✅ Demande d\'abonnement ${plan.name} enregistrée !'),
+                const SizedBox(height: 4),
+                const Text(
+                  'En attente de validation...',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
           ),
         );
         _loadData();
