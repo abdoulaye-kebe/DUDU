@@ -183,15 +183,15 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
     await Future.delayed(const Duration(milliseconds: 50));
     _focusNode.unfocus();
     
-    // Si c'est une suggestion locale avec coordonnées, on a tout ce qu'il faut
-    if (place.isLocal && place.localLat != null && place.localLng != null) {
-      print('✅ Suggestion locale: ${place.description}');
-      print('📍 Coordonnées: ${place.localLat}, ${place.localLng}');
+    // Si les coordonnées sont déjà présentes (HERE Maps ou suggestions locales)
+    if (place.localLat != null && place.localLng != null) {
+      print('✅ Coordonnées disponibles: ${place.localLat}, ${place.localLng}');
+      print('📍 Adresse: ${place.description}');
       widget.onPlaceSelected(place);
       return;
     }
     
-    // Sinon, récupérer les coordonnées via l'API
+    // Sinon, récupérer les coordonnées via l'API Google Places
     try {
       print('🔄 Récupération des coordonnées pour: ${place.placeId}');
       final details = await places.PlacesService.getPlaceDetails(place.placeId);
