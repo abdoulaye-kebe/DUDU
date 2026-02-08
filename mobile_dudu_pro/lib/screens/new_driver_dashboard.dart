@@ -17,6 +17,7 @@ import 'settings_screen.dart';
 import 'login_screen.dart';
 import 'subscription_widget.dart';
 import 'subscription_screen.dart';
+import 'safety_screen.dart';
 
 /// Dashboard chauffeur moderne avec design cohérent au client
 class NewDriverDashboard extends StatefulWidget {
@@ -542,6 +543,18 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const DriverSettingsScreen()),
+                );
+              },
+            ),
+            _buildMenuOption(
+              icon: Icons.shield_outlined,
+              title: 'Sécurité & Urgences',
+              color: Colors.red,
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SafetyScreen()),
                 );
               },
             ),

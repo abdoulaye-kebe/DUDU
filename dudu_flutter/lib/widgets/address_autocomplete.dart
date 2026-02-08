@@ -184,8 +184,15 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
   }
 
   Future<void> _selectPlace(PlaceSuggestion place) async {
-    _controller.text = place.address;
+    // Mettre à jour le texte du champ AVANT de retirer le focus
+    setState(() {
+      _controller.text = place.address;
+    });
+    
     _removeOverlay();
+    
+    // Attendre un peu avant de retirer le focus pour que le texte soit bien affiché
+    await Future.delayed(const Duration(milliseconds: 100));
     _focusNode.unfocus();
     
     // Si c'est une suggestion locale, on a déjà les coordonnées

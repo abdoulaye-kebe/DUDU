@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/driver_profile.dart';
 import '../services/api_service.dart';
 
@@ -555,9 +556,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
 
     // Afficher dialogue de paiement
-    final paymentMethod = await _showPaymentMethodDialog();
+    final paymentMethod = await _showPaymentMethodDialog(plan);
     if (paymentMethod == null) return;
 
+    // Si c'est Orange Money ou Wave, ouvrir l'application avec deep link
+    if (paymentMethod == 'orange_money' || paymentMethod == 'wave') {
+      await _openPaymentApp(paymentMethod, plan);
+      return;
+    }
+
+    // Pour les autres méthodes, procéder normalement
     try {
       await ApiService.purchaseSubscription(
         planType: plan.type,
@@ -584,7 +592,46 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
   }
 
-  Future<String?> _showPaymentMethodDialog() async {
+  Future<void> _openPaymentApp(String paymentMethod, SubscriptionPlan plan) async {
+    try {
+      final amount = plan.price.toInt();
+      final phone = widget.driverProfile.phone;
+      String url;
+
+      if (paymentMethod == 'orange_money') {
+        // Deep link Orange Money
+        url = 'orangemoney://payment?amount=$amount&phone=$phone&description=Abonnement ${plan.name}';
+      } else {
+        // Deep link Wave
+        url = 'wave://payment?amount=$amount&phone=$phone&description=Abonnement ${plan.name}';
+      }
+
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ouverture de ${paymentMethod == 'orange_money' ? 'Orange Money' : 'Wave'}...'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+        }
+      } else {
+        throw Exception('Application ${paymentMethod == 'orange_money' ? 'Orange Money' : 'Wave'} non installée');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorDialog(
+          'Erreur',
+          'Impossible d\'ouvrir l\'application de paiement. Assurez-vous qu\'elle est installée.\n\nErreur: $e',
+        );
+      }
+    }
+  }
+
+  Future<String?> _showPaymentMethodDialog(SubscriptionPlan plan) async {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -592,6 +639,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Text(
+              'Montant: ${plan.price.toInt()} FCFA',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF00A651),
+              ),
+            ),
+            const SizedBox(height: 16),
             _buildPaymentOption('orange_money', 'Orange Money'),
             _buildPaymentOption('wave', 'Wave'),
             _buildPaymentOption('free_money', 'Free Money'),

@@ -773,9 +773,15 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
 
   Widget _buildSubscriptionCard() {
     final subscription = _profile!.subscription;
-    final isActive = subscription?.isActive ?? false;
+    // Vérifier si l'abonnement est actif : isActive = true OU (status = 'active' ET endDate > maintenant)
+    final bool isActive = subscription != null && (
+      subscription.isActive == true || 
+      (subscription.status == 'active' && subscription.endDate.isAfter(DateTime.now()))
+    );
     final planName = subscription?.type ?? 'Aucun';
     final endDate = subscription?.endDate;
+    
+    debugPrint('🔍 Subscription check: isActive=${subscription?.isActive}, status=${subscription?.status}, endDate=${subscription?.endDate}');
     
     return Container(
       padding: const EdgeInsets.all(20),
