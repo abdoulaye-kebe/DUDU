@@ -2,8 +2,8 @@ import 'package:dio/dio.dart';
 
 class HereMapsService {
   // Clé API HERE Maps (gratuite, sans carte bancaire)
-  // Pour obtenir: https://developer.here.com/sign-up
-  static const String _apiKey = 'VOTRE_CLE_HERE_MAPS';
+  // App: DuDu - App ID: qKytLBaZgYYewc3mEbbP
+  static const String _apiKey = 'IFjCUWioIBg0_WXOGFPRRc6650azL7J8O2pdn9RN-2U';
   static final Dio _dio = Dio();
 
   /// Autocomplétion des adresses avec HERE Maps
