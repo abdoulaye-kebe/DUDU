@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/geocoding_service.dart';
+import '../services/places_service.dart';
 
 class AddressAutocomplete extends StatefulWidget {
   final String label;
@@ -143,8 +143,21 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
     });
 
     try {
-      final suggestions = await GeocodingService.searchPlaces(query);
+      final placeSuggestions = await PlacesService.getPlaceSuggestions(query);
       if (mounted) {
+        // Convertir PlaceSuggestion en format attendu par le widget
+        final suggestions = placeSuggestions.map((ps) {
+          return PlaceSuggestion(
+            name: ps.mainText,
+            address: ps.description,
+            latitude: ps.localLat ?? 0.0,
+            longitude: ps.localLng ?? 0.0,
+            type: 'place',
+            placeId: ps.placeId,
+            isLocal: ps.isLocal,
+          );
+        }).toList();
+        
         setState(() {
           _suggestions = suggestions;
           _isLoading = false;
@@ -170,13 +183,47 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
     }
   }
 
-  void _selectPlace(PlaceSuggestion place) {
+  Future<void> _selectPlace(PlaceSuggestion place) async {
     _controller.text = place.address;
-    print('✅ Adresse sélectionnée: ${place.address}');
-    print('📍 Coordonnées: ${place.latitude}, ${place.longitude}');
     _removeOverlay();
-    widget.onPlaceSelected(place);
     _focusNode.unfocus();
+    
+    // Si c'est une suggestion locale, on a déjà les coordonnées
+    if (place.isLocal || (place.latitude != 0.0 && place.longitude != 0.0)) {
+      print('✅ Adresse sélectionnée: ${place.address}');
+      print('📍 Coordonnées: ${place.latitude}, ${place.longitude}');
+      widget.onPlaceSelected(place);
+      return;
+    }
+    
+    // Sinon, récupérer les coordonnées via l'API
+    if (place.placeId != null) {
+      try {
+        final details = await PlacesService.getPlaceDetails(place.placeId!);
+        if (details != null) {
+          final updatedPlace = PlaceSuggestion(
+            name: place.name,
+            address: place.address,
+            latitude: details.latitude,
+            longitude: details.longitude,
+            type: place.type,
+            region: place.region,
+            placeId: place.placeId,
+            isLocal: false,
+          );
+          print('✅ Adresse sélectionnée: ${updatedPlace.address}');
+          print('📍 Coordonnées: ${updatedPlace.latitude}, ${updatedPlace.longitude}');
+          widget.onPlaceSelected(updatedPlace);
+        } else {
+          widget.onPlaceSelected(place);
+        }
+      } catch (e) {
+        print('❌ Erreur récupération coordonnées: $e');
+        widget.onPlaceSelected(place);
+      }
+    } else {
+      widget.onPlaceSelected(place);
+    }
   }
 
   @override
@@ -339,6 +386,29 @@ class _AddressAutocompleteState extends State<AddressAutocomplete> {
         return Icons.location_on;
     }
   }
+}
+
+/// Classe pour représenter une suggestion de lieu
+class PlaceSuggestion {
+  final String name;
+  final String address;
+  final double latitude;
+  final double longitude;
+  final String type;
+  final String? region;
+  final String? placeId;
+  final bool isLocal;
+
+  PlaceSuggestion({
+    required this.name,
+    required this.address,
+    required this.latitude,
+    required this.longitude,
+    required this.type,
+    this.region,
+    this.placeId,
+    this.isLocal = false,
+  });
 }
 
 
