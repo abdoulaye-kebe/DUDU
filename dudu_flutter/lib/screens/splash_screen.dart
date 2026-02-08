@@ -50,10 +50,30 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   }
 
   Future<void> _bootstrapAndRoute() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.bootstrapFromStorage();
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(context, authProvider.isAuthenticated ? '/app' : '/login');
+    try {
+      debugPrint('🔄 Splash: Début bootstrap...');
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // Timeout de 5 secondes pour éviter le blocage
+      await authProvider.bootstrapFromStorage().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('⚠️ Splash: Bootstrap timeout - continue sans auth');
+        },
+      );
+      
+      if (!mounted) return;
+      
+      final route = authProvider.isAuthenticated ? '/app' : '/login';
+      debugPrint('✅ Splash: Navigation vers $route');
+      
+      Navigator.pushReplacementNamed(context, route);
+    } catch (e) {
+      debugPrint('❌ Splash: Erreur bootstrap - $e');
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    }
   }
 
   @override
