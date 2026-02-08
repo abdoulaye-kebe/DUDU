@@ -78,14 +78,34 @@ class PlacesService {
       {'name': 'Almadies Zone 1', 'address': 'Almadies Zone 1, Dakar, Sénégal', 'lat': 14.7450, 'lng': -17.5150, 'type': 'quartier'},
       {'name': 'Almadies Zone 2', 'address': 'Almadies Zone 2, Dakar, Sénégal', 'lat': 14.7480, 'lng': -17.5180, 'type': 'quartier'},
       {'name': 'Ngor', 'address': 'Ngor, Dakar, Sénégal', 'lat': 14.7500, 'lng': -17.5167, 'type': 'quartier'},
+      {'name': 'Ngor Virage', 'address': 'Ngor Virage, Dakar, Sénégal', 'lat': 14.7520, 'lng': -17.5180, 'type': 'quartier'},
       {'name': 'Ouakam', 'address': 'Ouakam, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.4833, 'type': 'quartier'},
       {'name': 'Yoff', 'address': 'Yoff, Dakar, Sénégal', 'lat': 14.7667, 'lng': -17.4667, 'type': 'quartier'},
+      {'name': 'Yoff Tonghor', 'address': 'Yoff Tonghor, Dakar, Sénégal', 'lat': 14.7680, 'lng': -17.4650, 'type': 'quartier'},
       {'name': 'Mamelles', 'address': 'Mamelles, Dakar, Sénégal', 'lat': 14.7333, 'lng': -17.5000, 'type': 'quartier'},
       {'name': 'Mermoz', 'address': 'Mermoz, Dakar, Sénégal', 'lat': 14.7083, 'lng': -17.4667, 'type': 'quartier'},
+      {'name': 'Mermoz Pyrotechnie', 'address': 'Mermoz Pyrotechnie, Dakar, Sénégal', 'lat': 14.7100, 'lng': -17.4650, 'type': 'quartier'},
       {'name': 'Sacré-Cœur', 'address': 'Sacré-Cœur, Dakar, Sénégal', 'lat': 14.7167, 'lng': -17.4667, 'type': 'quartier'},
+      {'name': 'Sacré-Cœur 1', 'address': 'Sacré-Cœur 1, Dakar, Sénégal', 'lat': 14.7170, 'lng': -17.4670, 'type': 'quartier'},
+      {'name': 'Sacré-Cœur 2', 'address': 'Sacré-Cœur 2, Dakar, Sénégal', 'lat': 14.7180, 'lng': -17.4680, 'type': 'quartier'},
+      {'name': 'Sacré-Cœur 3', 'address': 'Sacré-Cœur 3, Dakar, Sénégal', 'lat': 14.7190, 'lng': -17.4690, 'type': 'quartier'},
       {'name': 'Point E', 'address': 'Point E, Dakar, Sénégal', 'lat': 14.6917, 'lng': -17.4667, 'type': 'quartier'},
       {'name': 'Fann', 'address': 'Fann, Dakar, Sénégal', 'lat': 14.6917, 'lng': -17.4583, 'type': 'quartier'},
-      {'name': 'Liberté', 'address': 'Liberté 1, 2, 3, 4, 5, 6, Dakar, Sénégal', 'lat': 14.7000, 'lng': -17.4583, 'type': 'quartier'},
+      {'name': 'Fann Résidence', 'address': 'Fann Résidence, Dakar, Sénégal', 'lat': 14.6920, 'lng': -17.4590, 'type': 'quartier'},
+      {'name': 'Liberté', 'address': 'Liberté, Dakar, Sénégal', 'lat': 14.7000, 'lng': -17.4583, 'type': 'quartier'},
+      {'name': 'Liberté 1', 'address': 'Liberté 1, Dakar, Sénégal', 'lat': 14.7010, 'lng': -17.4590, 'type': 'quartier'},
+      {'name': 'Liberté 2', 'address': 'Liberté 2, Dakar, Sénégal', 'lat': 14.7020, 'lng': -17.4600, 'type': 'quartier'},
+      {'name': 'Liberté 3', 'address': 'Liberté 3, Dakar, Sénégal', 'lat': 14.7030, 'lng': -17.4610, 'type': 'quartier'},
+      {'name': 'Liberté 4', 'address': 'Liberté 4, Dakar, Sénégal', 'lat': 14.7040, 'lng': -17.4620, 'type': 'quartier'},
+      {'name': 'Liberté 5', 'address': 'Liberté 5, Dakar, Sénégal', 'lat': 14.7050, 'lng': -17.4630, 'type': 'quartier'},
+      {'name': 'Liberté 6', 'address': 'Liberté 6, Dakar, Sénégal', 'lat': 14.7060, 'lng': -17.4640, 'type': 'quartier'},
+      {'name': 'Dieuppeul', 'address': 'Dieuppeul, Dakar, Sénégal', 'lat': 14.7250, 'lng': -17.4750, 'type': 'quartier'},
+      {'name': 'Derklé', 'address': 'Derklé, Dakar, Sénégal', 'lat': 14.7280, 'lng': -17.4780, 'type': 'quartier'},
+      {'name': 'Sicap Baobabs', 'address': 'Sicap Baobabs, Dakar, Sénégal', 'lat': 14.7100, 'lng': -17.4550, 'type': 'quartier'},
+      {'name': 'Sicap Foire', 'address': 'Sicap Foire, Dakar, Sénégal', 'lat': 14.7150, 'lng': -17.4600, 'type': 'quartier'},
+      {'name': 'Sicap Liberté', 'address': 'Sicap Liberté, Dakar, Sénégal', 'lat': 14.7080, 'lng': -17.4580, 'type': 'quartier'},
+      {'name': 'Amitié', 'address': 'Amitié, Dakar, Sénégal', 'lat': 14.7200, 'lng': -17.4650, 'type': 'quartier'},
+      {'name': 'Cité Keur Gorgui', 'address': 'Cité Keur Gorgui, Dakar, Sénégal', 'lat': 14.7150, 'lng': -17.4700, 'type': 'quartier'},
       
       // Pikine et ses zones
       {'name': 'Pikine', 'address': 'Pikine, Dakar, Sénégal', 'lat': 14.7500, 'lng': -17.3833, 'type': 'ville'},
@@ -131,41 +151,49 @@ class PlacesService {
       {'name': 'VDN', 'address': 'Voie de Dégagement Nord, Dakar', 'lat': 14.7200, 'lng': -17.4600, 'type': 'route'},
     ];
     
-    // Filtrage intelligent: commence par, contient, ou match partiel
-    final filtered = localPlaces.where((place) {
+    // Filtrage intelligent avec scoring de pertinence
+    final scoredPlaces = <Map<String, dynamic>>[];
+    
+    for (final place in localPlaces) {
       final name = (place['name'] as String).toLowerCase();
       final address = (place['address'] as String).toLowerCase();
+      int score = 0;
       
-      // Priorité 1: Commence par la requête
-      if (name.startsWith(query)) return true;
-      
-      // Priorité 2: Contient la requête
-      if (name.contains(query)) return true;
-      
-      // Priorité 3: L'adresse contient la requête
-      if (address.contains(query)) return true;
-      
-      // Priorité 4: Match des 3 premiers caractères
-      if (query.length >= 3 && name.length >= 3) {
-        final namePrefix = name.substring(0, 3);
-        final queryPrefix = query.substring(0, 3);
-        if (namePrefix == queryPrefix) return true;
+      // Score basé sur la correspondance
+      if (name == query) {
+        score = 1000; // Match exact parfait
+      } else if (name.startsWith(query)) {
+        score = 500 + (100 - query.length); // Commence par (plus court = mieux)
+      } else if (name.contains(' $query')) {
+        score = 300; // Commence un mot dans le nom
+      } else if (name.contains(query)) {
+        score = 200; // Contient quelque part
+      } else if (address.contains(query)) {
+        score = 100; // Dans l'adresse
+      } else {
+        // Match partiel des caractères
+        int matchCount = 0;
+        for (int i = 0; i < query.length && i < name.length; i++) {
+          if (query[i] == name[i]) matchCount++;
+        }
+        if (matchCount > 0) {
+          score = matchCount * 10;
+        }
       }
       
-      return false;
-    }).toList();
+      if (score > 0) {
+        scoredPlaces.add({
+          'place': place,
+          'score': score,
+        });
+      }
+    }
     
-    // Trier par pertinence: ceux qui commencent par la requête en premier
-    filtered.sort((a, b) {
-      final nameA = (a['name'] as String).toLowerCase();
-      final nameB = (b['name'] as String).toLowerCase();
-      
-      final startsWithA = nameA.startsWith(query) ? 0 : 1;
-      final startsWithB = nameB.startsWith(query) ? 0 : 1;
-      
-      if (startsWithA != startsWithB) return startsWithA - startsWithB;
-      return nameA.compareTo(nameB);
-    });
+    // Trier par score décroissant
+    scoredPlaces.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
+    
+    // Limiter à 10 résultats les plus pertinents
+    final filtered = scoredPlaces.take(10).map((sp) => sp['place'] as Map<String, dynamic>).toList();
     
     print('📍 Suggestions locales pour "$input": ${filtered.length} résultats');
     
