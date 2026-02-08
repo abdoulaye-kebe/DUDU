@@ -4,7 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
 import 'dart:math' as math;
-import '../services/places_service.dart';
+import '../services/places_service.dart' as places;
 import '../services/api_service.dart';
 import '../models/ride.dart';
 import '../services/notification_service.dart';
@@ -43,7 +43,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
   Position? _currentPosition;
   bool _isInitializingLocation = true;
   bool _isSearching = false;
-  List<PlaceSuggestion> _suggestions = [];
+  List<places.PlaceSuggestion> _suggestions = [];
   String _lastSearchQuery = '';
   Timer? _searchDebounce;
   int _searchToken = 0;
@@ -346,7 +346,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     }
 
     try {
-      final address = await PlacesService.reverseGeocode(
+      final address = await places.PlacesService.reverseGeocode(
         _currentPosition!.latitude,
         _currentPosition!.longitude,
       );
@@ -414,7 +414,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
         );
       }
 
-      final address = await PlacesService.reverseGeocode(
+      final address = await places.PlacesService.reverseGeocode(
         finalPosition.latitude,
         finalPosition.longitude,
       );
@@ -504,7 +504,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                       if (_searchToken != token) return;
 
                       try {
-                        final suggestions = await PlacesService.getPlaceSuggestions(
+                        final suggestions = await places.PlacesService.getPlaceSuggestions(
                           query,
                           userLat: _currentPosition?.latitude ?? 14.6928,
                           userLng: _currentPosition?.longitude ?? -17.4467,
@@ -578,7 +578,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                                 subtitle: const Text('Utiliser cette adresse'),
                                 onTap: () async {
                                   Navigator.pop(context);
-                                  final details = await PlacesService.geocodeAddress(
+                                  final details = await places.PlacesService.geocodeAddress(
                                     fallbackText,
                                   );
                                   if (details != null && mounted) {
@@ -618,27 +618,42 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                             subtitle: Text(suggestion.secondaryText),
                             onTap: () async {
                               Navigator.pop(context);
-                              final details =
-                                  await PlacesService.getPlaceDetails(suggestion.placeId);
-                              if (details != null && mounted) {
+                              print('🔍 Suggestion sélectionnée: ${suggestion.description}');
+                              print('📍 localLat: ${suggestion.localLat}, localLng: ${suggestion.localLng}');
+                              
+                              double? lat = suggestion.localLat;
+                              double? lng = suggestion.localLng;
+                              
+                              // Si pas de coordonnées, essayer getPlaceDetails
+                              if (lat == null || lng == null) {
+                                print('🔄 Récupération des coordonnées via API...');
+                                final details = await places.PlacesService.getPlaceDetails(suggestion.placeId);
+                                if (details != null) {
+                                  lat = details.latitude;
+                                  lng = details.longitude;
+                                  print('✅ Coordonnées récupérées: $lat, $lng');
+                                }
+                              } else {
+                                print('✅ Coordonnées disponibles directement: $lat, $lng');
+                              }
+                              
+                              if (lat != null && lng != null && mounted) {
                                 setState(() {
                                   if (isPickup) {
                                     _from = suggestion.description;
                                     _fromController.text = suggestion.description;
-                                    _pickupLatLng = LatLng(
-                                      details.latitude,
-                                      details.longitude,
-                                    );
+                                    _pickupLatLng = LatLng(lat!, lng!);
+                                    print('✅ Pickup défini: $_from');
                                   } else {
                                     _to = suggestion.description;
                                     _toController.text = suggestion.description;
-                                    _destinationLatLng = LatLng(
-                                      details.latitude,
-                                      details.longitude,
-                                    );
+                                    _destinationLatLng = LatLng(lat!, lng!);
+                                    print('✅ Destination définie: $_to');
                                   }
                                 });
                                 _updateMarkersOnMap();
+                              } else {
+                                print('❌ Aucune coordonnée disponible');
                               }
                             },
                           );
@@ -1496,7 +1511,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                     if (value.length > 2) {
                       setState(() => _isSearching = true);
                       try {
-                        final suggestions = await PlacesService.getPlaceSuggestions(
+                        final suggestions = await places.PlacesService.getPlaceSuggestions(
                           value,
                           userLat: _currentPosition?.latitude ?? 14.6928,
                           userLng: _currentPosition?.longitude ?? -17.4467,
@@ -1550,16 +1565,34 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                             subtitle: Text(suggestion.secondaryText),
                             onTap: () async {
                               Navigator.pop(context);
-                              final details = await PlacesService.getPlaceDetails(suggestion.placeId);
-                              if (details != null && mounted) {
+                              print('🔍 Destination sélectionnée: ${suggestion.description}');
+                              print('📍 localLat: ${suggestion.localLat}, localLng: ${suggestion.localLng}');
+                              
+                              double? lat = suggestion.localLat;
+                              double? lng = suggestion.localLng;
+                              
+                              // Si pas de coordonnées, essayer getPlaceDetails
+                              if (lat == null || lng == null) {
+                                print('🔄 Récupération des coordonnées via API...');
+                                final details = await places.PlacesService.getPlaceDetails(suggestion.placeId);
+                                if (details != null) {
+                                  lat = details.latitude;
+                                  lng = details.longitude;
+                                  print('✅ Coordonnées récupérées: $lat, $lng');
+                                }
+                              } else {
+                                print('✅ Coordonnées disponibles directement: $lat, $lng');
+                              }
+                              
+                              if (lat != null && lng != null && mounted) {
                                 setState(() {
                                   _to = suggestion.description;
                                   _toController.text = suggestion.description;
-                                  _destinationLatLng = LatLng(
-                                    details.latitude,
-                                    details.longitude,
-                                  );
+                                  _destinationLatLng = LatLng(lat!, lng!);
+                                  print('✅ Destination définie: $_to');
                                 });
+                              } else {
+                                print('❌ Aucune coordonnée disponible');
                               }
                             },
                           );
