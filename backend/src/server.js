@@ -91,7 +91,6 @@ app.use('/api/v1/payments', require('./routes/payments'));
 app.use('/api/v1/mobile-payments', require('./routes/mobile-payments'));
 app.use('/api/v1/subscriptions', require('./routes/subscriptions'));
 app.use('/api/v1/admin', require('./routes/admin'));
-app.use('/api/v1/carpool', require('./routes/carpool'));
 app.use('/api/v1/notifications', require('./routes/notifications'));
 app.use('/api/v1/disputes', require('./routes/disputes'));
 
