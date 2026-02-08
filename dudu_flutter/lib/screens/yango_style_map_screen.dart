@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/geocoding_service.dart';
+import '../services/places_service.dart' as places;
 import '../widgets/address_autocomplete.dart';
 
 class YangoStyleMapScreen extends StatefulWidget {
@@ -13,8 +14,8 @@ class YangoStyleMapScreen extends StatefulWidget {
 
 class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
   GoogleMapController? _mapController;
-  PlaceSuggestion? _pickupPlace;
-  PlaceSuggestion? _destinationPlace;
+  places.PlaceSuggestion? _pickupPlace;
+  places.PlaceSuggestion? _destinationPlace;
   
   // États de l'interface
   bool _showPickupField = false;
@@ -109,30 +110,40 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
     }
   }
 
-  void _onPickupSelected(PlaceSuggestion place) {
+  void _onPickupSelected(places.PlaceSuggestion place) {
+    print('🔍 Pickup sélectionné: ${place.description}');
+    print('📍 Coordonnées: ${place.localLat}, ${place.localLng}');
+    
     setState(() {
       _pickupPlace = place;
       _showPickupField = false;
     });
     
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLng(LatLng(place.latitude, place.longitude)),
-    );
+    if (place.localLat != null && place.localLng != null) {
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(LatLng(place.localLat!, place.localLng!)),
+      );
+    }
     
     if (_destinationPlace != null) {
       _calculateRoute();
     }
   }
 
-  void _onDestinationSelected(PlaceSuggestion place) {
+  void _onDestinationSelected(places.PlaceSuggestion place) {
+    print('🔍 Destination sélectionnée: ${place.description}');
+    print('📍 Coordonnées: ${place.localLat}, ${place.localLng}');
+    
     setState(() {
       _destinationPlace = place;
       _showDestinationField = false;
     });
     
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLng(LatLng(place.latitude, place.longitude)),
-    );
+    if (place.localLat != null && place.localLng != null) {
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(LatLng(place.localLat!, place.localLng!)),
+      );
+    }
     
     if (_pickupPlace != null) {
       _calculateRoute();
@@ -152,10 +163,10 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
       
       // Calculer la distance
       double distance = GeocodingService.calculateDistance(
-        _pickupPlace!.latitude,
-        _pickupPlace!.longitude,
-        _destinationPlace!.latitude,
-        _destinationPlace!.longitude,
+        _pickupPlace!.localLat ?? 0.0,
+        _pickupPlace!.localLng ?? 0.0,
+        _destinationPlace!.localLat ?? 0.0,
+        _destinationPlace!.localLng ?? 0.0,
       );
 
       // Calculer le prix
@@ -350,7 +361,7 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
                 hint: 'Saisissez votre adresse de départ',
                 icon: Icons.location_on,
                 onPlaceSelected: _onPickupSelected,
-                initialValue: _pickupPlace?.address,
+                initialValue: _pickupPlace?.description,
               ),
             ),
           
@@ -367,7 +378,7 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
                 hint: 'Saisissez votre destination',
                 icon: Icons.flag,
                 onPlaceSelected: _onDestinationSelected,
-                initialValue: _destinationPlace?.address,
+                initialValue: _destinationPlace?.description,
               ),
             ),
         ],

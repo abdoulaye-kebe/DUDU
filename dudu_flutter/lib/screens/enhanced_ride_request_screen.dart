@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/geocoding_service.dart';
+import '../services/places_service.dart' as places;
 import '../widgets/address_autocomplete.dart';
 
 class EnhancedRideRequestScreen extends StatefulWidget {
@@ -13,8 +14,8 @@ class EnhancedRideRequestScreen extends StatefulWidget {
 
 class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
   GoogleMapController? _mapController;
-  PlaceSuggestion? _pickupPlace;
-  PlaceSuggestion? _destinationPlace;
+  places.PlaceSuggestion? _pickupPlace;
+  places.PlaceSuggestion? _destinationPlace;
   
   String _selectedRideType = 'standard';
   String _selectedVehicleCategory = 'car';
@@ -77,28 +78,38 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
     }
   }
 
-  void _onPickupSelected(PlaceSuggestion place) {
+  void _onPickupSelected(places.PlaceSuggestion place) {
+    print('🔍 Pickup sélectionné: ${place.description}');
+    print('📍 Coordonnées: ${place.localLat}, ${place.localLng}');
+    
     setState(() {
       _pickupPlace = place;
     });
     
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLng(LatLng(place.latitude, place.longitude)),
-    );
+    if (place.localLat != null && place.localLng != null) {
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(LatLng(place.localLat!, place.localLng!)),
+      );
+    }
     
     if (_destinationPlace != null) {
       _calculatePrice();
     }
   }
 
-  void _onDestinationSelected(PlaceSuggestion place) {
+  void _onDestinationSelected(places.PlaceSuggestion place) {
+    print('🔍 Destination sélectionnée: ${place.description}');
+    print('📍 Coordonnées: ${place.localLat}, ${place.localLng}');
+    
     setState(() {
       _destinationPlace = place;
     });
     
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLng(LatLng(place.latitude, place.longitude)),
-    );
+    if (place.localLat != null && place.localLng != null) {
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(LatLng(place.localLat!, place.localLng!)),
+      );
+    }
     
     if (_pickupPlace != null) {
       _calculatePrice();
@@ -118,10 +129,10 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
       
       // Calculer la distance
       double distance = GeocodingService.calculateDistance(
-        _pickupPlace!.latitude,
-        _pickupPlace!.longitude,
-        _destinationPlace!.latitude,
-        _destinationPlace!.longitude,
+        _pickupPlace!.localLat ?? 0.0,
+        _pickupPlace!.localLng ?? 0.0,
+        _destinationPlace!.localLat ?? 0.0,
+        _destinationPlace!.localLng ?? 0.0,
       );
 
       // Calculer le prix basé sur la distance et le type de course
@@ -334,7 +345,7 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
             hint: 'Où voulez-vous être pris en charge ?',
             icon: Icons.location_on,
             onPlaceSelected: _onPickupSelected,
-            initialValue: _pickupPlace?.address,
+            initialValue: _pickupPlace?.description,
           ),
           const SizedBox(height: 16),
           
@@ -343,7 +354,7 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
             hint: 'Où voulez-vous aller ?',
             icon: Icons.flag,
             onPlaceSelected: _onDestinationSelected,
-            initialValue: _destinationPlace?.address,
+            initialValue: _destinationPlace?.description,
           ),
           const SizedBox(height: 16),
           
