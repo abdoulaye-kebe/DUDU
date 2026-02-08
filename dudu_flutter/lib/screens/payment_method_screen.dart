@@ -135,22 +135,22 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 const SizedBox(height: 16),
 
                 // Orange Money
-                _buildPaymentOption(
+                _buildPaymentOptionWithImage(
                   method: 'orange_money',
                   title: 'Orange Money',
                   subtitle: 'Paiement sécurisé via Orange Money',
-                  icon: Icons.phone_android,
+                  imagePath: 'assets/images/payments/orange_money_logo.png',
                   color: Colors.orange,
                   fees: '1%',
                 ),
                 const SizedBox(height: 12),
 
                 // Wave
-                _buildPaymentOption(
+                _buildPaymentOptionWithImage(
                   method: 'wave',
                   title: 'Wave',
                   subtitle: 'Paiement sécurisé via Wave',
-                  icon: Icons.water_drop,
+                  imagePath: 'assets/images/payments/wave_logo.png',
                   color: Colors.blue,
                   fees: '1.5%',
                 ),
@@ -208,6 +208,96 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentOptionWithImage({
+    required String method,
+    required String title,
+    required String subtitle,
+    required String imagePath,
+    required Color color,
+    required String fees,
+  }) {
+    final isSelected = _selectedMethod == method;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedMethod = method),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : [],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey[200]!, width: 1),
+              ),
+              child: Image.asset(
+                imagePath,
+                width: 44,
+                height: 44,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? color : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Frais: $fees',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_circle, color: color, size: 28)
+            else
+              Icon(Icons.radio_button_unchecked, color: Colors.grey[400], size: 28),
+          ],
+        ),
       ),
     );
   }
