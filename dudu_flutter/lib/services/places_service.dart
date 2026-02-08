@@ -1,33 +1,33 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'mapbox_service.dart';
+import 'here_maps_service.dart';
 
 class PlacesService {
   static const String _apiKey = 'AIzaSyBebPcA35Q6WKIiGxG1Xi4iW0ZErazWvZA';
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
 
-  /// Autocomplete des adresses avec Mapbox (prioritaire) et fallback local
+  /// Autocomplete des adresses avec HERE Maps (prioritaire) et fallback local
   static Future<List<PlaceSuggestion>> getPlaceSuggestions(String input, {double? userLat, double? userLng}) async {
     if (input.isEmpty) return [];
 
     print('🔍 Recherche adresse: "$input"');
 
-    // 1. Essayer d'abord avec Mapbox (ultra-rapide)
+    // 1. Essayer d'abord avec HERE Maps (ultra-rapide, gratuit sans carte bancaire)
     try {
-      final mapboxResults = await MapboxService.getPlaceSuggestions(input);
+      final hereResults = await HereMapsService.getPlaceSuggestions(input);
       
-      if (mapboxResults.isNotEmpty) {
-        print('✅ Mapbox: ${mapboxResults.length} résultats');
+      if (hereResults.isNotEmpty) {
+        print('✅ HERE Maps: ${hereResults.length} résultats');
         
-        // Convertir les résultats Mapbox en PlaceSuggestion
-        final suggestions = mapboxResults.map((place) {
+        // Convertir les résultats HERE Maps en PlaceSuggestion
+        final suggestions = hereResults.map((place) {
           return PlaceSuggestion(
-            placeId: place.id ?? 'mapbox_${place.text}',
-            description: place.placeName ?? '',
-            mainText: place.text ?? '',
-            secondaryText: place.placeName?.replaceFirst('${place.text}, ', '') ?? 'Dakar, Sénégal',
-            localLat: place.geometry?.coordinates?.last ?? 0.0,
-            localLng: place.geometry?.coordinates?.first ?? 0.0,
+            placeId: place.id,
+            description: place.address,
+            mainText: place.title,
+            secondaryText: place.address.replaceFirst('${place.title}, ', ''),
+            localLat: place.latitude ?? 0.0,
+            localLng: place.longitude ?? 0.0,
             isLocal: false,
           );
         }).toList();
@@ -35,7 +35,7 @@ class PlacesService {
         return suggestions;
       }
     } catch (e) {
-      print('⚠️ Mapbox non disponible: $e');
+      print('⚠️ HERE Maps non disponible: $e');
     }
 
     // 2. Fallback : suggestions locales (base de données enrichie)
