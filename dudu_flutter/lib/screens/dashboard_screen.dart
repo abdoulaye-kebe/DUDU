@@ -16,6 +16,7 @@ import 'rides_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'support_screen.dart';
+import 'safety_screen.dart';
 import 'login_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -518,6 +519,18 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                );
+              },
+            ),
+            _buildMenuOption(
+              icon: Icons.security,
+              title: 'Sécurité & Urgences',
+              color: Colors.red,
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SafetyScreen()),
                 );
               },
             ),
