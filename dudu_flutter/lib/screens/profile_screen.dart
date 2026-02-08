@@ -192,9 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ? 'Orange Money'
                             : paymentMethod == 'wave'
                                 ? 'Wave'
-                                : paymentMethod == 'free_money'
-                                    ? 'Free Money'
-                                    : 'Espèces';
+                                : 'Espèces';
                     return _buildSection(
                       'Préférences',
                       Icons.settings,
@@ -509,6 +507,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showPaymentMethods() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    final currentMethod = user?.budgetSettings?.preferredPaymentMethod ?? 'cash';
+    final userPhone = user?.phone ?? '';
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -527,8 +530,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               title: const Text('Orange Money'),
-              subtitle: const Text('+221786205993'),
-              trailing: const Icon(Icons.check, color: Colors.green),
+              subtitle: Text(userPhone.isNotEmpty ? userPhone : 'Non configuré'),
+              trailing: currentMethod == 'orange_money'
+                  ? const Icon(Icons.check_circle, color: Colors.green)
+                  : null,
+              onTap: () => _updatePaymentMethod('orange_money'),
             ),
             const Divider(),
             ListTile(
@@ -539,31 +545,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 errorBuilder: (_, __, ___) => const Icon(Icons.account_balance_wallet),
               ),
               title: const Text('Wave'),
-              subtitle: const Text('Non configuré'),
+              subtitle: Text(userPhone.isNotEmpty ? userPhone : 'Non configuré'),
+              trailing: currentMethod == 'wave'
+                  ? const Icon(Icons.check_circle, color: Colors.green)
+                  : null,
+              onTap: () => _updatePaymentMethod('wave'),
             ),
             const Divider(),
             ListTile(
-              leading: Image.asset(
-                _paymentLogos['free_money']!,
-                width: 28,
-                height: 28,
-                errorBuilder: (_, __, ___) => const Icon(Icons.account_balance_wallet),
-              ),
-              title: const Text('Free Money'),
-              subtitle: const Text('Non configuré'),
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.add_circle_outline),
-              title: const Text('Ajouter un moyen de paiement'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Fonctionnalité en cours de développement'),
-                  ),
-                );
-              },
+              leading: const Icon(Icons.payments, color: Colors.green),
+              title: const Text('Espèces'),
+              subtitle: const Text('Payer en espèces au chauffeur'),
+              trailing: currentMethod == 'cash'
+                  ? const Icon(Icons.check_circle, color: Colors.green)
+                  : null,
+              onTap: () => _updatePaymentMethod('cash'),
             ),
           ],
         ),
@@ -575,6 +571,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _updatePaymentMethod(String method) async {
+    Navigator.pop(context);
+    
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Mise à jour du moyen de paiement...')),
+    );
+
+    try {
+      final response = await ApiService.updateBudgetSettings(
+        preferredPaymentMethod: method,
+      );
+
+      if (response.success && mounted) {
+        await authProvider.refreshProfile();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Moyen de paiement mis à jour : ${_getPaymentLabel(method)}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${response.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String _getPaymentLabel(String method) {
+    switch (method) {
+      case 'orange_money':
+        return 'Orange Money';
+      case 'wave':
+        return 'Wave';
+      case 'cash':
+        return 'Espèces';
+      default:
+        return 'Non défini';
+    }
   }
 
   void _showRideHistory() {
