@@ -1101,13 +1101,21 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${ride.pricing.totalPrice.toInt()} FCFA',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: primaryGreen,
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: primaryGreen.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: primaryGreen, width: 1.5),
+                ),
+                child: Text(
+                  '${ride.pricing.totalPrice.toInt()} FCFA',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: primaryGreen,
+                  ),
                 ),
               ),
             ],
