@@ -40,6 +40,7 @@ flutter:
   assets:
     - assets/images/logo_dudu_off.png
     - assets/images/payments/
+    - assets/images/vehicles/
   
   # Police Poppins
   fonts:
@@ -55,3 +56,11 @@ flutter:
           weight: 600
         - asset: assets/fonts/Poppins-Bold.ttf
           weight: 700
+
+# Configuration pour flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo_dudu_off.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/logo_dudu_off.png"

@@ -80,6 +80,7 @@ flutter:
     - assets/images/logo_dudu_off.png
     - assets/images/payments/
     - assets/images/ride_types/
+    - assets/images/vehicles/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -735,8 +735,8 @@ extension SubscriptionPaymentExtension on ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/mobile-payments/subscription/wave/initiate'),
-        headers: _headers,
+        Uri.parse('${ApiService.baseUrl}/mobile-payments/subscription/wave/initiate'),
+        headers: ApiService._headers,
         body: jsonEncode({
           'subscriptionId': subscriptionId,
           'amount': amount,
@@ -770,8 +770,8 @@ extension SubscriptionPaymentExtension on ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/mobile-payments/subscription/orange-money/initiate'),
-        headers: _headers,
+        Uri.parse('${ApiService.baseUrl}/mobile-payments/subscription/orange-money/initiate'),
+        headers: ApiService._headers,
         body: jsonEncode({
           'subscriptionId': subscriptionId,
           'amount': amount,
@@ -804,8 +804,8 @@ extension SubscriptionPaymentExtension on ApiService {
   static Future<Map<String, dynamic>> checkPaymentStatus(String paymentId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/mobile-payments/$paymentId/status'),
-        headers: _headers,
+        Uri.parse('${ApiService.baseUrl}/mobile-payments/$paymentId/status'),
+        headers: ApiService._headers,
       );
 
       final data = jsonDecode(response.body);

@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'notification_service.dart';
 import 'call_service.dart';
+import 'api_service.dart';
 import '../config/app_config.dart';
 
 /// Service Socket.io pour communication temps réel
@@ -269,9 +270,13 @@ class SocketService {
   }) {
     if (!_isConnected) return;
 
+    // Récupérer l'ID réel du chauffeur depuis ApiService
+    final driverData = ApiService.lastDriverData;
+    final driverId = driverData?['id']?.toString() ?? driverData?['_id']?.toString() ?? '';
+
     _socket!.emit('driver:update_location', {
       'rideId': rideId,
-      'driverId': 'current_driver_id', // TODO: Récupérer l'ID réel
+      'driverId': driverId,
       'latitude': latitude,
       'longitude': longitude,
       'heading': heading,
@@ -315,6 +320,21 @@ class SocketService {
     _currentRideId = null;
 
     print('🏁 Course terminée: $rideId');
+  }
+
+  /// Mettre à jour la position du chauffeur pendant une course
+  void updateDriverLocation({
+    required String rideId,
+    required double latitude,
+    required double longitude,
+  }) {
+    if (!_isConnected) return;
+
+    _socket!.emit('driver-location-update', {
+      'rideId': rideId,
+      'latitude': latitude,
+      'longitude': longitude,
+    });
   }
 
   Future<Map<String, dynamic>> acceptRide(String rideId) {
