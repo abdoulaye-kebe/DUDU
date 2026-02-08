@@ -1,72 +1,46 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'mapbox_service.dart';
 
 class PlacesService {
   static const String _apiKey = 'AIzaSyBebPcA35Q6WKIiGxG1Xi4iW0ZErazWvZA';
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
 
-  /// Autocomplete des adresses
+  /// Autocomplete des adresses avec Mapbox (prioritaire) et fallback local
   static Future<List<PlaceSuggestion>> getPlaceSuggestions(String input, {double? userLat, double? userLng}) async {
     if (input.isEmpty) return [];
 
-    // Bias vers Dakar pour des résultats plus pertinents
-    final dakarLat = userLat ?? 14.6928;
-    final dakarLng = userLng ?? -17.4467;
-    final radius = 50000; // 50km autour de la position
+    print('🔍 Recherche adresse: "$input"');
 
-    final encodedInput = Uri.encodeComponent(input);
-
-    // Essayer d'abord avec restriction Sénégal
-    final url = Uri.parse(
-      '$_baseUrl/autocomplete/json?input=$encodedInput&key=$_apiKey&language=fr&location=$dakarLat,$dakarLng&radius=$radius&components=country:sn',
-    );
-
-    print('🔍 Recherche Places API: "$input"');
-
+    // 1. Essayer d'abord avec Mapbox (ultra-rapide)
     try {
-      final response = await http.get(url);
-      print('📡 Places API response status: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final status = data['status'];
-        print('📍 Places autocomplete status: $status');
+      final mapboxResults = await MapboxService.getPlaceSuggestions(input);
+      
+      if (mapboxResults.isNotEmpty) {
+        print('✅ Mapbox: ${mapboxResults.length} résultats');
         
-        // Afficher l'erreur si présente
-        if (data['error_message'] != null) {
-          print('❌ Places API error: ${data['error_message']}');
-        }
-
-        if (status == 'OK') {
-          final predictions = data['predictions'] as List;
-          print('✅ Trouvé ${predictions.length} suggestions');
-          if (predictions.isNotEmpty) {
-            final results = <PlaceSuggestion>[];
-            for (final p in predictions) {
-              try {
-                results.add(PlaceSuggestion.fromJson(p as Map<String, dynamic>));
-              } catch (e) {
-                print('Erreur parsing suggestion: $e');
-              }
-            }
-            return results;
-          }
-        } else if (status == 'ZERO_RESULTS') {
-          print('⚠️ Aucun résultat pour "$input"');
-          // Retourner des suggestions locales pour les quartiers connus
-          return _getLocalSuggestions(input);
-        } else if (status == 'REQUEST_DENIED') {
-          print('❌ Clé API invalide ou non activée');
-          return _getLocalSuggestions(input);
-        }
+        // Convertir les résultats Mapbox en PlaceSuggestion
+        final suggestions = mapboxResults.map((place) {
+          return PlaceSuggestion(
+            placeId: place.id ?? 'mapbox_${place.text}',
+            description: place.placeName ?? '',
+            mainText: place.text ?? '',
+            secondaryText: place.placeName?.replaceFirst('${place.text}, ', '') ?? 'Dakar, Sénégal',
+            localLat: place.geometry?.coordinates?.last ?? 0.0,
+            localLng: place.geometry?.coordinates?.first ?? 0.0,
+            isLocal: false,
+          );
+        }).toList();
+        
+        return suggestions;
       }
-
-      // Fallback : suggestions locales
-      return _getLocalSuggestions(input);
     } catch (e) {
-      print('❌ Erreur autocomplete: $e');
-      return _getLocalSuggestions(input);
+      print('⚠️ Mapbox non disponible: $e');
     }
+
+    // 2. Fallback : suggestions locales (base de données enrichie)
+    print('📍 Utilisation des suggestions locales');
+    return _getLocalSuggestions(input);
   }
   
   /// Suggestions locales pour les quartiers de Dakar (fallback)

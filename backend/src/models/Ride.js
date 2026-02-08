@@ -221,6 +221,10 @@ const rideSchema = new mongoose.Schema({
   
   // Horaires
   scheduledFor: Date, // Pour les courses programmées
+  reminderSent: {
+    type: Boolean,
+    default: false
+  }, // Rappel 1h avant envoyé
   requestedAt: {
     type: Date,
     default: Date.now

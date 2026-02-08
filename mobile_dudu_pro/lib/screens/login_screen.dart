@@ -144,6 +144,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('pro_auth_token', token);
+            // Sauvegarder isVerified pour accès immédiat
+            await prefs.setBool('driver_is_verified', driver['isVerified'] ?? false);
           } catch (e) {
             print('⚠️ Impossible de sauvegarder le token: $e');
           }

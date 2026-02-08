@@ -291,17 +291,44 @@ module.exports = (io) => {
 
         const passenger = await User.findById(ride.passenger);
 
+        // Préparer les informations du chauffeur
+        const driverInfo = {
+          id: driver._id,
+          name: `${socket.user.firstName} ${socket.user.lastName}`,
+          phone: socket.user.phone,
+          photo: driver.photo || null,
+          rating: driver.stats?.averageRating || 0,
+          totalRides: driver.stats?.completedRides || 0,
+          vehicle: {
+            type: driver.vehicle?.type || 'car',
+            brand: driver.vehicle?.brand || '',
+            model: driver.vehicle?.model || '',
+            color: driver.vehicle?.color || '',
+            plate: driver.vehicle?.licensePlate || '',
+            year: driver.vehicle?.year || null
+          }
+        };
+
         // Notifier le passager
         const passengerRoom = `passenger_${ride.passenger.toString()}`;
-        io.to(passengerRoom).emit('ride-accepted', {
+        const notificationData = {
           rideId: ride._id,
-          driver: {
-            id: driver._id,
-            name: `${socket.user.firstName} ${socket.user.lastName}`,
-            phone: socket.user.phone,
-            vehicle: driver.vehicle
-          },
-          estimatedArrival: 5 // minutes
+          driver: driverInfo,
+          estimatedArrival: 5, // minutes
+          isScheduled: !!ride.scheduledFor,
+          scheduledFor: ride.scheduledFor || null,
+          pickup: ride.pickup,
+          destination: ride.destination,
+          pricing: ride.pricing,
+          rideType: ride.rideType
+        };
+
+        io.to(passengerRoom).emit('ride-accepted', notificationData);
+        
+        console.log('📢 Notification envoyée au client:', {
+          passengerId: ride.passenger.toString(),
+          isScheduled: !!ride.scheduledFor,
+          scheduledFor: ride.scheduledFor
         });
 
         // Notifier les autres chauffeurs que la course n'est plus disponible

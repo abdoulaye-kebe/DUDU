@@ -3,12 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import '../models/driver_profile.dart';
 import 'ride_requests_screen.dart';
 import 'driver_profile_screen.dart';
 import 'driver_rides_screen.dart';
+import 'driver_history_screen.dart';
+import 'driver_settings_screen.dart';
+import 'driver_help_screen.dart';
 import 'settings_screen.dart';
 import 'login_screen.dart';
 import 'subscription_widget.dart';
@@ -118,32 +122,92 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
             final price = priceValue.toString();
             final perKmValue = pricing?['customPricePerKm'] ?? data['customPricePerKm'];
             final perKmText = perKmValue != null ? perKmValue.toString() : null;
+            
+            // Vérifier si c'est une course planifiée
+            final scheduledFor = data['scheduledFor'];
+            final isScheduled = scheduledFor != null;
+            String scheduledTimeText = '';
+            if (isScheduled) {
+              try {
+                final scheduledDate = DateTime.parse(scheduledFor.toString());
+                final now = DateTime.now();
+                final difference = scheduledDate.difference(now);
+                
+                if (difference.inMinutes < 60) {
+                  scheduledTimeText = 'Dans ${difference.inMinutes} min';
+                } else if (difference.inHours < 24) {
+                  scheduledTimeText = 'Dans ${difference.inHours}h';
+                } else {
+                  scheduledTimeText = 'Le ${scheduledDate.day}/${scheduledDate.month} à ${scheduledDate.hour}:${scheduledDate.minute.toString().padLeft(2, '0')}';
+                }
+              } catch (e) {
+                scheduledTimeText = 'Planifiée';
+              }
+            }
 
             return AlertDialog(
-              title: const Text(
-                'NOUVELLE DEMANDE',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      isScheduled ? 'COURSE PLANIFIÉE' : 'NOUVELLE DEMANDE',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isScheduled ? Colors.orange : Colors.black,
+                      ),
+                    ),
+                  ),
+                  if (isScheduled)
+                    Icon(Icons.schedule, color: Colors.orange, size: 28),
+                ],
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: primaryGreen.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      rideTypeLabel,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: primaryGreen,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: primaryGreen.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          rideTypeLabel,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: primaryGreen,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (isScheduled) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.access_time, size: 14, color: Colors.orange),
+                              const SizedBox(width: 4),
+                              Text(
+                                scheduledTimeText,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.orange,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -465,7 +529,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const DriverRidesScreen()),
+                  MaterialPageRoute(builder: (context) => const DriverHistoryScreen()),
                 );
               },
             ),
@@ -475,8 +539,9 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
               color: Colors.grey[700]!,
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Paramètres - Bientôt disponible')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DriverSettingsScreen()),
                 );
               },
             ),
@@ -486,8 +551,9 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
               color: Colors.blue,
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Support - Bientôt disponible')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DriverHelpScreen()),
                 );
               },
             ),
@@ -553,10 +619,12 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       appBar: AppBar(
+        toolbarHeight: 70,
         title: Row(
           children: [
+            // Logo DUDU avec badge Pro
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
@@ -566,31 +634,52 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                 style: TextStyle(
                   color: primaryGreen,
                   fontWeight: FontWeight.bold,
-                  fontSize: 20,
+                  fontSize: 18,
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Pro',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (_driverTypeLabel.isNotEmpty)
+            // Informations du chauffeur
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
                   Text(
-                    _driverTypeLabel,
+                    _driverProfile?.firstName != null && _driverProfile?.lastName != null
+                        ? '${_driverProfile!.firstName} ${_driverProfile!.lastName}'
+                        : 'Chauffeur DUDU',
                     style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white70,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-              ],
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        size: 14,
+                        color: Colors.white70,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Dakar, Sénégal',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.white70,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -600,7 +689,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         actions: [
           // Bouton Menu - Ouvre un bottom sheet comme l'app client
           IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
+            icon: const Icon(Icons.menu, color: Colors.white, size: 28),
             onPressed: _showDriverMenu,
           ),
         ],
@@ -614,7 +703,13 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
               expiryDate: _subscriptionExpiry,
               onUpgrade: () async {
                 // Vérifier si le compte est vérifié avant d'accéder aux abonnements
-                if (!(_driverProfile?.isVerified ?? false)) {
+                // Lire depuis SharedPreferences pour avoir la valeur immédiatement
+                final prefs = await SharedPreferences.getInstance();
+                final isVerified = prefs.getBool('driver_is_verified') ?? 
+                                   _driverProfile?.isVerified ?? 
+                                   false;
+                
+                if (!isVerified) {
                   showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
@@ -821,7 +916,12 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                   value: _isOnline,
                   onChanged: (value) async {
                     // Vérifier si le compte est vérifié avant de permettre la mise en ligne
-                    if (value && !(_driverProfile?.isVerified ?? false)) {
+                    final prefs = await SharedPreferences.getInstance();
+                    final isVerified = prefs.getBool('driver_is_verified') ?? 
+                                       _driverProfile?.isVerified ?? 
+                                       false;
+                    
+                    if (value && !isVerified) {
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(

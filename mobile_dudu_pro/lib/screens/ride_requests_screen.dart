@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/socket_service.dart';
+import 'active_ride_screen.dart';
 /// Écran des demandes de courses en temps réel
 /// Le chauffeur voit les demandes avec le PRIX LIBRE proposé par le client
 class RideRequestsScreen extends StatefulWidget {
@@ -168,37 +169,67 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
                   top: Radius.circular(14),
                 ),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.timer, color: color, size: 20),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${request.timeLeft}s',
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (request.scheduledFor != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.orange, width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.schedule, color: Colors.orange, size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            request.scheduledTimeText,
+                            style: const TextStyle(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.timer, color: color, size: 20),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${request.timeLeft}s',
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -479,29 +510,30 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
 
   Future<void> _acceptRide(String rideId) async {
     try {
+      // Trouver les données de la course
+      final request = _pendingRequests.firstWhere((r) => r.id == rideId);
+      final rideData = SocketService().currentRideRequests.firstWhere(
+        (r) => (r['id']?.toString() ?? r['rideId']?.toString()) == rideId,
+        orElse: () => <String, dynamic>{},
+      );
+      
       await SocketService().acceptRide(rideId);
+      
       setState(() {
         _pendingRequests.removeWhere((r) => r.id == rideId);
         SocketService().removeRideRequest(rideId);
       });
+      
       if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('✅ Course acceptée'),
-          content: const Text(
-            'Navigation vers le client...\n\n'
-            'Le client a été notifié de votre acceptation.',
+      
+      // Navigation vers l'écran de course active
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ActiveRideScreen(
+            rideId: rideId,
+            rideData: rideData,
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              child: const Text('OK'),
-            ),
-          ],
         ),
       );
     } catch (e) {
@@ -536,6 +568,8 @@ class RideRequest {
   final int estimatedDuration;
   final DateTime requestedAt;
   final int expiresInSeconds;
+  final DateTime? scheduledFor;
+  final String scheduledTimeText;
 
   RideRequest({
     required this.id,
@@ -550,6 +584,8 @@ class RideRequest {
     required this.estimatedDuration,
     required this.requestedAt,
     required this.expiresInSeconds,
+    this.scheduledFor,
+    this.scheduledTimeText = '',
   });
 
   int get timeLeft {
@@ -596,6 +632,28 @@ class RideRequest {
       destinationText = 'Destination';
     }
 
+    // Parse scheduled ride data
+    DateTime? scheduledFor;
+    String scheduledTimeText = '';
+    
+    if (data['scheduledFor'] != null) {
+      try {
+        scheduledFor = DateTime.parse(data['scheduledFor'].toString());
+        final now = DateTime.now();
+        final difference = scheduledFor.difference(now);
+        
+        if (difference.inMinutes < 60) {
+          scheduledTimeText = 'Dans ${difference.inMinutes} min';
+        } else if (difference.inHours < 24) {
+          scheduledTimeText = 'Dans ${difference.inHours}h';
+        } else {
+          scheduledTimeText = 'Le ${scheduledFor.day}/${scheduledFor.month} à ${scheduledFor.hour}:${scheduledFor.minute.toString().padLeft(2, '0')}';
+        }
+      } catch (e) {
+        scheduledTimeText = 'Planifiée';
+      }
+    }
+
     return RideRequest(
       id: requestId,
       passengerName: (data['passengerName']?.toString() ?? passenger['name']?.toString()) ?? 'Client DUDU',
@@ -616,6 +674,8 @@ class RideRequest {
           5,
       requestedAt: requestedAt,
       expiresInSeconds: 180,
+      scheduledFor: scheduledFor,
+      scheduledTimeText: scheduledTimeText,
     );
   }
 }

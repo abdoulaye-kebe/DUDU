@@ -202,7 +202,12 @@ class CarpoolMonitorService {
 
   /// Afficher notification système (locale)
   void _showSystemNotification(int driversCount, int totalSeats, int savings) {
-    // TODO: Utiliser flutter_local_notifications
+    // Utiliser le NotificationService pour afficher une notification système
+    NotificationService().showCarpoolAvailableNotification(
+      driversCount: driversCount,
+      totalSeats: totalSeats,
+      savings: savings,
+    );
     print('🔔 Notification: $driversCount chauffeurs • $totalSeats places • $savings FCFA');
   }
 

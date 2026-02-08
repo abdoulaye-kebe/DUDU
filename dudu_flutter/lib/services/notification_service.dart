@@ -353,35 +353,42 @@ class NotificationService {
     final payload = response.payload;
     print('👆 Notification tapée: $payload');
 
-    // TODO: Navigation selon le type de notification
+    // Navigation selon le type de notification
+    // Note: La navigation nécessite un contexte. Pour une vraie implémentation,
+    // il faudrait utiliser un GlobalKey<NavigatorState> ou un service de navigation.
+    // Pour l'instant, on log l'action qui devrait être effectuée.
     switch (payload) {
       case 'carpool_available':
-        // Navigator.push vers écran covoiturage
+        print('📱 Action: Ouvrir écran covoiturage');
+        // TODO: Implémenter avec NavigatorKey global
         break;
       case 'driver_found':
-        // Navigator.push vers écran tracking
-        break;
       case 'driver_approaching':
-        // Navigator.push vers écran tracking
+      case 'ride_started':
+        print('📱 Action: Ouvrir écran tracking de course');
+        // TODO: Implémenter avec NavigatorKey global
         break;
       case 'driver_arrived':
-        // Navigator.push vers écran prise en charge
-        break;
-      case 'ride_started':
-        // Navigator.push vers écran tracking
+        print('📱 Action: Ouvrir écran prise en charge');
+        // TODO: Implémenter avec NavigatorKey global
         break;
       case 'ride_completed':
-        // Navigator.push vers écran rating
+        print('📱 Action: Ouvrir écran rating');
+        // TODO: Implémenter avec NavigatorKey global
         break;
       case 'scheduled_reminder_2h':
       case 'scheduled_reminder_1h':
       case 'scheduled_driver_on_way':
       case 'scheduled_driver_arrived':
-        // Navigator.push vers écran trajets planifiés / détail course
+        print('📱 Action: Ouvrir écran trajets planifiés');
+        // TODO: Implémenter avec NavigatorKey global
         break;
       case 'promotion':
-        // Navigator.push vers écran promotions
+        print('📱 Action: Ouvrir écran promotions');
+        // TODO: Implémenter avec NavigatorKey global
         break;
+      default:
+        print('📱 Action: Notification sans action spécifique');
     }
   }
 
