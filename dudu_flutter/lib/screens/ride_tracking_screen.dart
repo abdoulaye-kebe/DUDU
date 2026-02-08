@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:url_launcher/url_launcher.dart';
 import '../services/socket_service.dart';
 import '../services/api_service.dart';
+import 'share_ride_screen.dart';
 
 /// Écran de suivi de course en temps réel
 /// Affiche le véhicule (voiture ou moto) qui se déplace vers le client
@@ -833,17 +834,49 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: _showCancelConfirmation,
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.red,
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _shareRide,
+                    icon: const Icon(Icons.share_location),
+                    label: const Text('Partager'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
                 ),
-                child: const Text('Annuler le trajet'),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextButton(
+                    onPressed: _showCancelConfirmation,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red,
+                    ),
+                    child: const Text('Annuler'),
+                  ),
+                ),
+              ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _shareRide() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ShareRideScreen(
+          rideId: widget.rideId,
+          driverName: widget.driverInfo['name'] ?? 'Chauffeur',
+          vehicleInfo: widget.driverInfo['vehicle'] ?? 'Véhicule',
+          pickupAddress: 'Point de départ', // À adapter selon vos données
+          destinationAddress: 'Destination', // À adapter selon vos données
+          currentLat: _vehiclePosition?.latitude,
+          currentLng: _vehiclePosition?.longitude,
         ),
       ),
     );
