@@ -9,6 +9,8 @@ import '../services/api_service.dart';
 import '../models/ride.dart';
 import '../services/notification_service.dart';
 import '../services/secure_auth_service.dart';
+import '../services/socket_service.dart';
+import 'package:intl/intl.dart';
 
 class ScheduledRidesScreen extends StatefulWidget {
   const ScheduledRidesScreen({Key? key}) : super(key: key);
@@ -62,6 +64,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       }
     });
     _loadScheduledRides();
+    _setupSocketListener();
   }
 
   @override
@@ -70,7 +73,245 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     _fromController.dispose();
     _toController.dispose();
     _searchDebounce?.cancel();
+    // Nettoyer le callback Socket.IO
+    SocketService().onRideAccepted = null;
     super.dispose();
+  }
+
+  void _setupSocketListener() {
+    // Écouter les acceptations de courses
+    SocketService().onRideAccepted = (data) {
+      if (!mounted) return;
+      
+      final isScheduled = data['isScheduled'] == true;
+      final scheduledFor = data['scheduledFor'];
+      
+      if (isScheduled && scheduledFor != null) {
+        _showScheduledRideAcceptedDialog(data);
+      }
+      
+      // Recharger la liste des courses planifiées
+      _loadScheduledRides();
+    };
+  }
+
+  void _showScheduledRideAcceptedDialog(Map<String, dynamic> data) {
+    final driver = data['driver'] as Map<String, dynamic>?;
+    final vehicle = driver?['vehicle'] as Map<String, dynamic>?;
+    final scheduledFor = data['scheduledFor'];
+    
+    if (driver == null) return;
+    
+    DateTime? scheduledDate;
+    String scheduledTimeText = '';
+    
+    try {
+      scheduledDate = DateTime.parse(scheduledFor.toString());
+      final formatter = DateFormat('EEEE d MMMM yyyy à HH:mm', 'fr_FR');
+      scheduledTimeText = formatter.format(scheduledDate);
+    } catch (e) {
+      scheduledTimeText = 'Date à confirmer';
+    }
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle, color: Colors.green, size: 32),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Course acceptée !',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange, width: 2),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.schedule, color: Colors.orange, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Course planifiée pour :',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            scheduledTimeText,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Votre chauffeur :',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: primaryGreen.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: primaryGreen,
+                          child: Text(
+                            (driver['name']?.toString() ?? 'C')[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                driver['name']?.toString() ?? 'Chauffeur DUDU',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.star, color: Colors.amber, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${driver['rating']?.toStringAsFixed(1) ?? '5.0'} (${driver['totalRides'] ?? 0} courses)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (vehicle != null) ...[
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.directions_car, color: primaryGreen, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${vehicle['brand'] ?? ''} ${vehicle['model'] ?? ''}'.trim(),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  '${vehicle['color'] ?? ''} • ${vehicle['plate'] ?? ''}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Le chauffeur viendra vous chercher le jour et l\'heure prévus.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _setMode(String mode) {
@@ -561,7 +802,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                 child: _buildModeChip(
                   label: 'Course',
                   icon: Icons.directions_car,
-                  assetPath: 'assets/images/ride_types/coursemoto.png',
+                  assetPath: 'assets/images/vehicles/standard.png',
                   isSelected: _mode == 'ride',
                   onTap: () => _setMode('ride'),
                 ),
@@ -571,7 +812,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                 child: _buildModeChip(
                   label: 'Livraison (moto)',
                   icon: Icons.delivery_dining,
-                  assetPath: 'assets/images/ride_types/livraion.png',
+                  assetPath: 'assets/images/vehicles/delivery.png',
                   isSelected: _mode == 'delivery',
                   onTap: () => _setMode('delivery'),
                 ),
@@ -813,7 +1054,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                 children: [
                   if (ride.rideType == 'delivery')
                     Image.asset(
-                      'assets/images/ride_types/livraion.png',
+                      'assets/images/vehicles/delivery.png',
                       width: 22,
                       height: 22,
                       errorBuilder: (_, __, ___) => const Icon(
@@ -823,7 +1064,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                     )
                   else
                     Image.asset(
-                      'assets/images/ride_types/coursemoto.png',
+                      'assets/images/vehicles/standard.png',
                       width: 22,
                       height: 22,
                       errorBuilder: (_, __, ___) => const Icon(
