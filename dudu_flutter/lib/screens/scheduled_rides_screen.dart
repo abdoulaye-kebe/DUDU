@@ -11,6 +11,7 @@ import '../services/notification_service.dart';
 import '../services/secure_auth_service.dart';
 import '../services/socket_service.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ScheduledRidesScreen extends StatefulWidget {
   const ScheduledRidesScreen({Key? key}) : super(key: key);
@@ -1405,8 +1406,189 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     return result == true;
   }
 
+  Future<bool> _showPaymentDialog() async {
+    final amount = _price > 0 ? _price : 2500;
+    
+    final paymentMethod = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Paiement requis'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: primaryGreen.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    'Montant à payer',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$amount FCFA',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: primaryGreen,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Veuillez payer maintenant pour confirmer votre réservation',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00D9A5).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.payment, color: Color(0xFF00D9A5)),
+              ),
+              title: const Text('Wave'),
+              subtitle: const Text('Paiement mobile Wave'),
+              onTap: () => Navigator.pop(context, 'wave'),
+            ),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6600).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.phone_android, color: Color(0xFFFF6600)),
+              ),
+              title: const Text('Orange Money'),
+              subtitle: const Text('Paiement mobile Orange Money'),
+              onTap: () => Navigator.pop(context, 'orange_money'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+        ],
+      ),
+    );
+    
+    if (paymentMethod == null) return false;
+    
+    // Numéro DUDU pour recevoir les paiements
+    const String duduPaymentNumber = '221771234567'; // À remplacer par le vrai numéro
+    
+    try {
+      String deepLinkUrl;
+      String appName;
+      
+      if (paymentMethod == 'wave') {
+        appName = 'Wave';
+        deepLinkUrl = 'wave://send?phone=$duduPaymentNumber&amount=$amount&note=Course planifiée DUDU';
+      } else {
+        appName = 'Orange Money';
+        deepLinkUrl = 'orangemoney://send?phone=$duduPaymentNumber&amount=$amount&reason=Course planifiée DUDU';
+      }
+      
+      final uri = Uri.parse(deepLinkUrl);
+      bool launched = false;
+      
+      try {
+        if (await canLaunchUrl(uri)) {
+          launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      } catch (e) {
+        print('Erreur ouverture $appName: $e');
+      }
+      
+      if (!launched) {
+        // Afficher dialogue avec instructions
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Paiement $appName'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Montant: $amount FCFA'),
+                const SizedBox(height: 8),
+                Text('Numéro DUDU: $duduPaymentNumber'),
+                const SizedBox(height: 16),
+                const Text(
+                  '1. Ouvrez votre application de paiement\n'
+                  '2. Envoyez le montant au numéro ci-dessus\n'
+                  '3. Confirmez le paiement',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+      
+      // Demander confirmation du paiement
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirmer le paiement'),
+          content: const Text(
+            'Avez-vous effectué le paiement ?\n\n'
+            'Votre course sera planifiée uniquement si le paiement est confirmé.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Non, annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGreen,
+              ),
+              child: const Text('Oui, j\'ai payé'),
+            ),
+          ],
+        ),
+      );
+      
+      return confirmed ?? false;
+    } catch (e) {
+      print('Erreur paiement: $e');
+      return false;
+    }
+  }
+
   Future<void> _savePlannedRide() async {
     if (!_canSave()) return;
+
+    // Demander le paiement AVANT de confirmer la course planifiée
+    final paymentConfirmed = await _showPaymentDialog();
+    if (!paymentConfirmed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Paiement requis pour planifier une course')),
+      );
+      return;
+    }
 
     final rideType = _mode == 'delivery' ? 'delivery' : 'standard';
 
