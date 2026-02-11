@@ -130,10 +130,18 @@ router.post('/purchase', [
     const startDate = new Date();
 
     let additionalDays = 0;
-    if (existingSubscription && existingSubscription.endDate && existingSubscription.endDate > startDate) {
-      const diffMs = existingSubscription.endDate.getTime() - startDate.getTime();
-      additionalDays = Math.ceil(diffMs / MS_PER_DAY);
-
+    if (existingSubscription) {
+      // Vérifier si l'abonnement est vraiment actif (endDate dans le futur)
+      if (existingSubscription.endDate && existingSubscription.endDate > startDate) {
+        // Abonnement encore valide, calculer les jours restants
+        const diffMs = existingSubscription.endDate.getTime() - startDate.getTime();
+        additionalDays = Math.ceil(diffMs / MS_PER_DAY);
+        console.log(`✅ Abonnement actif trouvé, ${additionalDays} jour(s) restant(s), cumul avec nouveau plan`);
+      } else {
+        // Abonnement expiré, pas de jours à ajouter
+        console.log(`⚠️ Abonnement expiré trouvé (endDate: ${existingSubscription.endDate}), pas de cumul`);
+      }
+      
       // Marquer l'ancien abonnement comme expiré pour garder l'historique cohérent
       existingSubscription.status = 'expired';
       existingSubscription.expiredAt = startDate;
@@ -270,6 +278,19 @@ router.get('/current', auth, requireDriver, requireDriverApproved, async (req, r
       });
     }
 
+    const now = new Date();
+    const isActiveResult = subscription.isActive();
+    
+    console.log('📦 Abonnement trouvé:', {
+      type: subscription.plan.type,
+      status: subscription.status,
+      startDate: subscription.startDate,
+      endDate: subscription.endDate,
+      now: now,
+      endDateInFuture: subscription.endDate > now,
+      isActive: isActiveResult
+    });
+
     res.json({
       success: true,
       data: {
@@ -284,7 +305,7 @@ router.get('/current', auth, requireDriver, requireDriverApproved, async (req, r
           autoRenew: subscription.autoRenew,
           nextRenewalDate: subscription.nextRenewalDate,
           usage: subscription.usage,
-          isActive: subscription.isActive(),
+          isActive: isActiveResult,
           isExpiringSoon: subscription.isExpiringSoon(),
           payment: subscription.payment ? {
             status: subscription.payment.status,
