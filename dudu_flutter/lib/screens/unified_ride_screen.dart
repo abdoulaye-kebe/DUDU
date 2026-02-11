@@ -647,9 +647,10 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                         _selectedRideType = type['id'];
 
                         if (_selectedMode != 'delivery') {
-                          if (_selectedRideType == 'luxe' && _estimatedDistance > 0) {
-                            _customPrice = (5000 * _estimatedDistance).round();
-                            _priceController.text = _customPrice.toString();
+                          // Pour Luxe, pas de calcul automatique, juste un prix minimum de 15000 FCFA
+                          if (_selectedRideType == 'luxe') {
+                            _customPrice = 15000; // Prix minimum
+                            _priceController.text = '';
                           }
                           if (_selectedRideType == 'moto' && _estimatedDistance > 0) {
                             _customPrice = (_motoPricePerKm * _estimatedDistance).round();
@@ -1486,11 +1487,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       _destinationLatLng!.longitude,
     );
 
-    // Mettre à jour le prix estimé selon le type
-    if (_selectedMode != 'delivery' && _selectedRideType == 'luxe') {
-      _customPrice = (5000 * (_estimatedDistance <= 0 ? 0 : _estimatedDistance)).round();
-      _priceController.text = _customPrice.toString();
-    }
+    // Pour Luxe, pas de calcul automatique par distance
+    // Le client entre son prix librement (minimum 15000 FCFA)
     if (_selectedMode != 'delivery' && _selectedRideType == 'moto') {
       _customPrice = (_motoPricePerKm * (_estimatedDistance <= 0 ? 0 : _estimatedDistance)).round();
     }
@@ -1750,33 +1748,71 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     }
 
     if (isLuxe) {
-      final total = (5000 * (_estimatedDistance <= 0 ? 0 : _estimatedDistance)).round();
+      // Pour Luxe : prix libre avec minimum 15000 FCFA
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: lightGreen.withOpacity(0.1),
+          color: Colors.black.withOpacity(0.05),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: lightGreen.withOpacity(0.3), width: 2),
+          border: Border.all(color: Colors.black.withOpacity(0.2), width: 2),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.payments_outlined, color: primaryGreen, size: 18),
-            const SizedBox(width: 8),
-            const Text(
-              'Prix (Luxe)',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: accentBlack,
-              ),
+            Row(
+              children: [
+                Icon(Icons.diamond, color: Colors.black, size: 18),
+                const SizedBox(width: 8),
+                const Text(
+                  'Prix Luxe (minimum 15 000 FCFA)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: accentBlack,
+                  ),
+                ),
+              ],
             ),
-            const Spacer(),
-            Text(
-              total > 0 ? '$total FCFA' : '—',
+            const SizedBox(height: 8),
+            TextField(
+              controller: _priceController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              textAlign: TextAlign.right,
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: primaryGreen,
+                color: Colors.black,
+              ),
+              decoration: InputDecoration(
+                hintText: '15000',
+                hintStyle: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[400],
+                ),
+                suffixText: 'FCFA',
+                suffixStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: accentBlack,
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _customPrice = int.tryParse(value) ?? 15000;
+                });
+              },
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Proposez un prix raisonnable selon la distance',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
               ),
             ),
           ],
@@ -2023,7 +2059,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         destinationLongitude: _destinationLatLng!.longitude,
         destinationAddress: _destinationAddress,
         rideType: _backendRideType,
-        customPrice: (!isMotoRide && !isLuxeRide && _customPrice > 0) ? _customPrice : null,
+        customPrice: (isLuxeRide || (!isMotoRide && !isLuxeRide && _customPrice > 0)) ? _customPrice : null,
         customPricePerKm: isMotoRide ? _motoPricePerKm : null,
         estimatedDistance: _estimatedDistance,
         paymentMethod: _selectedPaymentMethod,

@@ -5,6 +5,7 @@ import 'dart:async';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import 'rate_passenger_screen.dart';
+import 'navigation_screen.dart';
 
 /// Écran de suivi de course active pour le chauffeur
 class ActiveRideScreen extends StatefulWidget {
@@ -460,6 +461,39 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
               ),
             ),
           ),
+
+          // Bouton de navigation intelligent
+          if (_rideStatus != 'completed')
+            Positioned(
+              bottom: 100,
+              right: 16,
+              child: FloatingActionButton.extended(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NavigationScreen(
+                        rideId: widget.rideId,
+                        pickupLocation: _pickupLocation,
+                        destinationLocation: _destinationLocation,
+                        pickupAddress: _pickupAddress,
+                        destinationAddress: _destinationAddress,
+                        passengerName: _passengerName,
+                        rideStatus: _rideStatus == 'accepted' || _rideStatus == 'arrived' 
+                            ? 'going_to_pickup' 
+                            : 'in_progress',
+                      ),
+                    ),
+                  );
+                },
+                backgroundColor: const Color(0xFF0d5d36),
+                icon: const Icon(Icons.navigation, color: Colors.white),
+                label: const Text(
+                  'Navigation',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
 
           // Boutons d'action en bas
           Positioned(

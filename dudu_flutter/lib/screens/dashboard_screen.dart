@@ -546,45 +546,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 );
               },
             ),
-            _buildMenuOption(
-              icon: Icons.local_taxi,
-              title: 'Devenir chauffeur (DUDU Pro)',
-              color: primaryGreen,
-              highlight: true,
-              onTap: () async {
-                Navigator.pop(context);
-                const url = 'https://dudugroup.sn/downloads/dudu-driver.apk';
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Téléchargement de DUDU Pro...'),
-                    backgroundColor: primaryGreen,
-                    duration: const Duration(seconds: 3),
-                    action: SnackBarAction(
-                      label: 'Ouvrir',
-                      textColor: Colors.white,
-                      onPressed: () async {
-                        try {
-                          final uri = Uri.parse(url);
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri, mode: LaunchMode.externalApplication);
-                          }
-                        } catch (e) {
-                          print('Erreur ouverture lien: $e');
-                        }
-                      },
-                    ),
-                  ),
-                );
-                try {
-                  final uri = Uri.parse(url);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  }
-                } catch (e) {
-                  print('Erreur ouverture lien: $e');
-                }
-              },
-            ),
             const Divider(),
             _buildMenuOption(
               icon: Icons.logout,
