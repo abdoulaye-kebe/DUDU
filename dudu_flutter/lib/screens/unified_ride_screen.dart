@@ -809,29 +809,52 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     required String value,
     required VoidCallback onTap,
   }) {
+    final bool hasValue = value.isNotEmpty;
+    
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: hasValue ? primaryGreen.withOpacity(0.05) : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(
+            color: hasValue ? primaryGreen : Colors.grey[300]!,
+            width: hasValue ? 2 : 1,
+          ),
         ),
         child: Row(
           children: [
             Icon(icon, color: iconColor, size: 24),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                value.isEmpty ? hint : value,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: value.isEmpty ? Colors.grey[500] : accentBlack,
-                  fontWeight: value.isEmpty ? FontWeight.normal : FontWeight.w500,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (hasValue)
+                    Text(
+                      hint,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  Text(
+                    hasValue ? value : hint,
+                    style: TextStyle(
+                      fontSize: hasValue ? 15 : 15,
+                      color: hasValue ? primaryGreen : Colors.grey[500],
+                      fontWeight: hasValue ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
+            if (hasValue)
+              Icon(Icons.check_circle, color: primaryGreen, size: 20),
           ],
         ),
       ),
@@ -871,7 +894,84 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           tiltGesturesEnabled: false,
           liteModeEnabled: false,
         ),
-        if (etaMinutes != null && _pickupLatLng != null)
+        
+        // Animation de recherche de chauffeur
+        if (_isSearchingDriver)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.3),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Icône de voiture tournante
+                      TweenAnimationBuilder(
+                        tween: Tween<double>(begin: 0, end: 1),
+                        duration: const Duration(seconds: 2),
+                        builder: (context, double value, child) {
+                          return Transform.rotate(
+                            angle: value * 2 * 3.14159,
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: primaryGreen.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.directions_car,
+                                size: 40,
+                                color: primaryGreen,
+                              ),
+                            ),
+                          );
+                        },
+                        onEnd: () {
+                          if (_isSearchingDriver && mounted) {
+                            setState(() {});
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _selectedMode == 'delivery' 
+                          ? 'Recherche de livreur...' 
+                          : 'Recherche de chauffeur...',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: accentBlack,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Veuillez patienter',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        
+        if (etaMinutes != null && _pickupLatLng != null && !_isSearchingDriver)
           Positioned(
             top: 16,
             left: 0,
