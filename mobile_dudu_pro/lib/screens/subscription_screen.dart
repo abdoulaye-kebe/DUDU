@@ -349,15 +349,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   Widget _buildPlanCard(SubscriptionPlan plan) {
     final isCurrentPlan = _currentSubscription?.type == plan.type;
+    // Pour le plan journalier, permettre l'achat multiple pour cumuler les jours
+    final isDailyPlan = plan.type == 'daily';
+    final canPurchaseAgain = isDailyPlan; // Les plans journaliers peuvent toujours être achetés
     final hasSavings = plan.savings != null && 
         plan.savings!['amount'] != null && 
         plan.savings!['amount'] > 0;
 
     return Card(
-      elevation: isCurrentPlan ? 6 : 2,
+      elevation: (isCurrentPlan && !canPurchaseAgain) ? 6 : 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: isCurrentPlan 
+        side: (isCurrentPlan && !canPurchaseAgain)
             ? const BorderSide(color: Color(0xFF00A651), width: 2)
             : BorderSide.none,
       ),
@@ -445,9 +448,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: isCurrentPlan ? null : () => _purchasePlan(plan),
+                onPressed: (isCurrentPlan && !canPurchaseAgain) ? null : () => _purchasePlan(plan),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isCurrentPlan 
+                  backgroundColor: (isCurrentPlan && !canPurchaseAgain)
                       ? Colors.grey 
                       : const Color(0xFF00A651),
                   foregroundColor: Colors.white,
@@ -456,9 +459,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ),
                 ),
                 child: Text(
-                  isCurrentPlan 
+                  (isCurrentPlan && !canPurchaseAgain)
                       ? 'Plan Actuel' 
-                      : 'Souscrire',
+                      : (isCurrentPlan && canPurchaseAgain)
+                          ? 'Ajouter +1 jour'
+                          : 'Souscrire',
                 ),
               ),
             ),
