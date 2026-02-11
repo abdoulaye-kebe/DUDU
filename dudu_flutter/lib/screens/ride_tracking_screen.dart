@@ -203,6 +203,171 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   }
 
   /// Afficher le dialogue de fin de course
+  Future<void> _showPaymentDialog() async {
+    // Récupérer le montant de la course depuis l'API ou utiliser une valeur estimée
+    final amount = 2500; // TODO: Récupérer le vrai montant depuis l'API
+    final driverPhone = widget.driverInfo['phone'] ?? '';
+    
+    final paymentMethod = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Choisir le mode de paiement'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Montant: $amount FCFA',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF00A651),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00D9A5).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.payment, color: Color(0xFF00D9A5)),
+              ),
+              title: const Text('Wave'),
+              subtitle: const Text('Paiement mobile Wave'),
+              onTap: () => Navigator.pop(context, 'wave'),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6600).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.phone_android, color: Color(0xFFFF6600)),
+              ),
+              title: const Text('Orange Money'),
+              subtitle: const Text('Paiement mobile Orange Money'),
+              onTap: () => Navigator.pop(context, 'orange_money'),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.money, color: Colors.green),
+              ),
+              title: const Text('Espèces'),
+              subtitle: const Text('Payer en espèces au chauffeur'),
+              onTap: () => Navigator.pop(context, 'cash'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+        ],
+      ),
+    );
+    
+    if (paymentMethod == null) return;
+    
+    if (paymentMethod == 'cash') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez payer en espèces au chauffeur'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
+    }
+    
+    // Ouvrir Wave ou Orange Money
+    try {
+      String deepLinkUrl;
+      String appName;
+      
+      if (paymentMethod == 'wave') {
+        appName = 'Wave';
+        deepLinkUrl = 'wave://send?phone=$driverPhone&amount=$amount&note=Course DUDU ${widget.rideId}';
+      } else {
+        appName = 'Orange Money';
+        deepLinkUrl = 'orangemoney://send?phone=$driverPhone&amount=$amount&reason=Course DUDU ${widget.rideId}';
+      }
+      
+      final uri = Uri.parse(deepLinkUrl);
+      bool launched = false;
+      
+      try {
+        if (await canLaunchUrl(uri)) {
+          launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      } catch (e) {
+        print('Erreur ouverture $appName: $e');
+      }
+      
+      if (!launched) {
+        // Afficher dialogue avec instructions
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Paiement $appName'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Montant: $amount FCFA'),
+                const SizedBox(height: 8),
+                Text('Numéro chauffeur: $driverPhone'),
+                const SizedBox(height: 16),
+                const Text(
+                  '1. Ouvrez votre application de paiement\n'
+                  '2. Envoyez le montant au numéro ci-dessus\n'
+                  '3. Confirmez le paiement',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // Paiement lancé avec succès
+        await Future.delayed(const Duration(seconds: 2));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Paiement $appName en cours...'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      print('Erreur paiement: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _showCompletionDialog() {
     int selectedRating = 0;
     
@@ -304,6 +469,20 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
             ],
           ),
           actions: [
+            // Bouton Payer
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await _showPaymentDialog();
+              },
+              icon: const Icon(Icons.payment),
+              label: const Text('Payer'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 8),
             // Bouton Accueil
             ElevatedButton.icon(
               onPressed: () async {
@@ -320,7 +499,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
               icon: const Icon(Icons.home),
-              label: const Text('Accueil'),
+              label: const Text('Plus tard'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF00A651),
                 foregroundColor: Colors.white,
