@@ -475,14 +475,31 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
       final subscription = await ApiService.getCurrentSubscription();
       if (!mounted) return;
 
+      print('📦 Abonnement chargé: ${subscription?.type}, actif: ${subscription?.isActive}');
+
       if (subscription != null && subscription.isActive) {
         setState(() {
           _currentPlan = subscription.type;
           _subscriptionExpiry = subscription.endDate;
         });
+        print('✅ Abonnement actif affiché: $_currentPlan, expire: $_subscriptionExpiry');
+      } else {
+        // Pas d'abonnement actif ou abonnement expiré
+        setState(() {
+          _currentPlan = 'free';
+          _subscriptionExpiry = null;
+        });
+        print('❌ Aucun abonnement actif, affichage plan gratuit');
       }
-    } catch (_) {
-      // On ignore les erreurs ici pour ne pas bloquer le dashboard
+    } catch (e) {
+      print('❌ Erreur chargement abonnement: $e');
+      // En cas d'erreur, on garde les valeurs par défaut
+      if (mounted) {
+        setState(() {
+          _currentPlan = 'free';
+          _subscriptionExpiry = null;
+        });
+      }
     }
   }
 
