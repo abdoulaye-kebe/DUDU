@@ -835,6 +835,35 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                     ),
                   ),
                 ),
+                // Bouton de partage rapide
+                if (_rideStatus != 'completed')
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00A651).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ShareRideScreen(
+                              rideId: widget.rideId,
+                              driverName: widget.driverInfo['name'] ?? 'Chauffeur',
+                              vehicleInfo: widget.driverInfo['vehicle'] ?? 'Véhicule',
+                              pickupAddress: widget.pickupLocation['address'] ?? 'Départ',
+                              destinationAddress: widget.destinationLocation['address'] ?? 'Destination',
+                              currentLat: _vehiclePosition?.latitude,
+                              currentLng: _vehiclePosition?.longitude,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.share),
+                      color: const Color(0xFF00A651),
+                      tooltip: 'Partager mon trajet',
+                    ),
+                  ),
               ],
             ),
             if (_rideStatus == 'going_to_pickup') ...[
@@ -974,6 +1003,30 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                       ),
                     ],
                   ),
+                ),
+                
+                // Bouton de partage de trajet
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ShareRideScreen(
+                          rideId: widget.rideId,
+                          driverName: widget.driverInfo['name'] ?? 'Chauffeur',
+                          vehicleInfo: widget.driverInfo['vehicle'] ?? 'Véhicule',
+                          pickupAddress: widget.pickupLocation['address'] ?? 'Départ',
+                          destinationAddress: widget.destinationLocation['address'] ?? 'Destination',
+                          currentLat: _vehiclePosition?.latitude,
+                          currentLng: _vehiclePosition?.longitude,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.share),
+                  iconSize: 28,
+                  color: const Color(0xFF00A651),
+                  tooltip: 'Partager mon trajet',
                 ),
                 
                 // Bouton d'appel classique
