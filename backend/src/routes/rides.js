@@ -91,8 +91,7 @@ router.post('/request', [
 
     await ride.save();
 
-    // Rechercher des chauffeurs disponibles (en ligne)
-    // Pour les tests: on cherche tous les chauffeurs en ligne sans contrainte de distance
+    // Rechercher des chauffeurs disponibles dans un rayon de 2km
     const driverQuery = {
       status: 'online',
       isAvailable: true,
@@ -108,9 +107,30 @@ router.post('/request', [
       driverQuery.gender = 'female';
     }
 
-    let availableDrivers = await Driver.find(driverQuery).limit(10);
+    let allDrivers = await Driver.find(driverQuery);
+    
+    // Filtrer les chauffeurs dans un rayon de 2km du point de départ
+    const INITIAL_RADIUS_KM = 2;
+    let availableDrivers = allDrivers.filter(driver => {
+      if (!driver.currentLocation || !driver.currentLocation.coordinates) {
+        return false;
+      }
+      const driverLat = driver.currentLocation.coordinates[1];
+      const driverLon = driver.currentLocation.coordinates[0];
+      const distance = calculateDistance(
+        pickup.coordinates.latitude,
+        pickup.coordinates.longitude,
+        driverLat,
+        driverLon
+      );
+      return distance <= INITIAL_RADIUS_KM;
+    });
 
-    console.log(`🔍 Recherche chauffeurs: ${availableDrivers.length} trouvés en ligne`);
+    console.log(`🔍 Recherche chauffeurs dans rayon de ${INITIAL_RADIUS_KM}km: ${availableDrivers.length} trouvés`);
+    
+    // Stocker le rayon initial dans la course pour l'élargissement ultérieur
+    ride.searchRadius = INITIAL_RADIUS_KM;
+    await ride.save();
     
     // Si aucun chauffeur en ligne, chercher tous les chauffeurs approuvés
     if (availableDrivers.length === 0) {
@@ -130,7 +150,7 @@ router.post('/request', [
       console.log(`🔍 Fallback: ${availableDrivers.length} chauffeurs approuvés trouvés`);
     }
 
-    // Envoyer la demande via Socket.io à tous les chauffeurs disponibles
+    // Envoyer la demande via Socket.io aux chauffeurs dans le rayon
     const io = req.app.get('io');
     if (io && availableDrivers.length > 0) {
       const rideData = {
@@ -147,14 +167,54 @@ router.post('/request', [
         passengerPhone: req.user?.phone
       };
 
-      // Émettre à tous les chauffeurs connectés
-      io.emit('new-ride-request', rideData);
-      console.log(`📡 Demande de course envoyée via Socket.io à ${availableDrivers.length} chauffeurs`);
-      
-      // Aussi émettre individuellement à chaque chauffeur
+      // Émettre individuellement à chaque chauffeur dans le rayon
       for (const driver of availableDrivers) {
-        io.to(`driver_${driver._id}`).emit('ride-request', rideData);
+        io.to(`driver_${driver._id}`).emit('new-ride-request', rideData);
       }
+      console.log(`📡 Demande de course envoyée à ${availableDrivers.length} chauffeurs dans rayon de ${INITIAL_RADIUS_KM}km`);
+      
+      // Programmer l'élargissement à 4km après 5 minutes si pas d'acceptation
+      setTimeout(async () => {
+        try {
+          const updatedRide = await Ride.findById(ride._id);
+          if (!updatedRide || updatedRide.status !== 'requested') {
+            console.log(`⏭️ Course ${ride._id} déjà acceptée ou annulée, pas d'élargissement`);
+            return;
+          }
+          
+          const EXPANDED_RADIUS_KM = 4;
+          console.log(`🔄 Élargissement du rayon à ${EXPANDED_RADIUS_KM}km pour course ${ride._id}`);
+          
+          // Filtrer les chauffeurs dans le rayon élargi (4km)
+          const expandedDrivers = allDrivers.filter(driver => {
+            if (!driver.currentLocation || !driver.currentLocation.coordinates) {
+              return false;
+            }
+            const driverLat = driver.currentLocation.coordinates[1];
+            const driverLon = driver.currentLocation.coordinates[0];
+            const distance = calculateDistance(
+              pickup.coordinates.latitude,
+              pickup.coordinates.longitude,
+              driverLat,
+              driverLon
+            );
+            return distance <= EXPANDED_RADIUS_KM && distance > INITIAL_RADIUS_KM;
+          });
+          
+          console.log(`📡 Envoi à ${expandedDrivers.length} chauffeurs supplémentaires dans rayon ${INITIAL_RADIUS_KM}-${EXPANDED_RADIUS_KM}km`);
+          
+          // Envoyer aux nouveaux chauffeurs
+          for (const driver of expandedDrivers) {
+            io.to(`driver_${driver._id}`).emit('new-ride-request', rideData);
+          }
+          
+          // Mettre à jour le rayon de recherche
+          updatedRide.searchRadius = EXPANDED_RADIUS_KM;
+          await updatedRide.save();
+        } catch (error) {
+          console.error('Erreur lors de l\'élargissement du rayon:', error);
+        }
+      }, 5 * 60 * 1000); // 5 minutes
     }
 
     if (availableDrivers.length === 0) {

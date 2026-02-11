@@ -378,6 +378,12 @@ const rideSchema = new mongoose.Schema({
     searchTime: Number, // temps de recherche en secondes
     waitTime: Number,   // temps d'attente en minutes
     responseTime: Number // temps de réponse du chauffeur en secondes
+  },
+  
+  // Rayon de recherche de chauffeurs (en km)
+  searchRadius: {
+    type: Number,
+    default: 2 // Rayon initial de 2km
   }
 }, {
   timestamps: true
