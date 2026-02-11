@@ -164,30 +164,55 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(
-                  _currentSubscription!.isActive 
-                      ? Icons.check_circle 
-                      : Icons.warning,
-                  color: _currentSubscription!.isActive 
-                      ? Colors.green 
-                      : Colors.orange,
+            // Badge "Abonnement actif" en vert si actif
+            if (_currentSubscription!.isActive)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  'Abonnement Actuel',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(
+                      Icons.check_circle,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'ABONNEMENT ACTIF',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (!_currentSubscription!.isActive)
+              Row(
+                children: [
+                  Icon(
+                    Icons.warning,
+                    color: Colors.orange,
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Abonnement Expiré',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
             const SizedBox(height: 16),
             _buildInfoRow('Plan', _currentSubscription!.name),
             _buildInfoRow('Prix', _currentSubscription!.priceFormatted),
             _buildInfoRow('Durée', _currentSubscription!.durationFormatted),
-            _buildInfoRow('Statut', _currentSubscription!.isActive ? 'Actif' : 'Expiré'),
             if (_currentSubscription!.isExpiringSoon)
               Container(
                 margin: const EdgeInsets.only(top: 12),

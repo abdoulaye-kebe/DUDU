@@ -286,7 +286,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
       body: Stack(
         children: [
           // Carte Google Maps
-          GoogleMaps(
+          GoogleMap(
             initialCameraPosition: CameraPosition(
               target: _targetLocation ?? widget.pickupLocation,
               zoom: 14,
