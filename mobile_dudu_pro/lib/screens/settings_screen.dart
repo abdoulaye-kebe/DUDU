@@ -28,6 +28,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static const Color lightGreen = Color(0xFF10b981);
 
   @override
+  void initState() {
+    super.initState();
+    _loadLanguagePreference();
+  }
+
+  Future<void> _loadLanguagePreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedLanguage = prefs.getString('app_language') ?? 'fr';
+      if (mounted) {
+        setState(() => _language = savedLanguage);
+      }
+    } catch (e) {
+      print('Erreur chargement langue: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -61,8 +79,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildNotificationSettings(),
             const SizedBox(height: 20),
             
-            // Paramètres de langue et thème
-            _buildLanguageThemeSettings(),
+            // Paramètres de langue
+            _buildLanguageSettings(),
             const SizedBox(height: 20),
             
             // Section de déconnexion
@@ -289,7 +307,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildLanguageThemeSettings() {
+  Widget _buildLanguageSettings() {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
@@ -300,26 +318,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Préférences',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00A651).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.language,
+                    color: Color(0xFF00A651),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Langue / Language / اللغة',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            _buildSettingItem(
-              icon: Icons.language,
-              title: 'Langue',
-              subtitle: _getLanguageName(_language),
-              onTap: _showLanguageSelector,
-            ),
-            _buildSettingItem(
-              icon: Icons.palette,
-              title: 'Thème',
-              subtitle: _getThemeName(_theme),
-              onTap: _showThemeSelector,
-            ),
+            _buildLanguageOption('fr', 'Français', '🇫🇷'),
+            const Divider(height: 1),
+            _buildLanguageOption('en', 'English', '🇬🇧'),
+            const Divider(height: 1),
+            _buildLanguageOption('ar', 'العربية', '🇸🇦'),
           ],
         ),
       ),
@@ -327,64 +355,100 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildLogoutSection() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Colors.red, width: 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Compte',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildSettingItem(
-              icon: Icons.security,
-              title: 'Sécurité',
-              subtitle: 'Changer le mot de passe',
-              onTap: _changePassword,
-            ),
-            _buildSettingItem(
-              icon: Icons.delete,
-              title: 'Supprimer le compte',
-              subtitle: 'Supprimer définitivement',
-              onTap: _deleteAccount,
-              textColor: Colors.red,
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _logout,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: const Icon(Icons.logout),
-                label: const Text(
-                  'Se déconnecter',
+    return Column(
+      children: [
+        // Carte pour supprimer le compte
+        Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Colors.red, width: 1),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Zone Dangereuse',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: Colors.red,
                   ),
+                ),
+                const SizedBox(height: 16),
+                _buildSettingItem(
+                  icon: Icons.delete_forever,
+                  title: 'Supprimer le compte',
+                  subtitle: 'Action irréversible',
+                  onTap: _deleteAccount,
+                  textColor: Colors.red,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        
+        // Bouton de déconnexion moderne
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.red.shade600, Colors.red.shade800],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _logout,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.logout_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Text(
+                      'Se déconnecter',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: 16),
+      ],
     );
   }
 
@@ -416,8 +480,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return 'Français';
       case 'en':
         return 'English';
-      case 'wo':
-        return 'Wolof';
+      case 'ar':
+        return 'العربية';
       default:
         return 'Français';
     }
@@ -593,38 +657,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showLanguageSelector() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sélectionner la langue'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildLanguageOption('fr', 'Français', '🇫🇷'),
-            _buildLanguageOption('en', 'English', '🇺🇸'),
-            _buildLanguageOption('wo', 'Wolof', '🇸🇳'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
+  Future<void> _saveLanguagePreference(String languageCode) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('app_language', languageCode);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              languageCode == 'fr' 
+                ? 'Langue changée en Français'
+                : languageCode == 'en'
+                  ? 'Language changed to English'
+                  : 'تم تغيير اللغة إلى العربية',
+            ),
+            backgroundColor: const Color(0xFF00A651),
+            duration: const Duration(seconds: 2),
           ),
-        ],
-      ),
-    );
+        );
+      }
+    } catch (e) {
+      print('Erreur sauvegarde langue: $e');
+    }
   }
 
   Widget _buildLanguageOption(String code, String name, String flag) {
-    return ListTile(
-      leading: Text(flag, style: const TextStyle(fontSize: 24)),
-      title: Text(name),
-      trailing: _language == code ? const Icon(Icons.check, color: Color(0xFF00A651)) : null,
-      onTap: () {
+    final isSelected = _language == code;
+    
+    return InkWell(
+      onTap: () async {
         setState(() => _language = code);
-        Navigator.pop(context);
+        await _saveLanguagePreference(code);
       },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF00A651).withOpacity(0.1) : null,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Text(
+              flag,
+              style: const TextStyle(fontSize: 32),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                name,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? const Color(0xFF00A651) : Colors.black87,
+                ),
+              ),
+            ),
+            if (isSelected)
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF00A651),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
