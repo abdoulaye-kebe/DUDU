@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -46,6 +47,15 @@ class _NavigationScreenState extends State<NavigationScreen> {
   bool _isNavigating = false;
   LatLng? _targetLocation;
   
+  // TTS pour les annonces vocales
+  final FlutterTts _flutterTts = FlutterTts();
+  
+  // Détection de déviation
+  List<LatLng> _plannedRoute = [];
+  double _maxDeviationDistance = 100; // 100 mètres
+  bool _isRecalculating = false;
+  DateTime? _lastRecalculationTime;
+  
   static const Color primaryGreen = Color(0xFF00A651);
 
   @override
@@ -54,14 +64,31 @@ class _NavigationScreenState extends State<NavigationScreen> {
     _targetLocation = widget.rideStatus == 'going_to_pickup' 
         ? widget.pickupLocation 
         : widget.destinationLocation;
+    _initializeTts();
     _getCurrentLocation();
     _startLocationUpdates();
+  }
+
+  Future<void> _initializeTts() async {
+    await _flutterTts.setLanguage('fr-FR');
+    await _flutterTts.setSpeechRate(0.5);
+    await _flutterTts.setVolume(1.0);
+    await _flutterTts.setPitch(1.0);
+  }
+
+  Future<void> _speak(String text) async {
+    try {
+      await _flutterTts.speak(text);
+    } catch (e) {
+      print('Erreur TTS: $e');
+    }
   }
 
   @override
   void dispose() {
     _locationTimer?.cancel();
     _mapController?.dispose();
+    _flutterTts.stop();
     super.dispose();
   }
 
@@ -83,8 +110,57 @@ class _NavigationScreenState extends State<NavigationScreen> {
   }
 
   void _startLocationUpdates() {
-    _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      _getCurrentLocation();
+    _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      await _getCurrentLocation();
+      _checkRouteDeviation();
+    });
+  }
+
+  void _checkRouteDeviation() {
+    if (_currentPosition == null || _plannedRoute.isEmpty || _isRecalculating) return;
+
+    final currentLatLng = LatLng(
+      _currentPosition!.latitude,
+      _currentPosition!.longitude,
+    );
+
+    // Trouver le point le plus proche sur l'itinéraire planifié
+    double minDistance = double.infinity;
+    for (final point in _plannedRoute) {
+      final distance = _calculateDistance(currentLatLng, point);
+      if (distance < minDistance) {
+        minDistance = distance;
+      }
+    }
+
+    // Si la déviation dépasse le seuil et qu'on n'a pas recalculé récemment
+    if (minDistance > _maxDeviationDistance) {
+      final now = DateTime.now();
+      if (_lastRecalculationTime == null || 
+          now.difference(_lastRecalculationTime!).inSeconds > 30) {
+        _recalculateRoute();
+      }
+    }
+  }
+
+  Future<void> _recalculateRoute() async {
+    if (_isRecalculating) return;
+    
+    setState(() {
+      _isRecalculating = true;
+      _currentInstruction = 'Recalcul de l\'itinéraire...';
+    });
+
+    // Annonce vocale
+    await _speak('Itinéraire recalculé');
+    
+    _lastRecalculationTime = DateTime.now();
+
+    // Recalculer l'itinéraire
+    _updateMapAndRoute();
+
+    setState(() {
+      _isRecalculating = false;
     });
   }
 
@@ -184,6 +260,23 @@ class _NavigationScreenState extends State<NavigationScreen> {
     return (bearing + 360) % 360;
   }
 
+  void _drawRoute(LatLng start, LatLng end) {
+    _polylines.clear();
+    
+    // Créer une liste de points pour l'itinéraire (ligne droite simplifiée)
+    // Dans une version production, utiliser Google Directions API
+    _plannedRoute = [start, end];
+    
+    _polylines.add(
+      Polyline(
+        polylineId: const PolylineId('route'),
+        points: _plannedRoute,
+        color: primaryGreen,
+        width: 5,
+      ),
+    );
+  }
+
   void _updateMarkers(LatLng currentLocation) {
     _markers.clear();
 
@@ -226,21 +319,6 @@ class _NavigationScreenState extends State<NavigationScreen> {
     );
   }
 
-  void _drawRoute(LatLng start, LatLng end) {
-    _polylines.clear();
-
-    // En production, utiliser Google Directions API ou HERE Routing API
-    // Pour l'instant, tracer une ligne directe
-    _polylines.add(
-      Polyline(
-        polylineId: const PolylineId('route'),
-        points: [start, end],
-        color: primaryGreen,
-        width: 5,
-        patterns: [PatternItem.dash(20), PatternItem.gap(10)],
-      ),
-    );
-  }
 
   void _centerMap(LatLng start, LatLng end) {
     if (_mapController == null) return;
