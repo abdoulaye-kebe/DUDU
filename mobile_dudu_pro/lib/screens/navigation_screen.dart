@@ -127,7 +127,12 @@ class _NavigationScreenState extends State<NavigationScreen> {
     // Trouver le point le plus proche sur l'itinéraire planifié
     double minDistance = double.infinity;
     for (final point in _plannedRoute) {
-      final distance = _calculateDistance(currentLatLng, point);
+      final distance = _calculateDistance(
+        currentLatLng.latitude,
+        currentLatLng.longitude,
+        point.latitude,
+        point.longitude,
+      );
       if (distance < minDistance) {
         minDistance = distance;
       }
