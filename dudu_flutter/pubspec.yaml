@@ -83,6 +83,7 @@ flutter:
     - assets/images/payments/
     - assets/images/ride_types/
     - assets/images/vehicles/
+    - assets/images/flaggps.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

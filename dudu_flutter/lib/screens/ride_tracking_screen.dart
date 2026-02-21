@@ -47,11 +47,16 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   // Timer pour simulation
   Timer? _movementTimer;
   
+  BitmapDescriptor? _vehicleIcon;
+  BitmapDescriptor? _pickupIcon;
+  BitmapDescriptor? _destinationIcon;
+
   @override
   void initState() {
     super.initState();
-    _initializeTracking();
+    _loadCustomMarkers();
     _setupSocketListeners();
+    _initializeMap();
   }
 
   @override
@@ -63,6 +68,45 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     SocketService().onTripStarted = null;
     SocketService().onRideCompleted = null;
     super.dispose();
+  }
+
+  /// Charger les icônes personnalisées pour les marqueurs
+  Future<void> _loadCustomMarkers() async {
+    // Déterminer quelle icône de véhicule utiliser selon le type
+    String vehicleAsset = 'assets/images/vehicles/standard.png';
+    
+    if (widget.vehicleType == 'moto') {
+      vehicleAsset = 'assets/images/vehicles/moto.png';
+    } else if (widget.vehicleType == 'delivery') {
+      vehicleAsset = 'assets/images/vehicles/delivery.png';
+    } else if (widget.vehicleType == 'luxe') {
+      vehicleAsset = 'assets/images/vehicles/luxe.png';
+    } else if (widget.vehicleType == 'comfort') {
+      vehicleAsset = 'assets/images/vehicles/comfort.png';
+    } else if (widget.vehicleType == 'women_only') {
+      vehicleAsset = 'assets/images/vehicles/women_only.png';
+    }
+
+    _vehicleIcon = await BitmapDescriptor.asset(
+      const ImageConfiguration(size: Size(48, 48)),
+      vehicleAsset,
+    );
+
+    _pickupIcon = await BitmapDescriptor.asset(
+      const ImageConfiguration(size: Size(48, 48)),
+      'assets/images/flaggps.png',
+    );
+
+    _destinationIcon = await BitmapDescriptor.asset(
+      const ImageConfiguration(size: Size(48, 48)),
+      'assets/images/flaggps.png',
+    );
+
+    if (mounted) {
+      setState(() {
+        _updateMarkers();
+      });
+    }
   }
 
   /// Configurer les écouteurs Socket.io pour recevoir les mises à jour en temps réel
@@ -515,8 +559,8 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
         Marker(
           markerId: const MarkerId('pickup'),
           position: LatLng(pickupLat, pickupLng),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          infoWindow: const InfoWindow(title: 'Point de récupération'),
+          icon: _pickupIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          infoWindow: const InfoWindow(title: '📍 Point de récupération'),
         ),
       );
       
@@ -527,7 +571,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
             widget.destinationLocation['latitude'],
             widget.destinationLocation['longitude'],
           ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          icon: _destinationIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           infoWindow: const InfoWindow(title: '🎯 Destination'),
         ),
       );
@@ -638,14 +682,14 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     final vehicleInfo = widget.driverInfo['vehicle'] ?? {};
     final plateNumber = vehicleInfo['plateNumber'] ?? vehicleInfo['plate'] ?? '';
     
-    // Ajouter le nouveau marqueur avec rotation
+    // Ajouter le nouveau marqueur avec rotation et icône personnalisée
     _markers.add(
       Marker(
         markerId: const MarkerId('vehicle'),
         position: _vehiclePosition!,
         rotation: _vehicleHeading,
         anchor: const Offset(0.5, 0.5),
-        icon: BitmapDescriptor.defaultMarkerWithHue(
+        icon: _vehicleIcon ?? BitmapDescriptor.defaultMarkerWithHue(
           widget.vehicleType == 'moto' 
             ? BitmapDescriptor.hueOrange 
             : BitmapDescriptor.hueYellow
