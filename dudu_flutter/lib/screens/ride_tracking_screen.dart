@@ -88,17 +88,17 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     }
 
     _vehicleIcon = await BitmapDescriptor.asset(
-      const ImageConfiguration(size: Size(48, 48)),
+      ImageConfiguration(size: Size(48, 48)),
       vehicleAsset,
     );
 
     _pickupIcon = await BitmapDescriptor.asset(
-      const ImageConfiguration(size: Size(48, 48)),
+      ImageConfiguration(size: Size(48, 48)),
       'assets/images/flaggps.png',
     );
 
     _destinationIcon = await BitmapDescriptor.asset(
-      const ImageConfiguration(size: Size(48, 48)),
+      ImageConfiguration(size: Size(48, 48)),
       'assets/images/flaggps.png',
     );
 
@@ -726,6 +726,82 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     return R * c;
   }
 
+  void _shareRide() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ShareRideScreen(
+          rideId: widget.rideId,
+          driverName: widget.driverInfo['name'] ?? 'Chauffeur',
+          vehicleInfo: widget.driverInfo['vehicle'] ?? 'Véhicule',
+          pickupAddress: 'Point de départ',
+          destinationAddress: 'Destination',
+          currentLat: _vehiclePosition?.latitude,
+          currentLng: _vehiclePosition?.longitude,
+        ),
+      ),
+    );
+  }
+
+  void _showCancelConfirmation() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Êtes-vous sûr(e) ?',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Vous devrez peut-être attendre plus longtemps si vous annulez.\nLa modification de la réservation peut ne pas vous conduire à destination plus rapidement.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Attendre le chauffeur'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+
+                final response = await ApiService.cancelRide(
+                  widget.rideId,
+                  'Client a annulé la course',
+                );
+
+                if (!mounted) return;
+
+                if (response.success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Course annulée'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(response.message ?? 'Impossible d\'annuler la course'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              child: const Text(
+                'Annuler le trajet',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final driverName = widget.driverInfo['fullName'] ?? widget.driverInfo['name'] ?? 'Chauffeur';
@@ -1042,7 +1118,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
@@ -1053,7 +1129,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                         label: const Text('Appel VOIP (BETA)'),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
@@ -1067,7 +1143,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: TextButton(
                             onPressed: _showCancelConfirmation,
@@ -1326,7 +1402,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -1337,7 +1413,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                 label: const Text('Appel VOIP (BETA)'),
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -1351,7 +1427,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Expanded(
                   child: TextButton(
                     onPressed: _showCancelConfirmation,
@@ -1369,81 +1445,5 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     );
   }
 
-  void _shareRide() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ShareRideScreen(
-          rideId: widget.rideId,
-          driverName: widget.driverInfo['name'] ?? 'Chauffeur',
-          vehicleInfo: widget.driverInfo['vehicle'] ?? 'Véhicule',
-          pickupAddress: 'Point de départ', // À adapter selon vos données
-          destinationAddress: 'Destination', // À adapter selon vos données
-          currentLat: _vehiclePosition?.latitude,
-          currentLng: _vehiclePosition?.longitude,
-        ),
-      ),
-    );
-  }
-
-  void _showCancelConfirmation() {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text(
-            'Êtes-vous sûr(e) ?',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: const Text(
-            'Vous devrez peut-être attendre plus longtemps si vous annulez.\nLa modification de la réservation peut ne pas vous conduire à destination plus rapidement.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Attendre le chauffeur'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-
-                // Appeler l’API d’annulation
-                final response = await ApiService.cancelRide(
-                  widget.rideId,
-                  'Client a annulé la course',
-                );
-
-                if (!mounted) return;
-
-                if (response.success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Course annulée'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(response.message ?? 'Impossible d\'annuler la course'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-
-                // Retourner à l'écran principal
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-              child: const Text(
-                'Annuler le trajet',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
+
