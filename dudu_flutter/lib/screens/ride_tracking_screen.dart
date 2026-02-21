@@ -546,6 +546,18 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     );
   }
 
+  void _initializeMap() {
+    _initializeTracking();
+  }
+
+  void _updateMarkers() {
+    // Cette méthode est appelée après le chargement des icônes personnalisées
+    // pour mettre à jour les marqueurs avec les nouvelles icônes
+    if (_vehiclePosition != null) {
+      _updateVehicleMarker();
+    }
+  }
+
   Future<void> _initializeTracking() async {
     // Position de départ du véhicule (simulée)
     final pickupLat = widget.pickupLocation['latitude'];
@@ -961,7 +973,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                                   builder: (context) => ShareRideScreen(
                                     rideId: widget.rideId,
                                     driverName: driverName,
-                                    vehicleType: widget.vehicleType,
+                                    vehicleInfo: '$vehicleBrand $vehicleModel',
                                     pickupAddress: 'Point de départ',
                                     destinationAddress: 'Destination',
                                   ),
@@ -1080,7 +1092,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                                 builder: (context) => ShareRideScreen(
                                   rideId: widget.rideId,
                                   driverName: driverName,
-                                  vehicleType: widget.vehicleType,
+                                  vehicleInfo: '$vehicleBrand $vehicleModel',
                                   pickupAddress: 'Point de départ',
                                   destinationAddress: 'Destination',
                                 ),
@@ -1343,107 +1355,4 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
       ),
     );
   }
-
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Bouton de partage de trajet
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ShareRideScreen(
-                          rideId: widget.rideId,
-                          driverName: widget.driverInfo['name'] ?? 'Chauffeur',
-                          vehicleInfo: widget.driverInfo['vehicle'] ?? 'Véhicule',
-                          pickupAddress: widget.pickupLocation['address'] ?? 'Départ',
-                          destinationAddress: widget.destinationLocation['address'] ?? 'Destination',
-                          currentLat: _vehiclePosition?.latitude,
-                          currentLng: _vehiclePosition?.longitude,
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.share),
-                  iconSize: 28,
-                  color: const Color(0xFF00A651),
-                  tooltip: 'Partager mon trajet',
-                ),
-                
-                // Bouton d'appel classique
-                IconButton(
-                  onPressed: () async {
-                    final phone = widget.driverInfo['phone']?.toString();
-                    if (phone == null || phone.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Numéro du chauffeur indisponible')),
-                      );
-                      return;
-                    }
-                    final uri = Uri(scheme: 'tel', path: phone);
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri);
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Impossible de lancer l\'appel')),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.phone),
-                  iconSize: 32,
-                  color: const Color(0xFF00A651),
-                ),
-              ],
-            ),
-            SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  SocketService().startVoipCall(widget.rideId);
-                },
-                icon: const Icon(Icons.wifi_calling_3),
-                label: const Text('Appel VOIP (BETA)'),
-              ),
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _shareRide,
-                    icon: const Icon(Icons.share_location),
-                    label: const Text('Partager'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: TextButton(
-                    onPressed: _showCancelConfirmation,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red,
-                    ),
-                    child: const Text('Annuler'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
 }
-
