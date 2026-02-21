@@ -671,6 +671,10 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     // Retirer l'ancien marqueur véhicule
     _markers.removeWhere((m) => m.markerId.value == 'vehicle');
     
+    final driverName = widget.driverInfo['fullName'] ?? widget.driverInfo['name'] ?? 'Chauffeur';
+    final vehicleInfo = widget.driverInfo['vehicle'] ?? {};
+    final plateNumber = vehicleInfo['plateNumber'] ?? vehicleInfo['plate'] ?? '';
+    
     // Ajouter le nouveau marqueur avec rotation
     _markers.add(
       Marker(
@@ -681,11 +685,11 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
         icon: BitmapDescriptor.defaultMarkerWithHue(
           widget.vehicleType == 'moto' 
             ? BitmapDescriptor.hueOrange 
-            : BitmapDescriptor.hueBlue
+            : BitmapDescriptor.hueYellow
         ),
         infoWindow: InfoWindow(
-          title: widget.vehicleType == 'moto' ? '🏍️ Livreur' : '🚗 Chauffeur',
-          snippet: widget.driverInfo['name'],
+          title: widget.vehicleType == 'moto' ? '🏍️ $driverName' : '🚗 $driverName',
+          snippet: plateNumber.isNotEmpty ? plateNumber : 'En route vers vous',
         ),
       ),
     );
@@ -717,6 +721,15 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final driverName = widget.driverInfo['fullName'] ?? widget.driverInfo['name'] ?? 'Chauffeur';
+    final driverPhone = widget.driverInfo['phone'] ?? '';
+    final vehicleInfo = widget.driverInfo['vehicle'] ?? {};
+    final vehicleBrand = vehicleInfo['brand'] ?? vehicleInfo['make'] ?? '';
+    final vehicleModel = vehicleInfo['model'] ?? '';
+    final vehicleColor = vehicleInfo['color'] ?? '';
+    final plateNumber = vehicleInfo['plateNumber'] ?? vehicleInfo['plate'] ?? '';
+    final driverRating = widget.driverInfo['rating'] ?? 4.5;
+    
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -730,28 +743,183 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
       body: Stack(
         children: [
           // Carte Google Maps
-          if (_vehiclePosition != null)
-            GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: _vehiclePosition!,
-                zoom: 16.5,
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: _vehiclePosition ?? LatLng(
+                widget.pickupLocation['latitude'],
+                widget.pickupLocation['longitude'],
               ),
-              markers: _markers,
-              polylines: _polylines,
-              myLocationEnabled: false,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              onMapCreated: (controller) {
-                _mapController = controller;
-              },
+              zoom: 14,
             ),
+            markers: _markers,
+            polylines: _polylines,
+            onMapCreated: (controller) {
+              _mapController = controller;
+            },
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
+          ),
           
           // Info du statut en haut
           Positioned(
-            top: 16,
+            top: MediaQuery.of(context).padding.top + 16,
             left: 16,
             right: 16,
-            child: _buildStatusCard(),
+            child: Card(
+              elevation: 8,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        // Photo du chauffeur ou avatar
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: const Color(0xFF00A651),
+                          child: Text(
+                            driverName.isNotEmpty ? driverName[0].toUpperCase() : 'C',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      driverName,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.star, color: Colors.amber, size: 16),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        driverRating.toStringAsFixed(1),
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              if (vehicleBrand.isNotEmpty || vehicleModel.isNotEmpty)
+                                Text(
+                                  '$vehicleBrand $vehicleModel'.trim(),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              if (vehicleColor.isNotEmpty || plateNumber.isNotEmpty)
+                                Text(
+                                  '${vehicleColor.isNotEmpty ? vehicleColor : ''} ${plateNumber.isNotEmpty ? '• $plateNumber' : ''}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        // Bouton téléphone
+                        if (driverPhone.isNotEmpty)
+                          Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00A651).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.phone, color: Color(0xFF00A651)),
+                              onPressed: () async {
+                                final uri = Uri.parse('tel:$driverPhone');
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri);
+                                }
+                              },
+                              tooltip: 'Appeler le chauffeur',
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        // Bouton partager
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.share, color: Colors.blue),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ShareRideScreen(
+                                    rideId: widget.rideId,
+                                    driverName: driverName,
+                                    vehicleType: widget.vehicleType,
+                                    pickupAddress: 'Point de départ',
+                                    destinationAddress: 'Destination',
+                                  ),
+                                ),
+                              );
+                            },
+                            tooltip: 'Partager le trajet',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _shareRide,
+                            icon: const Icon(Icons.share_location),
+                            label: const Text('Partager'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextButton(
+                            onPressed: _showCancelConfirmation,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                            child: const Text('Annuler'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           
           // Info du chauffeur en bas
@@ -759,7 +927,155 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
             bottom: 16,
             left: 16,
             right: 16,
-            child: _buildDriverCard(),
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        // Avatar
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: const Color(0xFF00A651),
+                          child: Icon(
+                            widget.vehicleType == 'moto' ? Icons.motorcycle : Icons.directions_car,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        
+                        // Info chauffeur
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                driverName,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '$vehicleBrand $vehicleModel'.trim(),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.star, size: 16, color: Colors.amber),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    driverRating.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Bouton de partage de trajet
+                        IconButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ShareRideScreen(
+                                  rideId: widget.rideId,
+                                  driverName: driverName,
+                                  vehicleType: widget.vehicleType,
+                                  pickupAddress: 'Point de départ',
+                                  destinationAddress: 'Destination',
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.share),
+                          iconSize: 28,
+                          color: const Color(0xFF00A651),
+                          tooltip: 'Partager mon trajet',
+                        ),
+                        
+                        // Bouton d'appel classique
+                        IconButton(
+                          onPressed: () async {
+                            final phone = widget.driverInfo['phone']?.toString();
+                            if (phone == null || phone.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Numéro du chauffeur indisponible')),
+                              );
+                              return;
+                            }
+                            final uri = Uri(scheme: 'tel', path: phone);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Impossible de lancer l\'appel')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.phone),
+                          iconSize: 32,
+                          color: const Color(0xFF00A651),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          SocketService().startVoipCall(widget.rideId);
+                        },
+                        icon: const Icon(Icons.wifi_calling_3),
+                        label: const Text('Appel VOIP (BETA)'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _shareRide,
+                            icon: const Icon(Icons.share_location),
+                            label: const Text('Partager'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextButton(
+                            onPressed: _showCancelConfirmation,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                            child: const Text('Annuler'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -945,57 +1261,6 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     );
   }
 
-  Widget _buildDriverCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                // Avatar
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: const Color(0xFF00A651),
-                  child: Icon(
-                    widget.vehicleType == 'moto' ? Icons.motorcycle : Icons.directions_car,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                
-                // Info chauffeur
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.driverInfo['name'] ?? 'Chauffeur',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.driverInfo['vehicle'] ?? '',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, size: 16, color: Colors.amber),
-                          const SizedBox(width: 4),
-                          Text(
-                            widget.driverInfo['rating']?.toString() ?? '0.0',
-                            style: const TextStyle(
-                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
