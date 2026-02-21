@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Questions fréquentes sur DUDU. Trouvez rapidement les réponses à vos questions.">
+    <title>FAQ | DUDU Transport</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .faq-item {
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        .faq-question {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: var(--primary-green);
+            transition: background 0.3s ease;
+        }
+        .faq-question:hover {
+            background: var(--bg-light);
+        }
+        .faq-answer {
+            padding: 0 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            color: var(--text-gray);
+            line-height: 1.8;
+        }
+        .faq-item.active .faq-answer {
+            padding: 0 1.5rem 1.5rem;
+            max-height: 500px;
+        }
+        .faq-icon {
+            transition: transform 0.3s ease;
+        }
+        .faq-item.active .faq-icon {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="home.html" class="logo">🚗 DUDU</a>
+            <ul class="nav-menu">
+                <li><a href="home.html">Accueil</a></li>
+                <li><a href="services.html">Services</a></li>
+                <li><a href="pricing.html">Tarifs</a></li>
+                <li><a href="driver-signup.html">Devenir chauffeur</a></li>
+                <li><a href="about.html">À propos</a></li>
+                <li><a href="contact.html">Contact</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="hero" style="min-height: 50vh;">
+        <div class="hero-container">
+            <div class="hero-content" style="text-align: center; grid-column: 1 / -1;">
+                <h1>Questions Fréquentes</h1>
+                <p>Trouvez rapidement les réponses à vos questions</p>
+            </div>
+        </div>
+    </section>
+
+    <section style="padding: 5rem 2rem;">
+        <div class="container" style="max-width: 900px;">
+            <h2 class="section-title">Pour les passagers</h2>
+            
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Comment réserver une course ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Téléchargez l'application DUDU, créez votre compte, entrez votre destination et confirmez. Un chauffeur sera assigné en quelques secondes.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Quels sont les modes de paiement acceptés ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Nous acceptons le paiement en espèces, Wave, Orange Money et carte bancaire. Choisissez votre mode de paiement préféré dans l'application.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Puis-je annuler une course ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Oui, vous pouvez annuler gratuitement avant l'arrivée du chauffeur. Des frais d'annulation peuvent s'appliquer si le chauffeur est déjà en route.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Comment fonctionne le tarif Luxe ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Pour les courses Luxe, le prix de base est de 15,000 FCFA. Vous pouvez proposer un montant supérieur selon votre destination et vos besoins.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Puis-je partager ma course en temps réel ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Oui, vous pouvez partager votre trajet avec vos proches directement depuis l'application pour plus de sécurité.
+                </div>
+            </div>
+
+            <h2 class="section-title" style="margin-top: 4rem;">Pour les chauffeurs</h2>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Comment devenir chauffeur DUDU ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Remplissez le formulaire d'inscription sur notre site, fournissez les documents requis (permis, carte grise, assurance). Notre équipe vous contactera sous 48h.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Quelles sont les conditions requises ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Avoir au moins 21 ans, un permis de conduire valide, un véhicule en bon état (moins de 10 ans), une assurance tous risques et un casier judiciaire vierge.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Comment sont calculés mes revenus ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Vous recevez 80% du montant de chaque course. DUDU prélève 20% pour couvrir les frais de plateforme, support et assurance.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Quand suis-je payé ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Les paiements sont effectués chaque semaine. Vous pouvez suivre vos gains en temps réel dans l'application chauffeur.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Puis-je choisir mes horaires ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Oui, vous travaillez quand vous voulez. Connectez-vous à l'application quand vous êtes disponible et déconnectez-vous quand vous le souhaitez.
+                </div>
+            </div>
+
+            <h2 class="section-title" style="margin-top: 4rem;">Sécurité</h2>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Comment DUDU assure ma sécurité ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Tous nos chauffeurs sont vérifiés (casier judiciaire, permis). Vous pouvez suivre votre course en temps réel, partager votre trajet et noter votre expérience. Un support 24/7 est disponible.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Que faire en cas de problème pendant une course ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Contactez immédiatement notre support via le bouton SOS dans l'application. Vous pouvez également appeler notre ligne d'urgence 24/7.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Mes données personnelles sont-elles protégées ?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    Oui, nous utilisons un cryptage de niveau bancaire pour protéger vos données. Consultez notre politique de confidentialité pour plus de détails.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section style="background: var(--bg-light); text-align: center; padding: 4rem 2rem;">
+        <div class="container">
+            <h2 class="section-title">Vous ne trouvez pas votre réponse ?</h2>
+            <p class="section-subtitle">Notre équipe est là pour vous aider</p>
+            <a href="contact.html" class="btn-primary" style="font-size: 1.125rem; padding: 1rem 2rem;">
+                Contactez-nous
+            </a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-container">
+            <div class="footer-section">
+                <h3>🚗 DUDU</h3>
+                <p style="color: rgba(255,255,255,0.8); margin-top: 1rem;">Yobalé sii sama prix</p>
+            </div>
+            <div class="footer-section">
+                <h3>Liens rapides</h3>
+                <ul>
+                    <li><a href="home.html">Accueil</a></li>
+                    <li><a href="services.html">Services</a></li>
+                    <li><a href="contact.html">Contact</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Légal</h3>
+                <ul>
+                    <li><a href="terms.html">CGU</a></li>
+                    <li><a href="privacy.html">Confidentialité</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2026 DUDU Group. Tous droits réservés.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.querySelectorAll('.faq-question').forEach(question => {
+            question.addEventListener('click', function() {
+                const item = this.parentElement;
+                const wasActive = item.classList.contains('active');
+                
+                document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
+                
+                if (!wasActive) {
+                    item.classList.add('active');
+                }
+            });
+        });
+
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 50) navbar.classList.add('scrolled');
+            else navbar.classList.remove('scrolled');
+        });
+    </script>
+</body>
+</html>

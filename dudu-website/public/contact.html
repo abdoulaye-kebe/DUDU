@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Contactez l'équipe DUDU. Nous sommes là pour vous aider 24/7.">
+    <title>Contact | DUDU Transport</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="home.html" class="logo">🚗 DUDU</a>
+            <ul class="nav-menu">
+                <li><a href="home.html">Accueil</a></li>
+                <li><a href="services.html">Services</a></li>
+                <li><a href="pricing.html">Tarifs</a></li>
+                <li><a href="driver-signup.html">Devenir chauffeur</a></li>
+                <li><a href="about.html">À propos</a></li>
+                <li><a href="contact.html">Contact</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="hero" style="min-height: 50vh;">
+        <div class="hero-container">
+            <div class="hero-content" style="text-align: center; grid-column: 1 / -1;">
+                <h1>Contactez-nous</h1>
+                <p>Notre équipe est là pour vous aider 24/7</p>
+            </div>
+        </div>
+    </section>
+
+    <section style="padding: 5rem 2rem;">
+        <div class="container" style="max-width: 1000px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem;">
+                <div>
+                    <h2 style="color: var(--primary-green); margin-bottom: 2rem;">Envoyez-nous un message</h2>
+                    <form id="contactForm">
+                        <div class="form-group">
+                            <label>Nom complet *</label>
+                            <input type="text" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email *</label>
+                            <input type="email" name="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Téléphone</label>
+                            <input type="tel" name="phone">
+                        </div>
+                        <div class="form-group">
+                            <label>Sujet *</label>
+                            <select name="subject" required>
+                                <option value="">Sélectionnez...</option>
+                                <option value="support">Support technique</option>
+                                <option value="driver">Devenir chauffeur</option>
+                                <option value="partnership">Partenariat</option>
+                                <option value="complaint">Réclamation</option>
+                                <option value="other">Autre</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Message *</label>
+                            <textarea name="message" required rows="6"></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary" style="width: 100%;">Envoyer le message</button>
+                    </form>
+                </div>
+
+                <div>
+                    <h2 style="color: var(--primary-green); margin-bottom: 2rem;">Informations de contact</h2>
+                    
+                    <div style="background: var(--bg-light); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+                        <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                            📞 Téléphone
+                        </h3>
+                        <p style="color: var(--text-gray);">+221 XX XXX XX XX</p>
+                        <p style="color: var(--text-gray); font-size: 0.875rem; margin-top: 0.5rem;">Disponible 24/7</p>
+                    </div>
+
+                    <div style="background: var(--bg-light); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+                        <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                            📧 Email
+                        </h3>
+                        <p style="color: var(--text-gray);">contact@dudugroup.sn</p>
+                        <p style="color: var(--text-gray); font-size: 0.875rem; margin-top: 0.5rem;">Réponse sous 24h</p>
+                    </div>
+
+                    <div style="background: var(--bg-light); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+                        <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                            📍 Adresse
+                        </h3>
+                        <p style="color: var(--text-gray);">Dakar, Sénégal</p>
+                    </div>
+
+                    <div style="background: var(--bg-light); padding: 2rem; border-radius: 12px;">
+                        <h3 style="margin-bottom: 1rem;">Suivez-nous</h3>
+                        <div style="display: flex; gap: 1rem;">
+                            <a href="#" style="width: 40px; height: 40px; background: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none;">f</a>
+                            <a href="#" style="width: 40px; height: 40px; background: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none;">𝕏</a>
+                            <a href="#" style="width: 40px; height: 40px; background: var(--primary-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none;">in</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-container">
+            <div class="footer-section">
+                <h3>🚗 DUDU</h3>
+                <p style="color: rgba(255,255,255,0.8); margin-top: 1rem;">Yobalé sii sama prix</p>
+            </div>
+            <div class="footer-section">
+                <h3>Liens rapides</h3>
+                <ul>
+                    <li><a href="home.html">Accueil</a></li>
+                    <li><a href="services.html">Services</a></li>
+                    <li><a href="about.html">À propos</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Légal</h3>
+                <ul>
+                    <li><a href="terms.html">CGU</a></li>
+                    <li><a href="privacy.html">Confidentialité</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2026 DUDU Group. Tous droits réservés.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('contactForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Merci pour votre message ! Nous vous répondrons dans les plus brefs délais.');
+            this.reset();
+        });
+
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 50) navbar.classList.add('scrolled');
+            else navbar.classList.remove('scrolled');
+        });
+    </script>
+</body>
+</html>
