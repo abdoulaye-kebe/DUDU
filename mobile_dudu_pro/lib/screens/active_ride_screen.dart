@@ -140,12 +140,14 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
         
         _updateMarkers();
         
-        // Envoyer la position au backend via Socket.io
-        if (_rideStatus == 'in_progress') {
+        // Envoyer la position au backend via Socket.io dès l'acceptation
+        // Le client peut ainsi voir le véhicule se déplacer en temps réel
+        if (_rideStatus == 'accepted' || _rideStatus == 'arrived' || _rideStatus == 'in_progress') {
           SocketService().updateDriverLocation(
             rideId: widget.rideId,
             latitude: position.latitude,
             longitude: position.longitude,
+            heading: position.heading, // Direction pour rotation du marqueur
           );
         }
       } catch (e) {

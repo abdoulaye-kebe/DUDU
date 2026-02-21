@@ -71,12 +71,11 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
 
     // Écouter les mises à jour de position du véhicule
     socketService.onDriverLocationUpdate = (data) {
-      final location = data['location'];
-      final latitude = location['latitude'];
-      final longitude = location['longitude'];
-      final heading = location['heading'] ?? 0.0;
+      final latitude = (data['latitude'] as num?)?.toDouble();
+      final longitude = (data['longitude'] as num?)?.toDouble();
+      final heading = (data['heading'] as num?)?.toDouble() ?? 0.0;
 
-      if (mounted) {
+      if (latitude != null && longitude != null && mounted) {
         setState(() {
           // Animer le mouvement vers la nouvelle position
           _animateVehicleToPosition(

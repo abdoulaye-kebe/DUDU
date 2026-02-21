@@ -327,6 +327,7 @@ class SocketService {
     required String rideId,
     required double latitude,
     required double longitude,
+    double? heading,
   }) {
     if (!_isConnected) return;
 
@@ -334,6 +335,7 @@ class SocketService {
       'rideId': rideId,
       'latitude': latitude,
       'longitude': longitude,
+      'heading': heading ?? 0.0,
     });
   }
 

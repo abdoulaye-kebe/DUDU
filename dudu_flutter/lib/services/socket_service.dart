@@ -74,9 +74,9 @@ class SocketService {
       }
     });
 
-    // Mise à jour position du chauffeur
-    _socket!.on('ride:driver_location', (data) {
-      print('📍 Position chauffeur mise à jour');
+    // Mise à jour position du chauffeur en temps réel
+    _socket!.on('driver-location', (data) {
+      print('📍 Position chauffeur mise à jour: ${data['latitude']}, ${data['longitude']}');
       if (onDriverLocationUpdate != null) {
         onDriverLocationUpdate!(Map<String, dynamic>.from(data));
       }
