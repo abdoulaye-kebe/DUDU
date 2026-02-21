@@ -805,12 +805,13 @@ router.post('/:id/rate', [
       });
     }
 
-    const { rating, comment } = req.body;
+    const { rating, comment, feedbacks } = req.body;
 
     // Enregistrer la note
     ride.rating = {
       score: rating,
       comment: comment || '',
+      feedbacks: feedbacks || [],
       ratedAt: new Date()
     };
     await ride.save();

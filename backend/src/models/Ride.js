@@ -255,24 +255,17 @@ const rideSchema = new mongoose.Schema({
   
   // Évaluations
   rating: {
-    passenger: {
-      rating: {
-        type: Number,
-        min: 1,
-        max: 5
-      },
-      comment: String,
-      ratedAt: Date
+    score: {
+      type: Number,
+      min: 1,
+      max: 5
     },
-    driver: {
-      rating: {
-        type: Number,
-        min: 1,
-        max: 5
-      },
-      comment: String,
-      ratedAt: Date
-    }
+    comment: String,
+    feedbacks: [{
+      type: String,
+      enum: ['clean_interior', 'pleasant_driving', 'polite_driver', 'good_conversation']
+    }],
+    ratedAt: Date
   },
   
   // Informations supplémentaires

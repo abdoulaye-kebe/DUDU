@@ -602,14 +602,20 @@ class ApiService {
   }
 
   /// Noter une course terminée
-  static Future<ApiResponse<bool>> rateRide(String rideId, int rating, {String? comment}) async {
+  static Future<ApiResponse<bool>> rateRide(
+    String rideId,
+    int rating, {
+    String? comment,
+    List<String>? feedbacks,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/rides/$rideId/rate'),
         headers: await _getHeaders(),
         body: json.encode({
           'rating': rating,
-          if (comment != null) 'comment': comment,
+          if (comment != null && comment.isNotEmpty) 'comment': comment,
+          if (feedbacks != null && feedbacks.isNotEmpty) 'feedbacks': feedbacks,
         }),
       ).timeout(timeout);
 

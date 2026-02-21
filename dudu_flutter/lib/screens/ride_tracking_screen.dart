@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/socket_service.dart';
 import '../services/api_service.dart';
 import 'share_ride_screen.dart';
+import 'rating_screen.dart';
 
 /// Écran de suivi de course en temps réel
 /// Affiche le véhicule (voiture ou moto) qui se déplace vers le client
@@ -369,144 +370,107 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   }
 
   void _showCompletionDialog() {
-    int selectedRating = 0;
+    final driverName = widget.driverInfo['fullName'] ?? widget.driverInfo['name'] ?? 'Chauffeur';
     
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00A651).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF00A651),
-                  size: 32,
-                ),
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00A651).withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  widget.vehicleType == 'moto' 
-                    ? 'Livraison terminée !' 
-                    : 'Course terminée !',
-                  style: const TextStyle(fontSize: 18),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.vehicleType == 'moto'
-                    ? 'Votre colis a été livré avec succès'
-                    : 'Merci d\'avoir utilisé DUDU',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildSummaryChip(
-                    icon: Icons.route,
-                    label: '${_distance.toStringAsFixed(1)} km',
-                  ),
-                  _buildSummaryChip(
-                    icon: Icons.access_time,
-                    label: '$_estimatedTime min',
-                  ),
-                  _buildSummaryChip(
-                    icon: widget.vehicleType == 'moto'
-                        ? Icons.motorcycle
-                        : Icons.directions_car,
-                    label: widget.vehicleType == 'moto' ? 'Moto' : 'Voiture',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Notez votre expérience',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  final starIndex = index + 1;
-                  return IconButton(
-                    onPressed: () {
-                      setDialogState(() {
-                        selectedRating = starIndex;
-                      });
-                    },
-                    icon: Icon(
-                      starIndex <= selectedRating ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 32,
-                    ),
-                  );
-                }),
-              ),
-              if (selectedRating > 0)
-                Text(
-                  selectedRating == 5 ? 'Excellent !' :
-                  selectedRating == 4 ? 'Très bien' :
-                  selectedRating == 3 ? 'Correct' :
-                  selectedRating == 2 ? 'Peut mieux faire' : 'Décevant',
-                  style: TextStyle(
-                    color: selectedRating >= 4 ? Colors.green : 
-                           selectedRating >= 3 ? Colors.orange : Colors.red,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-            ],
-          ),
-          actions: [
-            // Bouton Payer
-            ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.of(dialogContext).pop();
-                await _showPaymentDialog();
-              },
-              icon: const Icon(Icons.payment),
-              label: const Text('Payer'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
+              child: const Icon(
+                Icons.check_circle,
+                color: Color(0xFF00A651),
+                size: 32,
               ),
             ),
-            const SizedBox(width: 8),
-            // Bouton Accueil
-            ElevatedButton.icon(
-              onPressed: () async {
-                if (selectedRating > 0) {
-                  // Envoyer la note à l'API
-                  try {
-                    await ApiService.rateRide(widget.rideId, selectedRating);
-                  } catch (e) {
-                    print('Erreur envoi note: $e');
-                  }
-                }
-                Navigator.of(dialogContext).pop();
-                // Retourner à l'écran d'accueil
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-              icon: const Icon(Icons.home),
-              label: const Text('Plus tard'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00A651),
-                foregroundColor: Colors.white,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                widget.vehicleType == 'moto' 
+                  ? 'Livraison terminée !' 
+                  : 'Course terminée !',
+                style: const TextStyle(fontSize: 18),
               ),
             ),
           ],
         ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.vehicleType == 'moto'
+                  ? 'Votre colis a été livré avec succès'
+                  : 'Merci d\'avoir utilisé DUDU',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildSummaryChip(
+                  icon: Icons.route,
+                  label: '${_distance.toStringAsFixed(1)} km',
+                ),
+                _buildSummaryChip(
+                  icon: Icons.access_time,
+                  label: '$_estimatedTime min',
+                ),
+                _buildSummaryChip(
+                  icon: widget.vehicleType == 'moto'
+                      ? Icons.motorcycle
+                      : Icons.directions_car,
+                  label: widget.vehicleType == 'moto' ? 'Moto' : 'Voiture',
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          // Bouton Payer
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await _showPaymentDialog();
+            },
+            icon: const Icon(Icons.payment),
+            label: const Text('Payer'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Bouton Noter
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              // Ouvrir l'écran de notation dédié
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RatingScreen(
+                    rideId: widget.rideId,
+                    driverName: driverName,
+                    vehicleType: widget.vehicleType,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.star),
+            label: const Text('Noter'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00A651),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }
