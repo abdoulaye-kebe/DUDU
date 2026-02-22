@@ -129,7 +129,7 @@ function Clients() {
           borderRadius: '12px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
         }}>
-          <div style={{ fontSize: '32px', marginBottom: '10px' }}>🚗</div>
+          <div style={{ fontSize: '32px', marginBottom: '10px' }}></div>
           <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>
             {stats.totalRides}
           </div>

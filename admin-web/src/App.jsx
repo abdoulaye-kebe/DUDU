@@ -12,7 +12,7 @@ function App() {
         {/* Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-header">
-            <h1>🚗 DUDU</h1>
+            <h1>DUDU</h1>
             <p>Admin Dashboard</p>
           </div>
           

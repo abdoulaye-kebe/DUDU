@@ -77,7 +77,7 @@ function Rides() {
                 </td>
                 <td>
                   <span className="badge badge-info">
-                    {ride.type === 'standard' ? '🚗 Standard' :
+                    {ride.type === 'standard' ? 'Standard' :
                      ride.type === 'express' ? '⚡ Express' :
                      ride.type === 'delivery' ? '📦 Livraison' :
                      ride.type}

@@ -66,7 +66,7 @@ function DashboardNew() {
   if (loading) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
-        <div style={{ fontSize: '48px', marginBottom: '20px' }}>🚗</div>
+        <div style={{ fontSize: '48px', marginBottom: '20px' }}></div>
         <div style={{ fontSize: '18px', color: '#666' }}>Chargement du tableau de bord...</div>
       </div>
     );
@@ -155,7 +155,7 @@ function DashboardNew() {
         onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={{ fontSize: '32px' }}>🚗</div>
+            <div style={{ fontSize: '32px' }}></div>
             <div style={{ fontSize: '12px', color: '#10b981', fontWeight: '600' }}>+15%</div>
           </div>
           <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>

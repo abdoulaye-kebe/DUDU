@@ -147,7 +147,7 @@ function DriversPremium() {
       render: (value, row) => {
         const isComfort = value === 'express';
         const womenOnly = row.rideTypes?.women_only === true;
-        const label = womenOnly ? '👩 Femme' : (isComfort ? '✨ Comfort+' : '🚗 Standard');
+        const label = womenOnly ? '👩 Femme' : (isComfort ? '✨ Comfort+' : 'Standard');
         const bg = womenOnly ? '#7C3AED' : (isComfort ? '#FF9800' : '#00A651');
         return (
           <span
