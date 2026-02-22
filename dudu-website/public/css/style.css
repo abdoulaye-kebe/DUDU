@@ -17,11 +17,28 @@
     box-sizing: border-box;
 }
 
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+section {
+    overflow-x: hidden;
+}
+
+html {
+    overflow-x: hidden;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     color: var(--text-dark);
     line-height: 1.6;
     overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    max-width: 100vw;
 }
 
 /* Navigation */
@@ -48,6 +65,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .logo {
@@ -152,6 +171,8 @@ body {
     grid-template-columns: 1fr 1fr;
     gap: 4rem;
     align-items: center;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .hero-content h1 {
@@ -213,20 +234,23 @@ section {
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 1rem;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
     .container {
-        padding: 0 0.75rem;
+        padding: 0 1rem;
     }
 }
 
 /* Features Grid */
 .features-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
     gap: 2rem;
     margin-top: 3rem;
+    width: 100%;
 }
 
 .feature-card {
@@ -279,9 +303,10 @@ section {
 
 .screenshots-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
     gap: 1.5rem;
     margin-top: 3rem;
+    width: 100%;
 }
 
 .screenshots-grid img {
@@ -299,9 +324,10 @@ section {
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
     gap: 3rem;
     text-align: center;
+    width: 100%;
 }
 
 .stat-item h3 {
@@ -326,9 +352,12 @@ footer {
     max-width: 1200px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
     gap: 3rem;
     margin-bottom: 2rem;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 1rem;
 }
 
 .footer-section h3 {
@@ -420,6 +449,10 @@ footer {
         display: flex;
     }
     
+    .nav-container {
+        padding: 1rem;
+    }
+    
     .nav-menu {
         position: fixed;
         left: -100%;
@@ -427,11 +460,13 @@ footer {
         flex-direction: column;
         background: white;
         width: 100%;
+        max-width: 100vw;
         text-align: center;
         transition: left 0.3s ease;
         box-shadow: 0 10px 27px rgba(0, 0, 0, 0.1);
         padding: 2rem 0;
         gap: 0;
+        z-index: 999;
     }
     
     .nav-menu.active {
@@ -450,6 +485,8 @@ footer {
     .hero {
         min-height: auto;
         padding: 80px 0 40px;
+        width: 100%;
+        max-width: 100vw;
     }
     
     .hero-container {
@@ -457,6 +494,7 @@ footer {
         text-align: center;
         gap: 1.5rem;
         padding: 1rem;
+        max-width: 100%;
     }
     
     .hero-content h1 {
@@ -483,7 +521,9 @@ footer {
     }
     
     section {
-        padding: 2.5rem 0.75rem;
+        padding: 2.5rem 1rem;
+        width: 100%;
+        max-width: 100vw;
     }
     
     .section-title {
@@ -500,6 +540,8 @@ footer {
     .features-grid {
         grid-template-columns: 1fr;
         gap: 1.5rem;
+        width: 100%;
+        max-width: 100%;
     }
     
     .feature-card {
@@ -539,6 +581,13 @@ footer {
     .footer-container {
         grid-template-columns: 1fr;
         gap: 2rem;
+        padding: 0 1rem;
+    }
+    
+    footer {
+        padding: 2rem 1rem 1rem;
+        width: 100%;
+        max-width: 100vw;
     }
     
     .btn-primary,
