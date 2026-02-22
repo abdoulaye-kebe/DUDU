@@ -1,5 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Driver = require('../models/Driver');
 const Ride = require('../models/Ride');
@@ -7,6 +8,68 @@ const Payment = require('../models/Payment');
 const Subscription = require('../models/Subscription');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
+
+// @route   POST /api/v1/admin/login
+// @desc    Login admin
+// @access  Public
+router.post('/login', [
+  body('username').notEmpty().withMessage('Nom d\'utilisateur requis'),
+  body('password').notEmpty().withMessage('Mot de passe requis')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const { username, password } = req.body;
+
+    // Identifiants admin par défaut (à changer en production)
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'dudu2026';
+
+    if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+      return res.status(401).json({
+        success: false,
+        message: 'Identifiants incorrects'
+      });
+    }
+
+    // Générer un token JWT pour l'admin
+    const token = jwt.sign(
+      { 
+        userId: 'admin',
+        role: 'admin',
+        username: ADMIN_USERNAME
+      },
+      process.env.JWT_SECRET || 'dudu_secret_key',
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Connexion réussie',
+      data: {
+        token,
+        user: {
+          username: ADMIN_USERNAME,
+          role: 'admin'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur login admin:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
 
 // Middleware pour vérifier les droits d'administration
 const requireAdmin = (req, res, next) => {
@@ -19,7 +82,7 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// Toutes les routes admin sont protégées
+// Toutes les routes admin sont protégées (sauf /login)
 router.use(auth, requireAdmin);
 
 // @route   GET /api/v1/admin/dashboard

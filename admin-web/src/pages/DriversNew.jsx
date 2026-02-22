@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '../utils/axios';
 import { API_BASE_URL } from '../config';
 
 const API_URL = API_BASE_URL;

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import axios from '../utils/axios';
+import { API_BASE_URL } from '../config';
 
 function Rides() {
   const [rides, setRides] = useState([
