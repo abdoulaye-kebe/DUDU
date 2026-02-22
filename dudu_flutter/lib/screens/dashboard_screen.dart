@@ -977,7 +977,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           // Bouton Devenir chauffeur
           InkWell(
             onTap: () async {
-              final url = Uri.parse('https://forms.gle/YOUR_GOOGLE_FORM_ID'); // À remplacer par votre lien de formulaire
+              final url = Uri.parse('https://dudugroup.sn/driver-signup.html');
               if (await canLaunchUrl(url)) {
                 await launchUrl(url, mode: LaunchMode.externalApplication);
               } else {
