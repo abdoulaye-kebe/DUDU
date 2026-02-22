@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Responsive DUDU</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info">
+        Largeur écran: <span id="width"></span>px<br>
+        Breakpoint: <span id="breakpoint"></span>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="home.html" class="logo">
+                <img src="images/logo_dudu_off.png" alt="DUDU" style="height: 40px;">
+                DUDU
+            </a>
+            <div class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#">Accueil</a></li>
+                <li><a href="#">Services</a></li>
+                <li><a href="#">Contact</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1>Test Responsive</h1>
+                <p>Ce texte devrait s'adapter à la taille de l'écran</p>
+                <div class="hero-buttons">
+                    <a href="#" class="btn-primary">Bouton 1</a>
+                    <a href="#" class="btn-secondary">Bouton 2</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section style="padding: 3rem 1rem;">
+        <div class="container">
+            <h2 class="section-title">Test Grille</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>Card 1</h3>
+                    <p>Contenu de test</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Card 2</h3>
+                    <p>Contenu de test</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Card 3</h3>
+                    <p>Contenu de test</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="js/main.js"></script>
+    <script>
+        function updateDebugInfo() {
+            const width = window.innerWidth;
+            document.getElementById('width').textContent = width;
+            
+            let breakpoint = 'Desktop';
+            if (width <= 480) breakpoint = 'Petit Mobile';
+            else if (width <= 768) breakpoint = 'Mobile';
+            else if (width <= 1024) breakpoint = 'Tablette';
+            
+            document.getElementById('breakpoint').textContent = breakpoint;
+        }
+        
+        updateDebugInfo();
+        window.addEventListener('resize', updateDebugInfo);
+    </script>
+</body>
+</html>

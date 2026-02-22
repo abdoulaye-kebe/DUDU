@@ -238,12 +238,6 @@ section {
     box-sizing: border-box;
 }
 
-@media (max-width: 768px) {
-    .container {
-        padding: 0 1rem;
-    }
-}
-
 /* Features Grid */
 .features-grid {
     display: grid;
