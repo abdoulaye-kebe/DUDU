@@ -12,8 +12,18 @@
     <nav class="navbar">
         <div class="nav-container">
             <a href="home.html" class="logo"><img src="images/logo_dudu_off.png" alt="DUDU" style="height: 40px; vertical-align: middle; margin-right: 8px;">DUDU</a>
+            <div class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
             <ul class="nav-menu">
                 <li><a href="home.html">Accueil</a></li>
+            <div class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
                 <li><a href="services.html">Services</a></li>
                 <li><a href="pricing.html">Tarifs</a></li>
                 <li><a href="driver-signup.html">Devenir chauffeur</a></li>
@@ -293,26 +303,6 @@
         </div>
     </footer>
 
-    <script>
-        window.addEventListener('scroll', function() {
-            const navbar = document.querySelector('.navbar');
-            if (window.scrollY > 50) {
-                navbar.classList.add('scrolled');
-            } else {
-                navbar.classList.remove('scrolled');
-            }
-        });
-
-        // Smooth scroll for anchor links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            });
-        });
-    </script>
+    <script src="js/main.js"></script>
 </body>
 </html>
