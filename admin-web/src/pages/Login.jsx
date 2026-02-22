@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
-function Login() {
+function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -26,8 +26,12 @@ function Login() {
         localStorage.setItem('adminToken', response.data.data.token);
         localStorage.setItem('adminUser', JSON.stringify(response.data.data.user));
         
-        // Rediriger vers le dashboard
-        window.location.href = '/';
+        // Rediriger vers le dashboard ou appeler le callback
+        if (onLoginSuccess) {
+          onLoginSuccess();
+        } else {
+          window.location.href = '/';
+        }
       }
     } catch (err) {
       console.error('Erreur login:', err);
