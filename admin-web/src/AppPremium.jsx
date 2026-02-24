@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from './components/Navbar';
-import LoginPageSimple from './pages/LoginPageSimple';
+import Login from './pages/Login';
 import DashboardPremium from './pages/DashboardPremium';
 import DriversPremium from './pages/DriversPremium';
 import ClientsPremium from './pages/ClientsPremium';
@@ -59,7 +59,7 @@ function AppPremium() {
           </main>
         </>
       ) : (
-        <LoginPageSimple onLoginSuccess={() => setIsAuthenticated(true)} />
+        <Login onLoginSuccess={() => setIsAuthenticated(true)} />
       )}
     </div>
   );
