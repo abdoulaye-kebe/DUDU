@@ -1003,6 +1003,54 @@ router.put('/drivers/:id', async (req, res) => {
   }
 });
 
+// @route   PUT /api/v1/admin/drivers/:id/password
+// @desc    Modifier le mot de passe d'un chauffeur
+// @access  Private (admin)
+router.put('/drivers/:id/password', [
+  body('newPassword').isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+
+    const { newPassword } = req.body;
+
+    const driver = await Driver.findById(req.params.id);
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chauffeur non trouvé'
+      });
+    }
+
+    // Mettre à jour le mot de passe (sera hashé automatiquement par le middleware pre-save)
+    driver.password = newPassword;
+    await driver.save();
+
+    res.json({
+      success: true,
+      message: 'Mot de passe modifié avec succès',
+      data: {
+        driverId: driver._id,
+        driverName: `${driver.firstName} ${driver.lastName}`
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur modification mot de passe chauffeur:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la modification du mot de passe'
+    });
+  }
+});
+
 // @route   DELETE /api/v1/admin/drivers/:id
 // @desc    Supprimer un chauffeur
 // @access  Private (admin)

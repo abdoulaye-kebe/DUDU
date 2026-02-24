@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import DriverApplicationCard from '../components/DriverApplicationCard';
 import DataTable from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 import { 
   UserCheck, 
   Clock, 
@@ -14,7 +15,8 @@ import {
   Users,
   Car,
   Phone,
-  AlertCircle
+  AlertCircle,
+  Key
 } from 'lucide-react';
 
 function DriversPremium() {
@@ -25,6 +27,8 @@ function DriversPremium() {
   const [activeTab, setActiveTab] = useState('pending');
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [driverForPasswordChange, setDriverForPasswordChange] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -401,7 +405,12 @@ function DriversPremium() {
                 setSelectedDriver(driver);
                 setIsModalOpen(true);
               }}
-              onEdit={(driver) => console.log('Edit driver:', driver)}
+              onEdit={(driver) => {
+                setDriverForPasswordChange(driver);
+                setIsPasswordModalOpen(true);
+              }}
+              editLabel="Modifier mot de passe"
+              editIcon={Key}
             />
           </motion.div>
         )}
@@ -416,6 +425,17 @@ function DriversPremium() {
         }}
         data={selectedDriver}
         type="driver"
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => {
+          setIsPasswordModalOpen(false);
+          setDriverForPasswordChange(null);
+        }}
+        driver={driverForPasswordChange}
+        onPasswordChanged={loadData}
       />
     </div>
   );

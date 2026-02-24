@@ -23,6 +23,8 @@ function DataTable({
   onView,
   onEdit,
   onDelete,
+  editLabel = "Modifier",
+  editIcon: EditIcon = Edit,
   emptyMessage = "Aucune donnée disponible"
 }) {
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -139,9 +141,9 @@ function DataTable({
                           onClick={() => onEdit(row)}
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
-                          title="Modifier"
+                          title={editLabel}
                         >
-                          <Edit size={16} />
+                          <EditIcon size={16} />
                         </motion.button>
                       )}
                       {onDelete && (
