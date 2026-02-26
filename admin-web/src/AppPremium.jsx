@@ -10,7 +10,7 @@ import PromotionsPremium from './pages/PromotionsPremium';
 import './styles/admin-premium.css';
 
 function AppPremium() {
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState('drivers');
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return Boolean(localStorage.getItem('admin_token'));
   });
@@ -18,13 +18,11 @@ function AppPremium() {
   const handleLogout = () => {
     localStorage.removeItem('admin_token');
     setIsAuthenticated(false);
-    setCurrentPage('dashboard');
+    setCurrentPage('drivers');
   };
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'dashboard':
-        return <DashboardPremium />;
       case 'drivers':
         return <DriversPremium />;
       case 'clients':
@@ -34,7 +32,7 @@ function AppPremium() {
       case 'promotions':
         return <PromotionsPremium />;
       default:
-        return <DashboardPremium />;
+        return <DriversPremium />;
     }
   };
 
