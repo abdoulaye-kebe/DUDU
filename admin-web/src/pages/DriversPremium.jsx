@@ -4,6 +4,7 @@ import DriverApplicationCard from '../components/DriverApplicationCard';
 import DataTable from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
+import { API_BASE_URL } from '../config';
 import { 
   UserCheck, 
   Clock, 
@@ -46,8 +47,8 @@ function DriversPremium() {
       };
 
       const [pendingRes, approvedRes] = await Promise.all([
-        fetch('/api/v1/admin/driver-applications', { headers }).then(r => r.json()),
-        fetch('/api/v1/admin/drivers?verificationStatus=approved&limit=50', { headers }).then(r => r.json())
+        fetch(`${API_BASE_URL}/admin/driver-applications`, { headers }).then(r => r.json()),
+        fetch(`${API_BASE_URL}/admin/drivers?verificationStatus=approved&limit=50`, { headers }).then(r => r.json())
       ]);
 
       setPending(pendingRes.applications || []);
@@ -82,7 +83,7 @@ function DriversPremium() {
       }
 
       const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/v1/admin/drivers/${driverId}/verify`, {
+      const response = await fetch(`${API_BASE_URL}/admin/drivers/${driverId}/verify`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
