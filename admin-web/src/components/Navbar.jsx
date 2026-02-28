@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Car, 
@@ -10,7 +10,9 @@ import {
   Bell,
   Settings,
   ChevronDown,
-  LogOut
+  LogOut,
+  Menu,
+  X
 } from 'lucide-react';
 
 const navItems = [
@@ -21,6 +23,17 @@ const navItems = [
 ];
 
 function Navbar({ currentPage, onNavigate, onLogout }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const handleNavigate = (pageId) => {
+    onNavigate(pageId);
+    setMobileMenuOpen(false);
+  };
+
   return (
     <nav className="navbar">
       <div className="navbar-container">
@@ -40,8 +53,25 @@ function Navbar({ currentPage, onNavigate, onLogout }) {
           </div>
         </motion.a>
 
+        {/* Mobile Menu Toggle */}
+        <motion.button
+          className="mobile-menu-toggle"
+          onClick={toggleMobileMenu}
+          whileTap={{ scale: 0.95 }}
+          style={{
+            display: 'none',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '8px',
+            color: 'var(--gray-700)'
+          }}
+        >
+          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </motion.button>
+
         {/* Navigation Links */}
-        <div className="navbar-nav">
+        <div className={`navbar-nav ${mobileMenuOpen ? 'active' : ''}`}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
@@ -50,7 +80,7 @@ function Navbar({ currentPage, onNavigate, onLogout }) {
               <motion.button
                 key={item.id}
                 className={`nav-link ${isActive ? 'active' : ''}`}
-                onClick={() => onNavigate(item.id)}
+                onClick={() => handleNavigate(item.id)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 initial={false}
