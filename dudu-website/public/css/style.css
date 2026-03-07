@@ -171,6 +171,7 @@ body {
 .hero {
     display: flex;
     align-items: center;
+    min-height: 60vh;
     background: linear-gradient(135deg, var(--primary-green) 0%, var(--light-green) 100%);
     color: white;
     padding: 120px 2rem 80px;
@@ -907,4 +908,10 @@ footer {
 
 .fade-in-up {
     animation: fadeInUp 0.6s ease-out;
+}
+
+/* Fallback : hero toujours visible (même si JS masque les .fade-in-up) */
+.hero .fade-in-up {
+    opacity: 1;
+    transform: translateY(0);
 }

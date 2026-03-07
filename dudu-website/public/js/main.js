@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Fade in animation on scroll
+    // Fade in animation on scroll (sans cacher le hero au chargement)
     const observerOptions = {
         threshold: 0.1,
         rootMargin: '0px 0px -50px 0px'
@@ -56,6 +56,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }, observerOptions);
 
     document.querySelectorAll('.fade-in-up').forEach(el => {
+        // Ne pas masquer le contenu du hero : visible dès le chargement
+        if (el.closest('.hero')) {
+            el.style.opacity = '1';
+            el.style.transform = 'translateY(0)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            return;
+        }
         el.style.opacity = '0';
         el.style.transform = 'translateY(30px)';
         el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
