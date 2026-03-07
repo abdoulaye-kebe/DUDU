@@ -1,9 +1,32 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const Ride = require('../models/Ride');
 const { auth, requireVerification } = require('../middleware/auth');
 const router = express.Router();
+
+const UPLOAD_AVATAR_DIR = path.join(process.cwd(), 'public', 'uploads', 'avatars');
+if (!fs.existsSync(UPLOAD_AVATAR_DIR)) {
+  fs.mkdirSync(UPLOAD_AVATAR_DIR, { recursive: true });
+}
+const uploadAvatar = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOAD_AVATAR_DIR),
+    filename: (req, file, cb) => {
+      const ext = (file.originalname && path.extname(file.originalname)) || '.jpg';
+      const name = `${req.userId || req.user?.id || 'user'}-${Date.now()}${ext}`;
+      cb(null, name);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = /^image\/(jpeg|jpg|png|gif|webp)$/i.test(file.mimetype);
+    cb(null, allowed);
+  },
+}).single('avatar');
 
 // @route   GET /api/v1/users/profile
 // @desc    Obtenir le profil de l'utilisateur
@@ -427,23 +450,45 @@ router.get('/stats', auth, async (req, res) => {
 });
 
 // @route   POST /api/v1/users/upload-avatar
-// @desc    Uploader une photo de profil
+// @desc    Uploader une photo de profil (stockage local public/uploads/avatars)
 // @access  Private
-router.post('/upload-avatar', auth, async (req, res) => {
-  try {
-    // TODO: Implémenter l'upload d'image avec Cloudinary
-    res.json({
-      success: true,
-      message: 'Upload d\'avatar non encore implémenté'
-    });
-
-  } catch (error) {
-    console.error('Erreur lors de l\'upload de l\'avatar:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur interne du serveur'
-    });
-  }
+router.post('/upload-avatar', auth, (req, res) => {
+  uploadAvatar(req, res, async (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, message: 'Fichier trop volumineux (max 5 Mo)' });
+      }
+      if (err.message) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      return res.status(500).json({ success: false, message: 'Erreur lors de l\'upload' });
+    }
+    if (!req.file || !req.file.filename) {
+      return res.status(400).json({ success: false, message: 'Aucun fichier image envoyé (champ: avatar)' });
+    }
+    try {
+      const relativeUrl = `/uploads/avatars/${req.file.filename}`;
+      const user = await User.findByIdAndUpdate(
+        req.userId || req.user?.id,
+        { profilePicture: relativeUrl },
+        { new: true }
+      ).select('-password');
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      }
+      res.json({
+        success: true,
+        message: 'Photo de profil mise à jour',
+        data: { profilePicture: user.profilePicture },
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'upload de l\'avatar:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur interne du serveur',
+      });
+    }
+  });
 });
 
 // @route   DELETE /api/v1/users/account
@@ -491,6 +536,7 @@ router.delete('/account', auth, async (req, res) => {
 });
 
 module.exports = router;
+
 
 
 

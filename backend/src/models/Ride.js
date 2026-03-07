@@ -253,7 +253,7 @@ const rideSchema = new mongoose.Schema({
     refundAmount: Number
   },
   
-  // Évaluations
+  // Évaluations (passager → chauffeur)
   rating: {
     score: {
       type: Number,
@@ -265,6 +265,12 @@ const rideSchema = new mongoose.Schema({
       type: String,
       enum: ['clean_interior', 'pleasant_driving', 'polite_driver', 'good_conversation']
     }],
+    ratedAt: Date
+  },
+  // Évaluation chauffeur → passager
+  passengerRating: {
+    score: { type: Number, min: 1, max: 5 },
+    comment: String,
     ratedAt: Date
   },
   

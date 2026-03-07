@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { sendVerificationCode } = require('../services/smsService');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -104,8 +105,7 @@ router.post('/register', [
     // Sauvegarder l'utilisateur
     await user.save();
 
-    // TODO: Envoyer le code de vérification par SMS
-    console.log(`Code de vérification pour ${normalizedPhone}: ${verificationCode}`);
+    await sendVerificationCode(normalizedPhone, verificationCode);
 
     // Incrémenter le compteur de parrainage si applicable
     if (referredBy) {
@@ -492,8 +492,7 @@ router.post('/resend-verification', [
     const verificationCode = user.generateVerificationCode();
     await user.save();
 
-    // TODO: Envoyer le code par SMS
-    console.log(`Nouveau code de vérification pour ${normalizedPhone}: ${verificationCode}`);
+    await sendVerificationCode(normalizedPhone, verificationCode);
 
     res.json({
       success: true,

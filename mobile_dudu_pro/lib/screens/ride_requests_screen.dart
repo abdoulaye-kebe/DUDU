@@ -654,24 +654,33 @@ class RideRequest {
       }
     }
 
+    int toInt(dynamic v, int fallback) {
+      if (v == null) return fallback;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      if (v is String) return int.tryParse(v) ?? fallback;
+      return fallback;
+    }
+    double toDoubleSafe(dynamic v) {
+      if (v == null) return 0;
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v) ?? 0;
+      return 0;
+    }
+
     return RideRequest(
       id: requestId,
       passengerName: (data['passengerName']?.toString() ?? passenger['name']?.toString()) ?? 'Client DUDU',
       passengerPhone: data['passengerPhone']?.toString(),
       pickup: pickupText.toString(),
       destination: destinationText.toString(),
-      distance: (pricing['distance'] ?? data['distance'] ?? 0).toDouble(),
-      customPrice: pricing['customPrice']?.toInt() ??
-          pricing['totalPrice']?.toInt() ??
-          data['customPrice']?.toInt() ??
-          0,
+      distance: toDoubleSafe(pricing['distance'] ?? data['distance']),
+      customPrice: toInt(pricing['customPrice'], toInt(pricing['totalPrice'], toInt(data['customPrice'], 0))),
       customPricePerKm: (pricing is Map && pricing['customPricePerKm'] != null)
-          ? (pricing['customPricePerKm'] as num).toDouble()
-          : (data['customPricePerKm'] is num ? (data['customPricePerKm'] as num).toDouble() : null),
+          ? toDoubleSafe(pricing['customPricePerKm'])
+          : (data['customPricePerKm'] != null ? toDoubleSafe(data['customPricePerKm']) : null),
       rideType: data['rideType']?.toString() ?? 'standard',
-      estimatedDuration: pricing['estimatedDuration']?.toInt() ??
-          data['estimatedDuration']?.toInt() ??
-          5,
+      estimatedDuration: toInt(pricing['estimatedDuration'], toInt(data['estimatedDuration'], 5)),
       requestedAt: requestedAt,
       expiresInSeconds: 180,
       scheduledFor: scheduledFor,

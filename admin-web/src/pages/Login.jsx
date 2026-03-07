@@ -42,14 +42,14 @@ function Login({ onLoginSuccess }) {
   };
 
   return (
-    <div style={{
+    <div className="login-page" style={{
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       background: 'linear-gradient(135deg, #0f4c3a 0%, #1a7a5e 100%)'
     }}>
-      <div style={{
+      <div className="login-box" style={{
         background: 'white',
         padding: '40px',
         borderRadius: '16px',

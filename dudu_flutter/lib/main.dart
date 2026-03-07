@@ -36,6 +36,7 @@ Future<void> main() async {
   // Initialiser les notifications (avec protection)
   try {
     await NotificationService().initialize();
+    NotificationService.setNavigatorKey(appNavigatorKey);
     debugPrint('✅ Notifications initialisées');
   } catch (e) {
     debugPrint('⚠️ Erreur notifications: $e');

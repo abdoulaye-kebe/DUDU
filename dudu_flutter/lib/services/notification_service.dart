@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -8,6 +9,12 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
+
+  /// Clé de navigation pour ouvrir des écrans au tap sur une notification
+  static GlobalKey<NavigatorState>? _navigatorKey;
+  static void setNavigatorKey(GlobalKey<NavigatorState>? key) {
+    _navigatorKey = key;
+  }
 
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -353,42 +360,31 @@ class NotificationService {
     final payload = response.payload;
     print('👆 Notification tapée: $payload');
 
-    // Navigation selon le type de notification
-    // Note: La navigation nécessite un contexte. Pour une vraie implémentation,
-    // il faudrait utiliser un GlobalKey<NavigatorState> ou un service de navigation.
-    // Pour l'instant, on log l'action qui devrait être effectuée.
+    final navigator = _navigatorKey?.currentState;
+    if (navigator == null) {
+      print('📱 NavigatorKey non configurée, impossible de naviguer');
+      return;
+    }
     switch (payload) {
       case 'carpool_available':
-        print('📱 Action: Ouvrir écran covoiturage');
-        // TODO: Implémenter avec NavigatorKey global
-        break;
       case 'driver_found':
       case 'driver_approaching':
       case 'ride_started':
-        print('📱 Action: Ouvrir écran tracking de course');
-        // TODO: Implémenter avec NavigatorKey global
-        break;
       case 'driver_arrived':
-        print('📱 Action: Ouvrir écran prise en charge');
-        // TODO: Implémenter avec NavigatorKey global
-        break;
       case 'ride_completed':
-        print('📱 Action: Ouvrir écran rating');
-        // TODO: Implémenter avec NavigatorKey global
+        navigator.pushNamedAndRemoveUntil('/dashboard', (route) => false);
         break;
       case 'scheduled_reminder_2h':
       case 'scheduled_reminder_1h':
       case 'scheduled_driver_on_way':
       case 'scheduled_driver_arrived':
-        print('📱 Action: Ouvrir écran trajets planifiés');
-        // TODO: Implémenter avec NavigatorKey global
+        navigator.pushNamedAndRemoveUntil('/dashboard', (route) => false);
         break;
       case 'promotion':
-        print('📱 Action: Ouvrir écran promotions');
-        // TODO: Implémenter avec NavigatorKey global
+        navigator.pushNamedAndRemoveUntil('/dashboard', (route) => false);
         break;
       default:
-        print('📱 Action: Notification sans action spécifique');
+        navigator.pushNamedAndRemoveUntil('/dashboard', (route) => false);
     }
   }
 

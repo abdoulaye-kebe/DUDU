@@ -17,6 +17,11 @@
     box-sizing: border-box;
 }
 
+html {
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+}
+
 img {
     max-width: 100% !important;
     height: auto !important;

@@ -64,22 +64,42 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
     _passengerName = passenger['name']?.toString() ?? 'Client';
     _pickupAddress = pickup['address']?.toString() ?? 'Point de départ';
     _destinationAddress = destination['address']?.toString() ?? 'Destination';
-    _price = pricing['totalPrice']?.toInt() ?? pricing['customPrice']?.toInt() ?? 0;
 
-    final pickupCoords = pickup['coordinates'] ?? {};
-    final destCoords = destination['coordinates'] ?? {};
+    final totalPriceRaw = pricing['totalPrice'] ?? pricing['customPrice'];
+    if (totalPriceRaw is int) {
+      _price = totalPriceRaw;
+    } else if (totalPriceRaw is num) {
+      _price = totalPriceRaw.toInt();
+    } else if (totalPriceRaw is String) {
+      _price = int.tryParse(totalPriceRaw) ?? 0;
+    } else {
+      _price = 0;
+    }
 
-    _pickupLocation = LatLng(
-      (pickupCoords['latitude'] ?? 14.6928).toDouble(),
-      (pickupCoords['longitude'] ?? -17.4467).toDouble(),
-    );
-
-    _destinationLocation = LatLng(
-      (destCoords['latitude'] ?? 14.7392).toDouble(),
-      (destCoords['longitude'] ?? -17.4978).toDouble(),
-    );
+    _pickupLocation = _coordsToLatLng(pickup['coordinates'], 14.6928, -17.4467);
+    _destinationLocation = _coordsToLatLng(destination['coordinates'], 14.7392, -17.4978);
 
     _updateMarkers();
+  }
+
+  LatLng _coordsToLatLng(dynamic coords, double defaultLat, double defaultLng) {
+    if (coords is Map) {
+      final lat = coords['latitude'];
+      final lng = coords['longitude'];
+      return LatLng(
+        (lat is num) ? lat.toDouble() : (lat != null ? double.tryParse(lat.toString()) ?? defaultLat : defaultLat),
+        (lng is num) ? lng.toDouble() : (lng != null ? double.tryParse(lng.toString()) ?? defaultLng : defaultLng),
+      );
+    }
+    if (coords is List && coords.length >= 2) {
+      final lng = coords[0];
+      final lat = coords[1];
+      return LatLng(
+        (lat is num) ? lat.toDouble() : defaultLat,
+        (lng is num) ? lng.toDouble() : defaultLng,
+      );
+    }
+    return LatLng(defaultLat, defaultLng);
   }
 
   void _updateMarkers() {

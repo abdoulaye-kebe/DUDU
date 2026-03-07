@@ -3,6 +3,8 @@ const { body, validationResult } = require('express-validator');
 const Ride = require('../models/Ride');
 const Driver = require('../models/Driver');
 const User = require('../models/User');
+const { getIO } = require('../socket/socketIO');
+const { getDistanceAndDuration } = require('../services/googleMapsService');
 const { auth, requireVerification, requireDriver, requireActiveSubscription, requireOnline, requireAvailable } = require('../middleware/auth');
 const router = express.Router();
 
@@ -55,16 +57,27 @@ router.post('/request', [
       specialMode
     } = req.body;
 
-    // Calculer la distance et la durée estimée
-    // TODO: Intégrer avec l'API Google Maps pour calculer la distance réelle
-    const distance = calculateDistance(
+    // Calculer la distance et la durée (Google Maps si clé API, sinon Haversine)
+    let distance;
+    let estimatedDuration;
+    const mapsResult = await getDistanceAndDuration(
       pickup.coordinates.latitude,
       pickup.coordinates.longitude,
       destination.coordinates.latitude,
       destination.coordinates.longitude
     );
-
-    const estimatedDuration = Math.round(distance * 2); // Estimation basique
+    if (mapsResult) {
+      distance = mapsResult.distanceKm;
+      estimatedDuration = mapsResult.durationMinutes;
+    } else {
+      distance = calculateDistance(
+        pickup.coordinates.latitude,
+        pickup.coordinates.longitude,
+        destination.coordinates.latitude,
+        destination.coordinates.longitude
+      );
+      estimatedDuration = Math.round(distance * 2);
+    }
 
     // Créer la course
     const ride = new Ride({
@@ -231,8 +244,23 @@ router.post('/request', [
       });
     }
 
-    // TODO: Envoyer des notifications aux chauffeurs via Socket.io
-    // TODO: Implémenter un système d'expiration (3 minutes)
+    // Expiration de la demande après 3 minutes si aucun chauffeur n'accepte
+    const EXPIRATION_MS = 3 * 60 * 1000;
+    setTimeout(async () => {
+      try {
+        const updatedRide = await Ride.findById(ride._id);
+        if (!updatedRide || updatedRide.status !== 'requested') return;
+        updatedRide.status = 'expired';
+        await updatedRide.save();
+        const io = getIO();
+        if (io) {
+          io.emit('ride-expired', { rideId: ride._id });
+        }
+        console.log(`⏱️ Course ${ride._id} expirée (3 min sans acceptation)`);
+      } catch (err) {
+        console.error('Erreur expiration course:', err.message);
+      }
+    }, EXPIRATION_MS);
 
     res.status(201).json({
       success: true,
@@ -844,6 +872,65 @@ router.post('/:id/rate', [
 
   } catch (error) {
     console.error('Erreur lors de la notation de la course:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur'
+    });
+  }
+});
+
+// @route   POST /api/v1/rides/:id/rate-passenger
+// @desc    Noter le passager (côté chauffeur)
+// @access  Private (chauffeur assigné)
+router.post('/:id/rate-passenger', [
+  auth,
+  body('rating').isInt({ min: 1, max: 5 }).withMessage('La note doit être entre 1 et 5')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Données invalides',
+        errors: errors.array()
+      });
+    }
+    const ride = await Ride.findById(req.params.id);
+    if (!ride) {
+      return res.status(404).json({ success: false, message: 'Course non trouvée' });
+    }
+    if (ride.driver.toString() !== req.userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Seul le chauffeur assigné peut noter le passager'
+      });
+    }
+    if (ride.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Seules les courses terminées peuvent être notées'
+      });
+    }
+    if (ride.passengerRating && ride.passengerRating.score) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce passager a déjà été noté pour cette course'
+      });
+    }
+    const { rating, comment } = req.body;
+    ride.passengerRating = {
+      score: rating,
+      comment: comment || '',
+      ratedAt: new Date()
+    };
+    await ride.save();
+    res.json({
+      success: true,
+      message: 'Évaluation du passager enregistrée',
+      data: { passengerRating: ride.passengerRating }
+    });
+  } catch (error) {
+    console.error('Erreur rate-passenger:', error);
     res.status(500).json({
       success: false,
       message: 'Erreur interne du serveur'

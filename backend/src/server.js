@@ -93,6 +93,7 @@ app.use('/api/v1/subscriptions', require('./routes/subscriptions'));
 app.use('/api/v1/admin', require('./routes/admin'));
 app.use('/api/v1/notifications', require('./routes/notifications'));
 app.use('/api/v1/disputes', require('./routes/disputes'));
+app.use('/api/v1/carpool', require('./routes/carpool'));
 
 // Route de santé
 app.get('/api/v1/health', (req, res) => {

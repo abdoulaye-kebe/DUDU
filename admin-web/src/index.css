@@ -17,3 +17,21 @@ body {
   min-height: 100vh;
 }
 
+/* Login responsive */
+.login-page {
+  padding: 16px;
+}
+.login-box {
+  margin: 0 auto;
+}
+@media (max-width: 480px) {
+  .login-page {
+    padding: 12px;
+    align-items: flex-start;
+    padding-top: 40px;
+  }
+  .login-box {
+    padding: 24px 20px !important;
+  }
+}
+

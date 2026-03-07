@@ -248,8 +248,13 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
 
   /// Afficher le dialogue de fin de course
   Future<void> _showPaymentDialog() async {
-    // Récupérer le montant de la course depuis l'API ou utiliser une valeur estimée
-    final amount = 2500; // TODO: Récupérer le vrai montant depuis l'API
+    int amount = 2500;
+    try {
+      final response = await ApiService.getRide(widget.rideId);
+      if (response.success && response.data != null) {
+        amount = response.data!.pricing.totalPrice.round();
+      }
+    } catch (_) {}
     final driverPhone = widget.driverInfo['phone'] ?? '';
     
     final paymentMethod = await showDialog<String>(

@@ -52,15 +52,24 @@ class Ride {
   });
 
   factory Ride.fromJson(Map<String, dynamic> json) {
+    int toInt(dynamic v, int fallback) {
+      if (v == null) return fallback;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      if (v is String) return int.tryParse(v) ?? fallback;
+      return fallback;
+    }
+    final pickupRaw = json['pickup'];
+    final destinationRaw = json['destination'];
     return Ride(
-      id: json['id'] ?? '',
-      rideId: json['rideId'] ?? '',
-      pickup: RideLocation.fromJson(json['pickup']),
-      destination: RideLocation.fromJson(json['destination']),
-      distance: (json['distance'] ?? 0).toDouble(),
-      estimatedDuration: json['estimatedDuration'] ?? 0,
-      actualDuration: json['actualDuration'],
-      pricing: RidePricing.fromJson(json['pricing']),
+      id: json['id']?.toString() ?? '',
+      rideId: json['rideId']?.toString() ?? '',
+      pickup: pickupRaw is Map<String, dynamic> ? RideLocation.fromJson(pickupRaw) : RideLocation.fromJson(null),
+      destination: destinationRaw is Map<String, dynamic> ? RideLocation.fromJson(destinationRaw) : RideLocation.fromJson(null),
+      distance: (json['distance'] is num) ? (json['distance'] as num).toDouble() : (json['distance'] != null ? double.tryParse(json['distance'].toString()) ?? 0 : 0),
+      estimatedDuration: toInt(json['estimatedDuration'], 0),
+      actualDuration: json['actualDuration'] != null ? toInt(json['actualDuration'], 0) : null,
+      pricing: json['pricing'] is Map<String, dynamic> ? RidePricing.fromJson(json['pricing'] as Map<String, dynamic>) : RidePricing.fromJson({}),
       status: RideStatus.values.firstWhere(
         (e) => e.name == json['status'],
         orElse: () => RideStatus.requested,
@@ -126,12 +135,26 @@ class RideLocation {
     this.landmark,
   });
 
-  factory RideLocation.fromJson(Map<String, dynamic> json) {
+  factory RideLocation.fromJson(Map<String, dynamic>? json) {
+    final j = json ?? {};
+    final dynamic rawCoords = j['coordinates'];
+    final Coordinates coordinates;
+    if (rawCoords is Map<String, dynamic>) {
+      coordinates = Coordinates.fromJson(rawCoords);
+    } else if (rawCoords is List && rawCoords.length >= 2) {
+      // GeoJSON: [longitude, latitude]
+      coordinates = Coordinates(
+        latitude: (rawCoords[1] as num).toDouble(),
+        longitude: (rawCoords[0] as num).toDouble(),
+      );
+    } else {
+      coordinates = Coordinates(latitude: 0, longitude: 0);
+    }
     return RideLocation(
-      address: json['address'] ?? '',
-      coordinates: Coordinates.fromJson(json['coordinates']),
-      instructions: json['instructions'],
-      landmark: json['landmark'],
+      address: j['address']?.toString() ?? '',
+      coordinates: coordinates,
+      instructions: j['instructions']?.toString(),
+      landmark: j['landmark']?.toString(),
     );
   }
 
@@ -165,14 +188,20 @@ class RidePricing {
   });
 
   factory RidePricing.fromJson(Map<String, dynamic> json) {
+    double toDouble(dynamic v) {
+      if (v == null) return 0;
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v) ?? 0;
+      return 0;
+    }
     return RidePricing(
-      basePrice: (json['basePrice'] ?? 0).toDouble(),
-      distancePrice: (json['distancePrice'] ?? 0).toDouble(),
-      timePrice: (json['timePrice'] ?? 0).toDouble(),
-      surgeMultiplier: (json['surgeMultiplier'] ?? 1.0).toDouble(),
-      totalPrice: (json['totalPrice'] ?? 0).toDouble(),
-      currency: json['currency'] ?? 'XOF',
-      isPriceFixed: json['isPriceFixed'] ?? false,
+      basePrice: toDouble(json['basePrice']),
+      distancePrice: toDouble(json['distancePrice']),
+      timePrice: toDouble(json['timePrice']),
+      surgeMultiplier: toDouble(json['surgeMultiplier']),
+      totalPrice: toDouble(json['totalPrice']),
+      currency: json['currency']?.toString() ?? 'XOF',
+      isPriceFixed: json['isPriceFixed'] == true,
     );
   }
 
@@ -284,6 +313,7 @@ extension RideStatusExtension on RideStatus {
     }
   }
 }
+
 
 
 

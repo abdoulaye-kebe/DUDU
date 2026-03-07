@@ -11,6 +11,7 @@ function ProtectedLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -20,6 +21,10 @@ function ProtectedLayout() {
       setIsAuthenticated(true);
     }
   }, [navigate]);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -33,8 +38,25 @@ function ProtectedLayout() {
 
   return (
     <div className="app">
+      {/* Bouton hamburger mobile */}
+      <button
+        type="button"
+        className="sidebar-toggle"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        aria-label="Menu"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      {/* Overlay quand sidebar ouverte sur mobile */}
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <h1>DUDU</h1>
           <p>Admin Dashboard</p>
@@ -74,7 +96,7 @@ function ProtectedLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="main-content">
+      <main className="main-content" onClick={() => setSidebarOpen(false)}>
         <Routes>
           <Route path="/" element={<DashboardNew />} />
           <Route path="/chauffeurs" element={<DriversNew />} />
