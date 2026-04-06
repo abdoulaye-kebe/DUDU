@@ -136,6 +136,34 @@
             text-align: center;
         }
 
+        .form-group--terms a {
+            color: var(--primary-green);
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .form-group--terms a:hover {
+            color: var(--dark-green);
+        }
+
+        .form-group--terms {
+            margin-top: 2rem;
+        }
+
+        .form-submit-wrap {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .btn-submit-driver {
+            width: auto;
+            max-width: 100%;
+            font-size: 1.05rem;
+            padding: 0.95rem 1.75rem;
+        }
+
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -143,6 +171,14 @@
             
             .signup-hero h1 {
                 font-size: 2rem;
+            }
+
+            .form-submit-wrap {
+                justify-content: stretch;
+            }
+
+            .btn-submit-driver {
+                width: 100%;
             }
         }
     </style>
@@ -159,11 +195,6 @@
             </div>
             <ul class="nav-menu">
                 <li><a href="home.html">Accueil</a></li>
-            <div class="hamburger">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
                 <li><a href="services.html">Services</a></li>
                 <li><a href="pricing.html">Tarifs</a></li>
                 <li><a href="driver-signup.html">Devenir chauffeur</a></li>
@@ -390,16 +421,18 @@
                     <textarea name="additionalInfo" placeholder="Parlez-nous de votre expérience, vos motivations..."></textarea>
                 </div>
 
-                <div class="form-group" style="margin-top: 2rem;">
-                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                        <input type="checkbox" name="terms" required>
-                        <span>J'accepte les <a href="terms.html" target="_blank" style="color: var(--primary-green);">conditions d'utilisation</a> et la <a href="privacy.html" target="_blank" style="color: var(--primary-green);">politique de confidentialité</a></span>
+                <div class="form-group form-group--terms">
+                    <label class="checkbox-label" for="driverTerms">
+                        <input type="checkbox" id="driverTerms" name="terms" required>
+                        <span>J'accepte les <a href="terms.html" target="_blank" rel="noopener noreferrer">conditions d'utilisation</a> et la <a href="privacy.html" target="_blank" rel="noopener noreferrer">politique de confidentialité</a>.</span>
                     </label>
                 </div>
 
-                <button type="submit" class="btn-primary" style="width: 100%; font-size: 1.125rem; padding: 1rem; margin-top: 1rem;">
-                    📝 Soumettre ma candidature
-                </button>
+                <div class="form-submit-wrap">
+                    <button type="submit" class="btn-primary btn-submit-driver">
+                        Soumettre ma candidature
+                    </button>
+                </div>
 
                 <div class="success-message" id="successMessage">
                     <h3 style="color: #155724; margin-bottom: 0.5rem;">✅ Candidature envoyée avec succès !</h3>
