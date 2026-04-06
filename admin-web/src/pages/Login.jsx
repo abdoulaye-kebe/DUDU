@@ -22,7 +22,8 @@ function Login({ onLoginSuccess }) {
       });
 
       if (response.data.success) {
-        // Stocker le token dans localStorage
+        // Stocker le token (clé admin_token pour cohérence avec AppPremium)
+        localStorage.setItem('admin_token', response.data.data.token);
         localStorage.setItem('adminToken', response.data.data.token);
         localStorage.setItem('adminUser', JSON.stringify(response.data.data.user));
         

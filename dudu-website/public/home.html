@@ -2,10 +2,13 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="DUDU - La solution de transport moderne au Sénégal. Réservez vos courses en quelques clics avec des chauffeurs professionnels.">
     <meta name="keywords" content="transport, taxi, Dakar, Sénégal, VTC, course, chauffeur">
     <title>DUDU - Votre Transport au Sénégal | Yobalé sii sama prix</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -22,7 +25,7 @@
                 <span></span>
             </div>
             <ul class="nav-menu">
-                <li><a href="home.html">Accueil</a></li>
+                <li><a href="home.html#accueil">Accueil</a></li>
                 <li><a href="services.html">Services</a></li>
                 <li><a href="pricing.html">Tarifs</a></li>
                 <li><a href="driver-signup.html">Devenir chauffeur</a></li>
@@ -33,28 +36,67 @@
         </div>
     </nav>
 
-    <!-- Hero Section (sans fade-in-up pour affichage garanti même si JS désactivé ou erreur) -->
-    <section class="hero">
-        <div class="hero-container">
+    <!-- Hero -->
+    <section class="hero" id="accueil">
+        <div class="hero-grid">
             <div class="hero-content">
-                <h1>Yobalé sii sama prix</h1>
-                <p>La mobilité à mon prix. Réservez vos courses en quelques secondes avec DUDU, votre solution de transport moderne au Sénégal.</p>
-                <div class="hero-buttons">
-                    <a href="index.html" class="btn-primary">📱 Télécharger l'app</a>
-                    <a href="driver-signup.html" class="btn-secondary">Devenir chauffeur</a>
+                <p class="hero-kicker">Transport au Sénégal</p>
+                <h1 class="hero-title">Yobalé sii sama prix</h1>
+                <p class="hero-lead">Réservez en secondes, suivez votre course en direct et payez comme vous voulez — tout depuis l’app DUDU.</p>
+                <ul class="hero-trust" aria-label="Avantages rapides">
+                    <li>Prix affiché avant la course</li>
+                    <li>Chauffeurs vérifiés</li>
+                    <li>Dakar et environs</li>
+                </ul>
+                <div class="hero-actions">
+                    <a href="index.html" class="btn btn--primary btn--lg">Télécharger l’app</a>
+                    <a href="driver-signup.html" class="btn btn--outline-hero btn--lg">Devenir chauffeur</a>
                 </div>
             </div>
-            <div class="hero-image">
-                <img src="images/logo_dudu_off.png" alt="DUDU" style="max-width: 400px; height: auto; filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));">
+            <div class="hero-visual" aria-hidden="true">
+                <div class="hero-phone-frame">
+                    <img src="images/logo_dudu_off.png" alt="" width="320" height="320" class="hero-phone-img">
+                </div>
             </div>
         </div>
     </section>
 
+    <!-- Comment ça marche -->
+    <section class="section section--white" id="comment-ca-marche">
+        <div class="container container--narrow">
+            <header class="section-head">
+                <span class="section-label">Simple et rapide</span>
+                <h2 class="section-title">Comment ça marche ?</h2>
+                <p class="section-subtitle">Comme sur les apps de mobilité que vous connaissez : ouvrir, commander, rouler.</p>
+            </header>
+            <ol class="steps">
+                <li class="step">
+                    <span class="step-num" aria-hidden="true">1</span>
+                    <h3 class="step-title">Indiquez votre trajet</h3>
+                    <p class="step-text">Départ, arrivée et type de course — le tarif vous est proposé clairement.</p>
+                </li>
+                <li class="step">
+                    <span class="step-num" aria-hidden="true">2</span>
+                    <h3 class="step-title">Un chauffeur vous accepte</h3>
+                    <p class="step-text">Suivi en temps réel sur la carte jusqu’à l’arrivée du véhicule.</p>
+                </li>
+                <li class="step">
+                    <span class="step-num" aria-hidden="true">3</span>
+                    <h3 class="step-title">Payez et notez</h3>
+                    <p class="step-text">Espèces, mobile money ou carte selon les options — votre avis compte.</p>
+                </li>
+            </ol>
+        </div>
+    </section>
+
     <!-- Features Section -->
-    <section style="background: var(--bg-light);">
+    <section class="section section--muted">
         <div class="container">
-            <h2 class="section-title">Pourquoi choisir DUDU ?</h2>
-            <p class="section-subtitle">Une expérience de transport moderne, sûre et accessible à tous</p>
+            <header class="section-head">
+                <span class="section-label">Pour les passagers</span>
+                <h2 class="section-title">Pourquoi choisir DUDU&nbsp;?</h2>
+                <p class="section-subtitle">Une expérience moderne, organisée et pensée pour le quotidien à Dakar.</p>
+            </header>
             
             <div class="features-grid">
                 <div class="feature-card fade-in-up">
@@ -97,14 +139,17 @@
     </section>
 
     <!-- Services Section -->
-    <section>
+    <section class="section section--white">
         <div class="container">
-            <h2 class="section-title">Nos Services</h2>
-            <p class="section-subtitle">Des solutions adaptées à tous vos besoins de mobilité</p>
+            <header class="section-head">
+                <span class="section-label">Offre</span>
+                <h2 class="section-title">Nos services</h2>
+                <p class="section-subtitle">Du trajet simple au premium, en passant par la livraison.</p>
+            </header>
             
             <div class="features-grid">
                 <div class="feature-card">
-                    <div class="feature-icon"></div>
+                    <div class="feature-icon" aria-hidden="true">🚗</div>
                     <h3>Course Standard</h3>
                     <p>Le service classique pour vos déplacements quotidiens. Rapide, fiable et économique.</p>
                     <a href="services.html#standard" style="color: var(--primary-green); font-weight: 600; text-decoration: none;">En savoir plus →</a>
@@ -149,9 +194,12 @@
     </section>
 
     <!-- Stats Section -->
-    <section class="stats-section">
+    <section class="stats-section section">
         <div class="container">
-            <h2 class="section-title" style="color: white;">DUDU en chiffres</h2>
+            <header class="section-head section-head--light">
+                <span class="section-label section-label--light">Communauté</span>
+                <h2 class="section-title section-title--light">DUDU en chiffres</h2>
+            </header>
             <div class="stats-grid">
                 <div class="stat-item">
                     <h3>10,000+</h3>
@@ -174,10 +222,13 @@
     </section>
 
     <!-- Screenshots Section -->
-    <section class="screenshots-section">
+    <section class="screenshots-section section section--white">
         <div class="container">
-            <h2 class="section-title">L'application DUDU</h2>
-            <p class="section-subtitle">Une interface simple et intuitive pour vos déplacements</p>
+            <header class="section-head">
+                <span class="section-label">Application</span>
+                <h2 class="section-title">L’application DUDU</h2>
+                <p class="section-subtitle">Interface claire : course, carte, historique et paiement au même endroit.</p>
+            </header>
             <div class="screenshots-grid">
                 <img src="images/screenshots/1000000338.jpg" alt="DUDU App - Accueil" loading="lazy">
                 <img src="images/screenshots/1000000339.jpg" alt="DUDU App - Réservation" loading="lazy">
@@ -190,17 +241,13 @@
     </section>
 
     <!-- CTA Section -->
-    <section class="cta-section">
-        <div class="container">
-            <h2 class="section-title">Prêt à commencer ?</h2>
-            <p class="section-subtitle">Téléchargez l'application DUDU et profitez de vos premiers trajets</p>
+    <section class="cta-section section">
+        <div class="container container--narrow">
+            <h2 class="section-title cta-title">Prêt à rouler avec DUDU&nbsp;?</h2>
+            <p class="section-subtitle cta-sub">Téléchargez l’app passager ou rejoignez le réseau chauffeurs — tout est sur la page téléchargement.</p>
             <div class="cta-buttons">
-                <a href="index.html" class="btn-primary btn-large">
-                    📱 Télécharger l'app
-                </a>
-                <a href="driver-signup.html" class="btn-secondary btn-large">
-                    🚗 Devenir chauffeur
-                </a>
+                <a href="index.html" class="btn btn--primary btn--lg">Télécharger l’app</a>
+                <a href="driver-signup.html" class="btn btn--secondary btn--lg">Devenir chauffeur</a>
             </div>
         </div>
     </section>

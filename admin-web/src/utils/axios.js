@@ -9,7 +9,7 @@ const axiosInstance = axios.create({
 // Intercepteur pour ajouter le token à chaque requête
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('admin_token') || localStorage.getItem('adminToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -26,6 +26,7 @@ axiosInstance.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expiré ou invalide
+      localStorage.removeItem('admin_token');
       localStorage.removeItem('adminToken');
       localStorage.removeItem('adminUser');
       window.location.href = '/login';

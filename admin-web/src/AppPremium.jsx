@@ -17,6 +17,8 @@ function AppPremium() {
 
   const handleLogout = () => {
     localStorage.removeItem('admin_token');
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
     setIsAuthenticated(false);
     setCurrentPage('drivers');
   };
