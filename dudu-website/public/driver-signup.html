@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="Rejoignez DUDU comme chauffeur professionnel. Gagnez de l'argent en conduisant avec des horaires flexibles.">
-    <title>Devenir Chauffeur DUDU | Inscription Chauffeur</title>
+    <title>Devenir Chauffeur | DUDU Transport</title>
+    <link rel="icon" type="image/png" href="images/logo_dudu_off.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=5">
     <style>
         .signup-hero {
             background: linear-gradient(135deg, var(--primary-green), var(--light-green));
@@ -188,18 +189,19 @@
     <nav class="navbar">
         <div class="nav-container">
             <a href="home.html" class="logo"><img src="images/logo_dudu_off.png" alt="DUDU" style="height: 40px; vertical-align: middle; margin-right: 8px;">DUDU</a>
-            <div class="hamburger">
+            <div class="hamburger" id="mainHamburger">
                 <span></span>
                 <span></span>
                 <span></span>
             </div>
-            <ul class="nav-menu">
+            <ul class="nav-menu" id="mainNavMenu">
                 <li><a href="home.html">Accueil</a></li>
                 <li><a href="services.html">Services</a></li>
                 <li><a href="pricing.html">Tarifs</a></li>
                 <li><a href="driver-signup.html">Devenir chauffeur</a></li>
                 <li><a href="about.html">À propos</a></li>
                 <li><a href="contact.html">Contact</a></li>
+                <li><a href="index.html" class="btn-primary">Télécharger</a></li>
             </ul>
         </div>
     </nav>
@@ -216,37 +218,49 @@
             <h2 class="section-title">Pourquoi devenir chauffeur DUDU ?</h2>
             <div class="benefits-grid">
                 <div class="benefit-card">
-                    <div class="benefit-icon">💰</div>
+                    <div class="benefit-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </div>
                     <h3>Revenus attractifs</h3>
                     <p>Gagnez jusqu'à 500,000 FCFA par mois avec des courses régulières</p>
                 </div>
 
                 <div class="benefit-card">
-                    <div class="benefit-icon">⏰</div>
+                    <div class="benefit-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
                     <h3>Horaires flexibles</h3>
                     <p>Travaillez quand vous voulez, à votre rythme</p>
                 </div>
 
                 <div class="benefit-card">
-                    <div class="benefit-icon">📱</div>
+                    <div class="benefit-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    </div>
                     <h3>Application simple</h3>
                     <p>Interface intuitive pour gérer vos courses facilement</p>
                 </div>
 
                 <div class="benefit-card">
-                    <div class="benefit-icon">🎯</div>
+                    <div class="benefit-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                    </div>
                     <h3>Abonnements flexibles</h3>
                     <p>Choisissez l'abonnement qui vous convient</p>
                 </div>
 
                 <div class="benefit-card">
-                    <div class="benefit-icon">🛡️</div>
+                    <div class="benefit-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
                     <h3>Assurance incluse</h3>
                     <p>Protection complète pour vous et vos passagers</p>
                 </div>
 
                 <div class="benefit-card">
-                    <div class="benefit-icon">📞</div>
+                    <div class="benefit-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    </div>
                     <h3>Support 24/7</h3>
                     <p>Une équipe dédiée pour vous accompagner</p>
                 </div>
@@ -258,7 +272,7 @@
     <section>
         <div class="container" style="max-width: 800px;">
             <div class="requirements">
-                <h4>📋 Conditions requises</h4>
+                <h4><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green); vertical-align: middle; margin-right: 0.5rem;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>Conditions requises</h4>
                 <ul>
                     <li>Avoir au moins 21 ans</li>
                     <li>Posséder un permis de conduire valide (catégorie B pour voiture, A pour moto)</li>
@@ -280,7 +294,10 @@
 
             <form id="driverSignupForm">
                 <!-- Informations personnelles -->
-                <h3 style="color: var(--primary-green); margin-top: 2rem; margin-bottom: 1rem;">👤 Informations personnelles</h3>
+                <h3 style="color: var(--primary-green); margin-top: 2rem; margin-bottom: 1rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5rem;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Informations personnelles
+                </h3>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -321,7 +338,10 @@
                 </div>
 
                 <!-- Informations véhicule -->
-                <h3 style="color: var(--primary-green); margin-top: 2rem; margin-bottom: 1rem;">Informations véhicule</h3>
+                <h3 style="color: var(--primary-green); margin-top: 2rem; margin-bottom: 1rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5rem;"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+                    Informations véhicule
+                </h3>
                 
                 <div class="form-group">
                     <label>Type de véhicule *</label>
@@ -360,13 +380,16 @@
                 </div>
 
                 <!-- Documents -->
-                <h3 style="color: var(--primary-green); margin-top: 2rem; margin-bottom: 1rem;">📄 Documents requis</h3>
+                <h3 style="color: var(--primary-green); margin-top: 2rem; margin-bottom: 1rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    Documents requis
+                </h3>
                 
                 <div class="form-group">
                     <label>Permis de conduire *</label>
                     <div class="file-upload" onclick="document.getElementById('licenseFile').click()">
                         <input type="file" id="licenseFile" name="license" accept="image/*,.pdf" required>
-                        <p>📷 Cliquez pour télécharger votre permis</p>
+                        <p><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5rem;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Cliquez pour télécharger votre permis</p>
                         <small style="color: var(--text-gray);">Format: JPG, PNG ou PDF (max 5MB)</small>
                     </div>
                 </div>
@@ -375,7 +398,7 @@
                     <label>Carte grise *</label>
                     <div class="file-upload" onclick="document.getElementById('registrationFile').click()">
                         <input type="file" id="registrationFile" name="registration" accept="image/*,.pdf" required>
-                        <p>📷 Cliquez pour télécharger la carte grise</p>
+                        <p><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5rem;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Cliquez pour télécharger la carte grise</p>
                         <small style="color: var(--text-gray);">Format: JPG, PNG ou PDF (max 5MB)</small>
                     </div>
                 </div>
@@ -384,7 +407,7 @@
                     <label>Assurance *</label>
                     <div class="file-upload" onclick="document.getElementById('insuranceFile').click()">
                         <input type="file" id="insuranceFile" name="insurance" accept="image/*,.pdf" required>
-                        <p>📷 Cliquez pour télécharger l'assurance</p>
+                        <p><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5rem;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Cliquez pour télécharger l'assurance</p>
                         <small style="color: var(--text-gray);">Format: JPG, PNG ou PDF (max 5MB)</small>
                     </div>
                 </div>
@@ -393,13 +416,16 @@
                     <label>Photo du véhicule *</label>
                     <div class="file-upload" onclick="document.getElementById('vehiclePhotoFile').click()">
                         <input type="file" id="vehiclePhotoFile" name="vehiclePhoto" accept="image/*" required>
-                        <p>📷 Cliquez pour télécharger une photo du véhicule</p>
+                        <p><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5rem;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Cliquez pour télécharger une photo du véhicule</p>
                         <small style="color: var(--text-gray);">Format: JPG ou PNG (max 5MB)</small>
                     </div>
                 </div>
 
                 <!-- Disponibilité -->
-                <h3 style="color: var(--primary-green); margin-top: 2rem; margin-bottom: 1rem;">⏰ Disponibilité</h3>
+                <h3 style="color: var(--primary-green); margin-top: 2rem; margin-bottom: 1rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5rem;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Disponibilité
+                </h3>
                 
                 <div class="form-group">
                     <label>Horaires préférés</label>
@@ -486,6 +512,6 @@
         </div>
     </footer>
 
-    <script src="js/main.js"></script>
+    <script src="js/main.js?v=5"></script>
 </body>
 </html>

@@ -5,32 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="Découvrez DUDU, la solution de transport moderne au Sénégal. Notre mission, nos valeurs et notre équipe.">
     <title>À propos | DUDU Transport</title>
+    <link rel="icon" type="image/png" href="images/logo_dudu_off.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=5">
+    <script src="js/icons.js?v=5"></script>
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-container">
             <a href="home.html" class="logo"><img src="images/logo_dudu_off.png" alt="DUDU" style="height: 40px; vertical-align: middle; margin-right: 8px;">DUDU</a>
-            <div class="hamburger">
+            <div class="hamburger" id="mainHamburger">
                 <span></span>
                 <span></span>
                 <span></span>
             </div>
-            <ul class="nav-menu">
+            <ul class="nav-menu" id="mainNavMenu">
                 <li><a href="home.html">Accueil</a></li>
-            <div class="hamburger">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
                 <li><a href="services.html">Services</a></li>
                 <li><a href="pricing.html">Tarifs</a></li>
                 <li><a href="driver-signup.html">Devenir chauffeur</a></li>
                 <li><a href="about.html">À propos</a></li>
                 <li><a href="contact.html">Contact</a></li>
+                <li><a href="index.html" class="btn-primary">Télécharger</a></li>
             </ul>
         </div>
     </nav>
@@ -54,17 +52,23 @@
 
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; margin-bottom: 5rem;">
                 <div style="text-align: center;">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">🎯</div>
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                    </div>
                     <h3 style="color: var(--primary-green); margin-bottom: 0.5rem;">Notre Vision</h3>
                     <p style="color: var(--text-gray);">Devenir la référence du transport en Afrique de l'Ouest</p>
                 </div>
                 <div style="text-align: center;">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">💚</div>
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                    </div>
                     <h3 style="color: var(--primary-green); margin-bottom: 0.5rem;">Nos Valeurs</h3>
                     <p style="color: var(--text-gray);">Transparence, sécurité et excellence du service</p>
                 </div>
                 <div style="text-align: center;">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">🚀</div>
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+                    </div>
                     <h3 style="color: var(--primary-green); margin-bottom: 0.5rem;">Notre Ambition</h3>
                     <p style="color: var(--text-gray);">Connecter 1 million de Sénégalais d'ici 2027</p>
                 </div>
@@ -87,7 +91,9 @@
             <h2 class="section-title">Pourquoi DUDU ?</h2>
             <div style="display: grid; gap: 2rem; margin-bottom: 4rem;">
                 <div style="display: flex; gap: 2rem; align-items: start;">
-                    <div style="font-size: 2.5rem; flex-shrink: 0;">💰</div>
+                    <div style="font-size: 2.5rem; flex-shrink: 0;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </div>
                     <div>
                         <h3 style="color: var(--primary-green); margin-bottom: 0.5rem;">Prix Transparents</h3>
                         <p style="color: var(--text-gray); line-height: 1.6;">
@@ -98,7 +104,9 @@
                 </div>
 
                 <div style="display: flex; gap: 2rem; align-items: start;">
-                    <div style="font-size: 2.5rem; flex-shrink: 0;">🔒</div>
+                    <div style="font-size: 2.5rem; flex-shrink: 0;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+                    </div>
                     <div>
                         <h3 style="color: var(--primary-green); margin-bottom: 0.5rem;">Sécurité Garantie</h3>
                         <p style="color: var(--text-gray); line-height: 1.6;">
@@ -109,7 +117,9 @@
                 </div>
 
                 <div style="display: flex; gap: 2rem; align-items: start;">
-                    <div style="font-size: 2.5rem; flex-shrink: 0;">⚡</div>
+                    <div style="font-size: 2.5rem; flex-shrink: 0;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </div>
                     <div>
                         <h3 style="color: var(--primary-green); margin-bottom: 0.5rem;">Service Rapide</h3>
                         <p style="color: var(--text-gray); line-height: 1.6;">
@@ -120,7 +130,9 @@
                 </div>
 
                 <div style="display: flex; gap: 2rem; align-items: start;">
-                    <div style="font-size: 2.5rem; flex-shrink: 0;">🌟</div>
+                    <div style="font-size: 2.5rem; flex-shrink: 0;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-green);"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
                     <div>
                         <h3 style="color: var(--primary-green); margin-bottom: 0.5rem;">Qualité de Service</h3>
                         <p style="color: var(--text-gray); line-height: 1.6;">
@@ -162,8 +174,9 @@
             <h2 class="section-title">Rejoignez l'aventure DUDU</h2>
             <p class="section-subtitle">Que vous soyez client ou chauffeur, nous avons hâte de vous accueillir</p>
             <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                <a href="index.html" class="btn-primary" style="font-size: 1.125rem; padding: 1rem 2rem;">
-                    📱 Télécharger l'app
+                <a href="index.html" class="btn-primary" style="font-size: 1.125rem; padding: 1rem 2rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Télécharger l'app
                 </a>
                 <a href="driver-signup.html" class="btn-secondary" style="font-size: 1.125rem; padding: 1rem 2rem;">
                     Devenir chauffeur
@@ -206,6 +219,6 @@
         </div>
     </footer>
 
-    <script src="js/main.js"></script>
+    <script src="js/main.js?v=5"></script>
 </body>
 </html>

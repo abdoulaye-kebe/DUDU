@@ -6,10 +6,12 @@
     <meta name="description" content="DUDU - La solution de transport moderne au Sénégal. Réservez vos courses en quelques clics avec des chauffeurs professionnels.">
     <meta name="keywords" content="transport, taxi, Dakar, Sénégal, VTC, course, chauffeur">
     <title>DUDU - Votre Transport au Sénégal | Yobalé sii sama prix</title>
+    <link rel="icon" type="image/png" href="images/logo_dudu_off.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=12">
+    <script src="js/icons.js?v=5" defer></script>
 </head>
 <body>
     <!-- Navigation -->
@@ -19,13 +21,13 @@
                 <img src="images/logo_dudu_off.png" alt="DUDU" style="height: 40px; vertical-align: middle; margin-right: 8px;">
                 DUDU
             </a>
-            <div class="hamburger">
+            <div class="hamburger" id="mainHamburger">
                 <span></span>
                 <span></span>
                 <span></span>
             </div>
-            <ul class="nav-menu">
-                <li><a href="home.html#accueil">Accueil</a></li>
+            <ul class="nav-menu" id="mainNavMenu">
+                <li><a href="home.html">Accueil</a></li>
                 <li><a href="services.html">Services</a></li>
                 <li><a href="pricing.html">Tarifs</a></li>
                 <li><a href="driver-signup.html">Devenir chauffeur</a></li>
@@ -100,37 +102,49 @@
             
             <div class="features-grid">
                 <div class="feature-card fade-in-up">
-                    <div class="feature-icon">⚡</div>
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </div>
                     <h3>Réservation instantanée</h3>
                     <p>Trouvez un chauffeur en quelques secondes. Notre système intelligent vous connecte rapidement avec les chauffeurs disponibles près de vous.</p>
                 </div>
 
                 <div class="feature-card fade-in-up">
-                    <div class="feature-icon">💰</div>
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </div>
                     <h3>Prix transparents</h3>
                     <p>Connaissez le prix de votre course avant de réserver. Pas de surprises, pas de frais cachés. Vous fixez votre prix pour les courses luxe.</p>
                 </div>
 
                 <div class="feature-card fade-in-up">
-                    <div class="feature-icon">🔒</div>
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+                    </div>
                     <h3>Sécurité garantie</h3>
                     <p>Tous nos chauffeurs sont vérifiés et formés. Suivez votre course en temps réel et partagez votre trajet avec vos proches.</p>
                 </div>
 
                 <div class="feature-card fade-in-up">
-                    <div class="feature-icon">📱</div>
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                    </div>
                     <h3>Paiement flexible</h3>
                     <p>Payez en espèces, par Wave, Orange Money ou carte bancaire. Choisissez le mode de paiement qui vous convient.</p>
                 </div>
 
                 <div class="feature-card fade-in-up">
-                    <div class="feature-icon">🗺️</div>
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>
+                    </div>
                     <h3>Suivi en temps réel</h3>
                     <p>Suivez votre chauffeur en direct sur la carte. Recevez des notifications à chaque étape de votre course.</p>
                 </div>
 
                 <div class="feature-card fade-in-up">
-                    <div class="feature-icon">⭐</div>
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
                     <h3>Service de qualité</h3>
                     <p>Notez votre expérience et aidez-nous à améliorer notre service. Votre satisfaction est notre priorité.</p>
                 </div>
@@ -149,42 +163,54 @@
             
             <div class="features-grid">
                 <div class="feature-card">
-                    <div class="feature-icon" aria-hidden="true">🚗</div>
+                    <div class="feature-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+                    </div>
                     <h3>Course Standard</h3>
                     <p>Le service classique pour vos déplacements quotidiens. Rapide, fiable et économique.</p>
                     <a href="services.html#standard" style="color: var(--primary-green); font-weight: 600; text-decoration: none;">En savoir plus →</a>
                 </div>
 
                 <div class="feature-card">
-                    <div class="feature-icon">✨</div>
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+                    </div>
                     <h3>Course Confort</h3>
                     <p>Voyagez dans des véhicules récents et confortables avec des chauffeurs expérimentés.</p>
                     <a href="services.html#confort" style="color: var(--primary-green); font-weight: 600; text-decoration: none;">En savoir plus →</a>
                 </div>
 
                 <div class="feature-card">
-                    <div class="feature-icon">💎</div>
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41l-7.59-7.59a2.41 2.41 0 0 0-3.41 0Z"/></svg>
+                    </div>
                     <h3>Course Luxe</h3>
                     <p>L'excellence à votre service. Véhicules premium et service VIP. Vous fixez votre prix.</p>
                     <a href="services.html#luxe" style="color: var(--primary-green); font-weight: 600; text-decoration: none;">En savoir plus →</a>
                 </div>
 
                 <div class="feature-card">
-                    <div class="feature-icon">🏍️</div>
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
+                    </div>
                     <h3>Course Moto</h3>
                     <p>Évitez les embouteillages avec nos motos-taxis rapides et sécurisés.</p>
                     <a href="services.html#moto" style="color: var(--primary-green); font-weight: 600; text-decoration: none;">En savoir plus →</a>
                 </div>
 
                 <div class="feature-card">
-                    <div class="feature-icon">📦</div>
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                    </div>
                     <h3>Livraison</h3>
                     <p>Faites livrer vos colis rapidement partout à Dakar avec notre service de livraison express.</p>
                     <a href="services.html#livraison" style="color: var(--primary-green); font-weight: 600; text-decoration: none;">En savoir plus →</a>
                 </div>
 
                 <div class="feature-card">
-                    <div class="feature-icon">👩</div>
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
                     <h3>Service Femmes</h3>
                     <p>Un service dédié aux femmes avec des chauffeurs féminins pour plus de confort et de sécurité.</p>
                     <a href="services.html#femmes" style="color: var(--primary-green); font-weight: 600; text-decoration: none;">En savoir plus →</a>
@@ -299,6 +325,6 @@
         </div>
     </footer>
 
-    <script src="js/main.js"></script>
+    <script src="js/main.js?v=9"></script>
 </body>
 </html>

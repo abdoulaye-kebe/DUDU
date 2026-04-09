@@ -1,33 +1,63 @@
 // DUDU Website - Scripts principaux
 
-// Menu hamburger
 document.addEventListener('DOMContentLoaded', function() {
-    const hamburger = document.querySelector('.hamburger');
-    const navMenu = document.querySelector('.nav-menu');
-
+    console.log('🚀 main.js chargé');
+    
+    // Menu Hamburger
+    const hamburger = document.getElementById('mainHamburger');
+    const navMenu = document.getElementById('mainNavMenu');
+    
+    console.log('🍔 Hamburger:', hamburger);
+    console.log('📋 Menu:', navMenu);
+    
     if (hamburger && navMenu) {
         hamburger.addEventListener('click', function() {
+            console.log('🖱️ Clic sur hamburger détecté!');
+            
+            // Toggle la classe active
             hamburger.classList.toggle('active');
             navMenu.classList.toggle('active');
+            
+            const isActive = navMenu.classList.contains('active');
+            console.log('✅ Menu actif:', isActive);
+            console.log('📊 Classes du menu:', navMenu.className);
+            console.log('📊 Classes du hamburger:', hamburger.className);
+            
+            // Logs CSS détaillés
+            const styles = window.getComputedStyle(navMenu);
+            console.log('🎨 CSS appliqué au menu:');
+            console.log('  - display:', styles.display);
+            console.log('  - position:', styles.position);
+            console.log('  - right:', styles.right);
+            console.log('  - top:', styles.top);
+            console.log('  - width:', styles.width);
+            console.log('  - height:', styles.height);
+            console.log('  - background:', styles.background);
+            console.log('  - z-index:', styles.zIndex);
+            console.log('  - visibility:', styles.visibility);
+            console.log('  - opacity:', styles.opacity);
         });
-
+        
         // Fermer le menu quand on clique sur un lien
-        document.querySelectorAll('.nav-menu a').forEach(link => {
+        const menuLinks = navMenu.querySelectorAll('a');
+        console.log('🔗 Nombre de liens:', menuLinks.length);
+        
+        menuLinks.forEach(link => {
             link.addEventListener('click', function() {
+                console.log('🔗 Clic sur lien:', this.textContent);
                 hamburger.classList.remove('active');
                 navMenu.classList.remove('active');
+                console.log('❌ Menu fermé');
             });
         });
-
-        // Fermer le menu si on clique en dehors
-        document.addEventListener('click', function(event) {
-            if (!hamburger.contains(event.target) && !navMenu.contains(event.target)) {
-                hamburger.classList.remove('active');
-                navMenu.classList.remove('active');
-            }
-        });
+        
+        console.log('✅ Menu hamburger initialisé avec succès');
+    } else {
+        console.error('❌ ERREUR: Hamburger ou NavMenu introuvable!');
+        console.error('Hamburger ID:', hamburger ? 'trouvé' : 'MANQUANT');
+        console.error('NavMenu ID:', navMenu ? 'trouvé' : 'MANQUANT');
     }
-
+    
     // Navbar scroll effect
     window.addEventListener('scroll', function() {
         const navbar = document.querySelector('.navbar');
