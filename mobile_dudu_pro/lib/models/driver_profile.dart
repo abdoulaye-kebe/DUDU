@@ -296,6 +296,87 @@ class SubscriptionInfo {
     this.restrictions,
   });
 
+  /// Active si le serveur l’indique et que la date de fin n’est pas dépassée.
+  static bool _computeIsActive(Map<String, dynamic> json) {
+    DateTime? end;
+    if (json['endDate'] != null) {
+      try {
+        end = DateTime.parse(json['endDate'].toString());
+      } catch (_) {}
+    }
+    final now = DateTime.now();
+    final notExpired = end == null || end.isAfter(now);
+
+    if (json.containsKey('isActive') && json['isActive'] is bool) {
+      return json['isActive'] == true && notExpired;
+    }
+    final st = json['status']?.toString() ?? '';
+    if (st == 'active') return notExpired;
+    return false;
+  }
+
+  /// Champ `subscription` de GET /drivers/profile : soit doc complet (`plan` objet), soit sous-document embarqué `{ plan: 'daily', startDate, endDate, isActive }`.
+  static SubscriptionInfo? tryParseFromProfileField(dynamic raw) {
+    if (raw is! Map) return null;
+    final json = Map<String, dynamic>.from(raw);
+    if (json['plan'] is Map<String, dynamic>) {
+      try {
+        return SubscriptionInfo.fromJson(json);
+      } catch (_) {
+        return null;
+      }
+    }
+    final planStr = (json['plan'] ?? '').toString();
+    if (planStr.isEmpty || planStr == 'free') return null;
+
+    DateTime parseDate(dynamic v) {
+      if (v == null) return DateTime.now();
+      if (v is String) {
+        return DateTime.tryParse(v) ?? DateTime.now();
+      }
+      return DateTime.now();
+    }
+
+    final startDate = parseDate(json['startDate']);
+    final endDate = parseDate(json['endDate']);
+    final flagActive = json['isActive'] == true;
+    final notExpired = endDate.isAfter(DateTime.now());
+    final effective = flagActive && notExpired;
+    if (!effective) return null;
+
+    String label(String t) {
+      switch (t) {
+        case 'daily':
+          return 'Forfait journalier';
+        case 'weekly':
+          return 'Forfait hebdomadaire';
+        case 'monthly':
+          return 'Forfait mensuel';
+        case 'yearly':
+          return 'Forfait annuel';
+        default:
+          return 'Abonnement';
+      }
+    }
+
+    return SubscriptionInfo(
+      id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
+      type: planStr,
+      name: label(planStr),
+      price: 0,
+      currency: 'XOF',
+      duration: 1,
+      features: const <String>[],
+      status: 'active',
+      startDate: startDate,
+      endDate: endDate,
+      isActive: true,
+      isExpiringSoon: endDate.difference(DateTime.now()).inDays <= 3,
+      weeklyBonus: null,
+      restrictions: null,
+    );
+  }
+
   factory SubscriptionInfo.fromJson(Map<String, dynamic> json) {
     // Certains endpoints renvoient les infos du plan imbriquées dans json['plan']
     final dynamic rawPlan = json['plan'];
@@ -312,12 +393,12 @@ class SubscriptionInfo {
       features: _parseFeatures(plan['features']) ?? _parseFeatures(json['features']) ?? <String>[],
       status: json['status'] ?? 'active',
       startDate: json['startDate'] != null
-          ? DateTime.parse(json['startDate'])
+          ? DateTime.parse(json['startDate'].toString())
           : DateTime.now(),
       endDate: json['endDate'] != null
-          ? DateTime.parse(json['endDate'])
-          : DateTime.now().add(Duration(days: 1)),
-      isActive: json['isActive'] ?? true,
+          ? DateTime.parse(json['endDate'].toString())
+          : DateTime.now().add(const Duration(days: 1)),
+      isActive: _computeIsActive(json),
       isExpiringSoon: json['isExpiringSoon'] ?? false,
       weeklyBonus: json['weeklyBonus'] is Map<String, dynamic>
           ? WeeklyBonus.fromJson(json['weeklyBonus'] as Map<String, dynamic>)

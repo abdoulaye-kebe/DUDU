@@ -145,22 +145,11 @@ class ApiService {
         }),
       ).timeout(timeout);
 
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('auth_token');
-        await prefs.remove('user_data');
-
-        String message = 'Token expiré';
-        try {
-          final decoded = response.body.isNotEmpty ? json.decode(response.body) : null;
-          if (decoded is Map && decoded['message'] != null) {
-            message = decoded['message'].toString();
-          }
-        } catch (_) {}
-
+      if (response.statusCode == 401) {
+        await _clearAuthStorage();
         return ApiResponse<Ride>(
           success: false,
-          message: message,
+          message: _authErrorMessage(response),
           data: null,
         );
       }
@@ -183,22 +172,11 @@ class ApiService {
         headers: await _getHeaders(),
       ).timeout(timeout);
 
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('auth_token');
-        await prefs.remove('user_data');
-
-        String message = 'Token expiré';
-        try {
-          final decoded = response.body.isNotEmpty ? json.decode(response.body) : null;
-          if (decoded is Map && decoded['message'] != null) {
-            message = decoded['message'].toString();
-          }
-        } catch (_) {}
-
+      if (response.statusCode == 401) {
+        await _clearAuthStorage();
         return ApiResponse<List<Ride>>(
           success: false,
-          message: message,
+          message: _authErrorMessage(response),
           data: null,
         );
       }
@@ -254,6 +232,24 @@ class ApiService {
   }
   
   static Duration get timeout => Duration(seconds: AppConfig.httpTimeout);
+
+  static Future<void> _clearAuthStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_token');
+    await prefs.remove('user_data');
+  }
+
+  /// Message serveur pour 401 ; évite d’afficher « Token expiré » pour un 403 métier.
+  static String _authErrorMessage(http.Response response) {
+    try {
+      final decoded =
+          response.body.isNotEmpty ? json.decode(response.body) : null;
+      if (decoded is Map && decoded['message'] != null) {
+        return decoded['message'].toString();
+      }
+    } catch (_) {}
+    return 'Session expirée. Veuillez vous reconnecter.';
+  }
 
   // Headers par défaut
   static Future<Map<String, String>> _getHeaders() async {
@@ -534,22 +530,11 @@ class ApiService {
         }),
       ).timeout(timeout);
 
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('auth_token');
-        await prefs.remove('user_data');
-
-        String message = 'Token expiré';
-        try {
-          final decoded = response.body.isNotEmpty ? json.decode(response.body) : null;
-          if (decoded is Map && decoded['message'] != null) {
-            message = decoded['message'].toString();
-          }
-        } catch (_) {}
-
+      if (response.statusCode == 401) {
+        await _clearAuthStorage();
         return ApiResponse<dynamic>(
           success: false,
-          message: message,
+          message: _authErrorMessage(response),
           data: null,
         );
       }

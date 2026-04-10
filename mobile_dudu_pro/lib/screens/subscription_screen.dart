@@ -965,6 +965,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       final history = await ApiService.getBonusHistory(_currentSubscription!.id);
       
       if (mounted) {
+        final bonusList = history['bonusHistory'];
+        final bonuses = bonusList is List ? bonusList : <dynamic>[];
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -973,9 +975,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               width: double.maxFinite,
               height: 300,
               child: ListView.builder(
-                itemCount: history['data']['bonusHistory'].length,
+                itemCount: bonuses.length,
                 itemBuilder: (context, index) {
-                  final bonus = history['data']['bonusHistory'][index];
+                  final bonus = bonuses[index] as Map<String, dynamic>;
                   return ListTile(
                     leading: Icon(
                       bonus['type'] == 'free_subscription' 

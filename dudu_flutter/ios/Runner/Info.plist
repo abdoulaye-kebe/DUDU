@@ -50,6 +50,9 @@
 	<string>Cette application a besoin d'accéder à votre localisation pour vous proposer des chauffeurs à proximité et calculer les trajets.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Cette application a besoin d'accéder à votre localisation pour vous proposer des chauffeurs à proximité et calculer les trajets.</string>
+	<!-- ITMS-90683 : requis si le binaire ou une bibliothèque référence l'API caméra -->
+	<key>NSCameraUsageDescription</key>
+	<string>DuDu peut utiliser la caméra lorsque vous ajoutez une photo (profil, pièce jointe) ou utilisez une fonctionnalité qui le demande.</string>
 	
 	<!-- Google Maps API Key -->
 	<key>GMSApiKey</key>

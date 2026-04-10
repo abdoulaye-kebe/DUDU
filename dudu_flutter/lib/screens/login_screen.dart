@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../themes/app_theme.dart';
 import 'register_screen.dart';
-import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -396,6 +396,67 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
+  static final Uri _contactUrl = Uri.parse('https://dudugroup.sn/contact.html');
+
+  Future<void> _showForgotPasswordSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Mot de passe oublié',
+              style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'La réinitialisation automatique n’est pas encore disponible dans l’app. '
+              'Contactez le support DUDU : nous vous aiderons à retrouver l’accès à votre compte.',
+              style: TextStyle(height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final ok = await launchUrl(
+                  _contactUrl,
+                  mode: LaunchMode.externalApplication,
+                );
+                if (!mounted) return;
+                if (!ok) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Ouvrez dudugroup.sn depuis votre navigateur.'),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.open_in_new, size: 20),
+              label: const Text('Page contact (site DUDU)'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Fermer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -446,16 +507,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
-                                  onPressed: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: const Text('Fonctionnalité bientôt disponible'),
-                                        backgroundColor: AppTheme.primaryColor,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      ),
-                                    );
-                                  },
+                                  onPressed: _showForgotPasswordSheet,
                                   child: const Text(
                                     'Mot de passe oublié ?',
                                     style: TextStyle(

@@ -191,6 +191,23 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Après un 401 : aligner la mémoire avec le stockage (déjà effacé par l’API client).
+  Future<void> clearLocalSession({String? message}) async {
+    await _clearUserData();
+    _user = null;
+    _authToken = null;
+    _isAuthenticated = false;
+    if (message != null && message.isNotEmpty) {
+      _setError(message);
+    } else {
+      _clearError();
+    }
+    try {
+      SocketService().disconnect();
+    } catch (_) {}
+    notifyListeners();
+  }
+
   // Déconnexion
   Future<void> logout() async {
     try {

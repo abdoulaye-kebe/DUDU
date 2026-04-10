@@ -464,10 +464,28 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
     }
   }
 
-  void _loadDriverData() {
-    _loadTodayStats();
+  Future<void> _loadDriverData() async {
+    await _loadTodayStats();
     _getCurrentLocation();
-    _loadCurrentSubscription();
+    await _loadCurrentSubscription();
+  }
+
+  void _syncPlanFromProfileSubscription() {
+    final sub = _driverProfile?.subscription;
+    if (sub == null || sub.type == 'free') {
+      _currentPlan = 'free';
+      _subscriptionExpiry = null;
+      return;
+    }
+    final stillActive = sub.isActive ||
+        (sub.status == 'active' && sub.endDate.isAfter(DateTime.now()));
+    if (stillActive) {
+      _currentPlan = sub.type;
+      _subscriptionExpiry = sub.endDate;
+    } else {
+      _currentPlan = 'free';
+      _subscriptionExpiry = null;
+    }
   }
 
   Future<void> _loadCurrentSubscription() async {
@@ -475,31 +493,25 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
       final subscription = await ApiService.getCurrentSubscription();
       if (!mounted) return;
 
-      print('📦 Abonnement chargé: ${subscription?.type}, actif: ${subscription?.isActive}');
-
       if (subscription != null && subscription.isActive) {
         setState(() {
           _currentPlan = subscription.type;
           _subscriptionExpiry = subscription.endDate;
         });
-        print('✅ Abonnement actif affiché: $_currentPlan, expire: $_subscriptionExpiry');
-      } else {
-        // Pas d'abonnement actif ou abonnement expiré
-        setState(() {
-          _currentPlan = 'free';
-          _subscriptionExpiry = null;
-        });
-        print('❌ Aucun abonnement actif, affichage plan gratuit');
+        return;
       }
+
+      // Pas de doc /courses courantes : utiliser l'abonnement déjà présent dans le profil (GET /drivers/profile).
+      if (!mounted) return;
+      setState(() {
+        _syncPlanFromProfileSubscription();
+      });
     } catch (e) {
       print('❌ Erreur chargement abonnement: $e');
-      // En cas d'erreur, on garde les valeurs par défaut
-      if (mounted) {
-        setState(() {
-          _currentPlan = 'free';
-          _subscriptionExpiry = null;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _syncPlanFromProfileSubscription();
+      });
     }
   }
 
@@ -638,10 +650,10 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
       backgroundColor: Colors.white,
       // Bouton flottant Accueil - visible partout
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Retourner au dashboard et rafraîchir
+        onPressed: () async {
           Navigator.of(context).popUntil((route) => route.isFirst);
-          _loadTodayStats();
+          await _loadTodayStats();
+          await _loadCurrentSubscription();
         },
         backgroundColor: primaryGreen,
         child: const Icon(Icons.home, color: Colors.white),
@@ -867,9 +879,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                     ),
                   );
 
-                  // Après retour, recharger les infos d'abonnement réelles (ignore les erreurs)
-                  _loadTodayStats();
-                  _loadCurrentSubscription();
+                  await _loadTodayStats();
+                  await _loadCurrentSubscription();
                 } catch (e) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(

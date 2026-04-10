@@ -807,18 +807,22 @@ router.get('/earnings', auth, requireDriver, async (req, res) => {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         endDate = now;
         break;
+      case 'year':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = now;
+        break;
       default:
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
     }
 
-    // Calculer les revenus pour la période
+    // Calculer les revenus, distance et durée pour la période
     const earnings = await Ride.aggregate([
       {
         $match: {
           driver: driver._id,
           status: 'completed',
-          completedAt: { $gte: startDate, $lt: endDate }
+          completedAt: { $gte: startDate, $lte: endDate }
         }
       },
       {
@@ -826,7 +830,13 @@ router.get('/earnings', auth, requireDriver, async (req, res) => {
           _id: null,
           totalEarnings: { $sum: '$pricing.totalPrice' },
           totalRides: { $sum: 1 },
-          averageEarnings: { $avg: '$pricing.totalPrice' }
+          averageEarnings: { $avg: '$pricing.totalPrice' },
+          totalDistanceKm: { $sum: '$distance' },
+          totalDurationMinutes: {
+            $sum: {
+              $ifNull: ['$actualDuration', '$estimatedDuration']
+            }
+          }
         }
       }
     ]);
@@ -834,7 +844,9 @@ router.get('/earnings', auth, requireDriver, async (req, res) => {
     const result = earnings.length > 0 ? earnings[0] : {
       totalEarnings: 0,
       totalRides: 0,
-      averageEarnings: 0
+      averageEarnings: 0,
+      totalDistanceKm: 0,
+      totalDurationMinutes: 0
     };
 
     res.json({
@@ -846,7 +858,9 @@ router.get('/earnings', auth, requireDriver, async (req, res) => {
         earnings: {
           total: result.totalEarnings,
           rides: result.totalRides,
-          average: Math.round(result.averageEarnings),
+          average: Math.round(result.averageEarnings || 0),
+          totalDistanceKm: Math.round((result.totalDistanceKm || 0) * 10) / 10,
+          totalDurationMinutes: Math.round(result.totalDurationMinutes || 0),
           daily: driver.earnings.today,
           weekly: driver.earnings.thisWeek,
           monthly: driver.earnings.thisMonth,

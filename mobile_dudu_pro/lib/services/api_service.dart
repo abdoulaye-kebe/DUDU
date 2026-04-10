@@ -69,6 +69,40 @@ class ApiService {
     if (_authToken != null) 'Authorization': 'Bearer $_authToken',
   };
 
+  /// Met à jour le véhicule (champs acceptés par PUT /drivers/profile)
+  static Future<void> updateDriverVehicle({
+    required String make,
+    required String model,
+    required int year,
+    required String color,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/drivers/profile'),
+      headers: _headers,
+      body: jsonEncode({
+        'vehicle': {
+          'make': make,
+          'model': model,
+          'year': year,
+          'color': color,
+        },
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (_) {
+        decoded = null;
+      }
+      final msg = decoded is Map && decoded['message'] != null
+          ? decoded['message'].toString()
+          : 'Erreur mise à jour profil (HTTP ${response.statusCode})';
+      throw Exception(msg);
+    }
+  }
+
   // Changer le mot de passe
   static Future<void> changePassword(String currentPassword, String newPassword) async {
     try {
@@ -290,21 +324,44 @@ class ApiService {
                     ? 'courier'
                     : 'driver';
 
-            // Stats par défaut pour éviter toute erreur de parsing
-            final stats = DriverStats(
-              totalRides: 0,
-              completedRides: 0,
-              cancelledRides: 0,
-              averageRating: 0.0,
-              totalEarnings: 0.0,
-              totalDistance: 0.0,
-              todayRides: 0,
-              todayEarnings: 0.0,
-              weeklyRides: 0,
-              weeklyEarnings: 0.0,
-              bonusEarned: 0.0,
-              acceptanceRate: 0.0,
-            );
+            final dynamic rawStats = driverJson['stats'];
+            final DriverStats stats = rawStats is Map<String, dynamic>
+                ? DriverStats.fromJson(rawStats)
+                : DriverStats(
+                    totalRides: 0,
+                    completedRides: 0,
+                    cancelledRides: 0,
+                    averageRating: 0.0,
+                    totalEarnings: 0.0,
+                    totalDistance: 0.0,
+                    todayRides: 0,
+                    todayEarnings: 0.0,
+                    weeklyRides: 0,
+                    weeklyEarnings: 0.0,
+                    bonusEarned: 0.0,
+                    acceptanceRate: 0.0,
+                  );
+
+            final SubscriptionInfo? subscription =
+                SubscriptionInfo.tryParseFromProfileField(
+                    driverJson['subscription']);
+
+            final dynamic rawEarnings = driverJson['earnings'];
+            final EarningsInfo earnings;
+            if (rawEarnings is Map<String, dynamic>) {
+              earnings = EarningsInfo.fromJson(rawEarnings);
+            } else if (rawStats is Map<String, dynamic>) {
+              earnings = EarningsInfo(
+                today: (rawStats['todayEarnings'] as num?)?.toDouble() ?? 0,
+                thisWeek:
+                    (rawStats['weeklyEarnings'] as num?)?.toDouble() ?? 0,
+                thisMonth:
+                    (rawStats['thisMonthEarnings'] as num?)?.toDouble() ?? 0,
+                total: (rawStats['totalEarnings'] as num?)?.toDouble() ?? 0,
+              );
+            } else {
+              earnings = EarningsInfo.empty();
+            }
 
             return DriverProfile(
               id: driverId,
@@ -314,15 +371,19 @@ class ApiService {
               email: email,
               vehicleType: vehicleType,
               vehicle: VehicleInfo.fromJson(vehicle),
-              subscription: null,
+              subscription: subscription,
               stats: stats,
-              earnings: EarningsInfo.empty(),
-              isOnline: driverJson['status'] == 'online' || driverJson['isOnline'] == true,
+              earnings: earnings,
+              isOnline: driverJson['status'] == 'online' ||
+                  driverJson['isOnline'] == true,
               isAvailable: driverJson['isAvailable'] ?? false,
               currentLocation: null,
               rideTypes: rideTypes,
               preferences: null,
               driverType: (driverJson['driverType'] ?? computedType) as String,
+              isVerified: driverJson['isVerified'] == true,
+              verificationStatus:
+                  driverJson['verificationStatus']?.toString() ?? 'pending',
             );
           }
 
@@ -456,30 +517,40 @@ class ApiService {
           return SubscriptionInfo.fromJson(data['data']['subscription']);
         }
         return null;
-      } else if (response.statusCode == 404) {
-        return null; // Pas d'abonnement actif
-      } else {
-        throw Exception('Erreur de récupération de l\'abonnement');
       }
+      // 404 = aucun document ; 403 = ex. compte non encore approuvé (requireDriverApproved) — on s'appuie alors sur le profil.
+      if (response.statusCode == 404 || response.statusCode == 403) {
+        return null;
+      }
+      throw Exception('Erreur de récupération de l\'abonnement');
     } catch (e) {
       throw Exception('Erreur réseau: $e');
     }
   }
 
-  // Bonus - Historique pour livreurs moto
+  /// GET /subscriptions/:id/bonus-history (livreurs moto) — renvoie le corps `data` uniquement.
   static Future<Map<String, dynamic>> getBonusHistory(String subscriptionId) async {
+    if (subscriptionId.isEmpty) {
+      throw Exception('Aucun abonnement');
+    }
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/subscriptions/$subscriptionId/bonus-history'),
         headers: _headers,
       );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Erreur de récupération de l\'historique des bonus');
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 &&
+          decoded is Map<String, dynamic> &&
+          decoded['success'] == true) {
+        final data = decoded['data'];
+        if (data is Map<String, dynamic>) return data;
       }
+      final msg = decoded is Map && decoded['message'] != null
+          ? decoded['message'].toString()
+          : 'Erreur bonus (HTTP ${response.statusCode})';
+      throw Exception(msg);
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Erreur réseau: $e');
     }
   }
@@ -646,6 +717,54 @@ class ApiService {
     } catch (e) {
       throw Exception('Erreur finalisation course: $e');
     }
+  }
+
+  /// GET /drivers/earnings?period=today|week|month|year
+  static Future<Map<String, dynamic>> getDriverEarningsSummary({
+    required String period,
+  }) async {
+    final uri = Uri.parse('$baseUrl/drivers/earnings').replace(
+      queryParameters: {'period': period},
+    );
+    final response = await http.get(uri, headers: _headers);
+    final decoded = jsonDecode(response.body);
+    if (response.statusCode == 200 &&
+        decoded is Map<String, dynamic> &&
+        decoded['success'] == true) {
+      final data = decoded['data'];
+      if (data is Map<String, dynamic>) return data;
+    }
+    final msg = decoded is Map && decoded['message'] != null
+        ? decoded['message'].toString()
+        : 'Erreur revenus (HTTP ${response.statusCode})';
+    throw Exception(msg);
+  }
+
+  /// GET /drivers/rides
+  static Future<Map<String, dynamic>> getDriverRidesList({
+    int page = 1,
+    int limit = 20,
+    String? status,
+  }) async {
+    final params = <String, String>{
+      'page': '$page',
+      'limit': '$limit',
+      if (status != null && status.isNotEmpty) 'status': status,
+    };
+    final uri =
+        Uri.parse('$baseUrl/drivers/rides').replace(queryParameters: params);
+    final response = await http.get(uri, headers: _headers);
+    final decoded = jsonDecode(response.body);
+    if (response.statusCode == 200 &&
+        decoded is Map<String, dynamic> &&
+        decoded['success'] == true) {
+      final data = decoded['data'];
+      if (data is Map<String, dynamic>) return data;
+    }
+    final msg = decoded is Map && decoded['message'] != null
+        ? decoded['message'].toString()
+        : 'Erreur courses (HTTP ${response.statusCode})';
+    throw Exception(msg);
   }
 }
 

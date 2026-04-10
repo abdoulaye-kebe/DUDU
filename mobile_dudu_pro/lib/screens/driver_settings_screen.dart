@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../services/api_service.dart';
+import '../theme/theme_controller.dart';
 
 class DriverSettingsScreen extends StatefulWidget {
   const DriverSettingsScreen({Key? key}) : super(key: key);
@@ -13,10 +17,150 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
   bool _notificationsEnabled = true;
   bool _soundEnabled = true;
 
+  void _showChangePasswordDialog() {
+    final cur = TextEditingController();
+    final neu = TextEditingController();
+    final conf = TextEditingController();
+
+    void disposePw() {
+      cur.dispose();
+      neu.dispose();
+      conf.dispose();
+    }
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Changer le mot de passe'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: cur,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Mot de passe actuel'),
+              ),
+              TextField(
+                controller: neu,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Nouveau (min. 6 caractères)',
+                ),
+              ),
+              TextField(
+                controller: conf,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Confirmer'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (neu.text.length < 6) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Le nouveau mot de passe doit faire au moins 6 caractères'),
+                  ),
+                );
+                return;
+              }
+              if (neu.text != conf.text) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Les mots de passe ne correspondent pas')),
+                );
+                return;
+              }
+              try {
+                await ApiService.changePassword(cur.text, neu.text);
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Mot de passe modifié'),
+                      backgroundColor: Color(0xFF00A651),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    ).whenComplete(disposePw);
+  }
+
+  void _showThemeSelector(ThemeController tc) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Apparence'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.light_mode),
+              title: const Text('Clair'),
+              trailing: tc.mode == ThemeMode.light
+                  ? const Icon(Icons.check, color: primaryGreen)
+                  : null,
+              onTap: () async {
+                await tc.setTheme(ThemeMode.light);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.dark_mode),
+              title: const Text('Sombre'),
+              trailing: tc.mode == ThemeMode.dark
+                  ? const Icon(Icons.check, color: primaryGreen)
+                  : null,
+              onTap: () async {
+                await tc.setTheme(ThemeMode.dark);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.brightness_auto),
+              title: const Text('Système'),
+              trailing: tc.mode == ThemeMode.system
+                  ? const Icon(Icons.check, color: primaryGreen)
+                  : null,
+              onTap: () async {
+                await tc.setTheme(ThemeMode.system);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final surface = Theme.of(context).colorScheme.surface;
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: surface,
       appBar: AppBar(
         backgroundColor: primaryGreen,
         foregroundColor: Colors.white,
@@ -54,14 +198,27 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
           const Divider(height: 32),
           
           _buildSectionHeader('PRÉFÉRENCES'),
+          Consumer<ThemeController>(
+            builder: (context, tc, _) => _buildSettingTile(
+              icon: Icons.palette_outlined,
+              title: 'Apparence',
+              subtitle: tc.modeLabel,
+              onTap: () => _showThemeSelector(tc),
+            ),
+          ),
           _buildSettingTile(
             icon: Icons.language,
-            title: 'Langue',
-            subtitle: 'Français',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Fonctionnalité à venir')),
-              );
+            title: 'Langue & aide',
+            subtitle: 'FAQ sur dudugroup.sn',
+            onTap: () async {
+              final uri = Uri.parse('https://dudugroup.sn/faq.html');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } else if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Impossible d\'ouvrir la FAQ')),
+                );
+              }
             },
           ),
           
@@ -71,11 +228,7 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
           _buildSettingTile(
             icon: Icons.lock_outline,
             title: 'Changer le mot de passe',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Fonctionnalité à venir')),
-              );
-            },
+            onTap: _showChangePasswordDialog,
           ),
           
           const SizedBox(height: 32),
@@ -116,7 +269,7 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
     VoidCallback? onTap,
   }) {
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),

@@ -50,6 +50,9 @@
 	<string>DUDU Pro a besoin d'accéder à votre localisation pour recevoir des demandes de course et naviguer vers les clients.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>DUDU Pro a besoin d'accéder à votre localisation pour recevoir des demandes de course et naviguer vers les clients.</string>
+	<!-- ITMS-90683 : API caméra liée par des SDK (carte, vérif, etc.) -->
+	<key>NSCameraUsageDescription</key>
+	<string>DUDU Pro peut utiliser la caméra pour la vérification du compte, le profil ou une fonctionnalité qui l'exige.</string>
 	<!-- Google Maps API Key -->
 	<key>GMSApiKey</key>
 	<string>AIzaSyBebPcA35Q6WKIiGxG1Xi4iW0ZErazWvZA</string>

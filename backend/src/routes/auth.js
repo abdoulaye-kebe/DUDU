@@ -248,7 +248,7 @@ router.post('/login', [
         isVerified: user.isVerified 
       },
       process.env.JWT_SECRET || 'dudu_secret_key',
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     res.json({

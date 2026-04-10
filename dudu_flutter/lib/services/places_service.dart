@@ -4,6 +4,9 @@ import 'here_maps_service.dart';
 
 class PlacesService {
   static const String _apiKey = 'AIzaSyBebPcA35Q6WKIiGxG1Xi4iW0ZErazWvZA';
+
+  /// Clé Google Maps (Places / Directions / Geocoding) — ne pas exposer côté web non autorisé.
+  static String get mapsApiKey => _apiKey;
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
 
   /// Autocomplete des adresses avec HERE Maps (prioritaire) et fallback local

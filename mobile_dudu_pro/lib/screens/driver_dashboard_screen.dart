@@ -623,7 +623,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                         driverProfile: _driverProfile!,
                       ),
                     ),
-                  );
+                  ).then((_) {
+                    if (mounted) _loadDriverProfile();
+                  });
                 },
               ),
               ListTile(

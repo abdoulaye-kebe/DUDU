@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/driver_profile.dart';
 import '../services/api_service.dart';
+import '../theme/theme_controller.dart';
 import 'login_screen.dart';
 import 'pro_app_gate.dart';
 
@@ -22,10 +25,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _locationEnabled = true;
   bool _autoAcceptRides = false;
   String _language = 'fr';
-  String _theme = 'light';
 
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color lightGreen = Color(0xFF10b981);
+
+  static final Uri _urlPrivacy =
+      Uri.parse('https://dudugroup.sn/privacy.html');
+  static final Uri _urlTerms = Uri.parse('https://dudugroup.sn/terms.html');
+  static final Uri _urlFaq = Uri.parse('https://dudugroup.sn/faq.html');
+  static final Uri _urlContact = Uri.parse('https://dudugroup.sn/contact.html');
+
+  Future<void> _openExternal(Uri uri) async {
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Impossible d\'ouvrir : $uri')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e')),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -48,7 +74,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text(
           'Paramètres',
@@ -161,6 +187,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
+            const Divider(height: 24),
+            ListTile(
+              leading: const Icon(Icons.lock_outline, color: Color(0xFF00A651)),
+              title: const Text('Changer le mot de passe'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _changePassword,
+            ),
           ],
         ),
       ),
@@ -191,6 +224,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'À propos',
               subtitle: 'Version 1.0.0',
               onTap: _showAbout,
+            ),
+            Consumer<ThemeController>(
+              builder: (context, tc, _) => _buildSettingItem(
+                icon: Icons.palette_outlined,
+                title: 'Apparence',
+                subtitle: tc.modeLabel,
+                onTap: () => _showThemeSelector(tc),
+              ),
             ),
             _buildSettingItem(
               icon: Icons.help,
@@ -293,13 +334,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: Icons.notifications,
               title: 'Types de notifications',
               subtitle: 'Personnaliser les alertes',
-              onTap: _showNotificationTypes,
+              onTap: () => _showNotificationTypes(),
             ),
             _buildSettingItem(
               icon: Icons.schedule,
               title: 'Heures silencieuses',
               subtitle: 'Désactiver les notifications',
-              onTap: _showQuietHours,
+              onTap: () => _showQuietHours(),
             ),
           ],
         ),
@@ -487,33 +528,99 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  String _getThemeName(String theme) {
-    switch (theme) {
-      case 'light':
-        return 'Clair';
-      case 'dark':
-        return 'Sombre';
-      case 'auto':
-        return 'Automatique';
-      default:
-        return 'Clair';
-    }
-  }
-
   void _editProfile() {
-    showDialog(
+    final v = widget.driverProfile.vehicle;
+    final makeCtrl = TextEditingController(text: v.make);
+    final modelCtrl = TextEditingController(text: v.model);
+    final yearCtrl = TextEditingController(text: v.year.toString());
+    final colorCtrl = TextEditingController(text: v.color);
+
+    void disposeCtrls() {
+      makeCtrl.dispose();
+      modelCtrl.dispose();
+      yearCtrl.dispose();
+      colorCtrl.dispose();
+    }
+
+    showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Modifier le profil'),
-        content: const Text('Fonctionnalité à implémenter'),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Modifier le véhicule'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: makeCtrl,
+                decoration: const InputDecoration(labelText: 'Marque'),
+              ),
+              TextField(
+                controller: modelCtrl,
+                decoration: const InputDecoration(labelText: 'Modèle'),
+              ),
+              TextField(
+                controller: yearCtrl,
+                decoration: const InputDecoration(labelText: 'Année'),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: colorCtrl,
+                decoration: const InputDecoration(labelText: 'Couleur'),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Immatriculation : ${v.plateNumber} (modif. via support si besoin)',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final y = int.tryParse(yearCtrl.text.trim());
+              if (y == null || y < 1990 || y > DateTime.now().year + 1) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Année invalide')),
+                );
+                return;
+              }
+              try {
+                await ApiService.updateDriverVehicle(
+                  make: makeCtrl.text.trim(),
+                  model: modelCtrl.text.trim(),
+                  year: y,
+                  color: colorCtrl.text.trim(),
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Véhicule mis à jour'),
+                      backgroundColor: Color(0xFF00A651),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Enregistrer'),
           ),
         ],
       ),
-    );
+    ).whenComplete(disposeCtrls);
   }
 
   void _showAbout() {
@@ -525,11 +632,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Version: 1.0.0'),
+            Text('Version : 1.0.0'),
             SizedBox(height: 8),
-            Text('Développé pour le marché sénégalais'),
+            Text('Application chauffeur DUDU — Sénégal.'),
             SizedBox(height: 8),
-            Text('© 2024 DUDU Technologies'),
+            Text('© 2026 DUDU Group'),
           ],
         ),
         actions: [
@@ -545,31 +652,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showHelp() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Aide et Support'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(Icons.phone),
-              title: Text('Support téléphonique'),
-              subtitle: Text('+221 33 123 45 67'),
-            ),
-            ListTile(
-              leading: Icon(Icons.email),
-              title: Text('Email'),
-              subtitle: Text('support@dudu.sn'),
-            ),
-            ListTile(
-              leading: Icon(Icons.chat),
-              title: Text('Chat en ligne'),
-              subtitle: Text('Disponible 24/7'),
-            ),
-          ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aide et support'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text('FAQ'),
+                subtitle: const Text('Questions fréquentes'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openExternal(_urlFaq);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.mail_outline),
+                title: const Text('Contact'),
+                subtitle: const Text('Formulaire sur dudugroup.sn'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openExternal(_urlContact);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.email),
+                title: const Text('Email'),
+                subtitle: const Text('support@dudugroup.sn'),
+                onTap: () => _openExternal(
+                  Uri.parse('mailto:support@dudugroup.sn'),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Fermer'),
           ),
         ],
@@ -578,81 +698,181 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showPrivacy() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Politique de confidentialité'),
-        content: const Text('Politique de confidentialité à implémenter'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-    );
+    _openExternal(_urlPrivacy);
   }
 
   void _showTerms() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Conditions d\'utilisation'),
-        content: const Text('Conditions d\'utilisation à implémenter'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-    );
+    _openExternal(_urlTerms);
   }
 
   void _showDeliverySettings() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Paramètres Livraison'),
-        content: const Text('Paramètres de livraison à implémenter'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
+      builder: (ctx) => FutureBuilder<SharedPreferences>(
+        future: SharedPreferences.getInstance(),
+        builder: (context, snap) {
+          final prefs = snap.data;
+          bool priority = prefs?.getBool('pro_delivery_priority') ?? true;
+          return StatefulBuilder(
+            builder: (context, setSt) => AlertDialog(
+              title: const Text('Livraisons'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Indiquez si vous souhaitez être prioritaire sur les courses livraison (préférence enregistrée sur cet appareil).',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Livraisons prioritaires'),
+                    value: priority,
+                    activeColor: const Color(0xFF00A651),
+                    onChanged: prefs == null
+                        ? null
+                        : (v) async {
+                            await prefs.setBool('pro_delivery_priority', v);
+                            setSt(() => priority = v);
+                          },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Fermer'),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  void _showNotificationTypes() {
-    showDialog(
+  Future<void> _showNotificationTypes() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool rides = prefs.getBool('pro_notify_rides') ?? true;
+    bool promos = prefs.getBool('pro_notify_promos') ?? true;
+    if (!mounted) return;
+    await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Types de notifications'),
-        content: const Text('Types de notifications à implémenter'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSt) => AlertDialog(
+          title: const Text('Types de notifications'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text('Nouvelles courses'),
+                value: rides,
+                activeColor: const Color(0xFF00A651),
+                onChanged: (v) async {
+                  await prefs.setBool('pro_notify_rides', v);
+                  setSt(() => rides = v);
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Promotions et infos'),
+                value: promos,
+                activeColor: const Color(0xFF00A651),
+                onChanged: (v) async {
+                  await prefs.setBool('pro_notify_promos', v);
+                  setSt(() => promos = v);
+                },
+              ),
+            ],
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Fermer'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _showQuietHours() {
-    showDialog(
+  Future<void> _showQuietHours() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool enabled = prefs.getBool('pro_quiet_hours') ?? false;
+    int startH = prefs.getInt('pro_quiet_start') ?? 22;
+    int endH = prefs.getInt('pro_quiet_end') ?? 7;
+    if (!mounted) return;
+    await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Heures silencieuses'),
-        content: const Text('Heures silencieuses à implémenter'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSt) => AlertDialog(
+          title: const Text('Heures silencieuses'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Plage horaire enregistrée localement. Les notifications système dépendent aussi des réglages Android/iOS.',
+                  style: TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Activer'),
+                  value: enabled,
+                  activeColor: const Color(0xFF00A651),
+                  onChanged: (v) async {
+                    await prefs.setBool('pro_quiet_hours', v);
+                    setSt(() => enabled = v);
+                  },
+                ),
+                if (enabled) ...[
+                  Row(
+                    children: [
+                      const Text('Début : '),
+                      DropdownButton<int>(
+                        value: startH,
+                        items: List.generate(
+                          24,
+                          (h) => DropdownMenuItem(value: h, child: Text('$h h')),
+                        ),
+                        onChanged: (v) async {
+                          if (v == null) return;
+                          await prefs.setInt('pro_quiet_start', v);
+                          setSt(() => startH = v);
+                        },
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      const Text('Fin : '),
+                      DropdownButton<int>(
+                        value: endH,
+                        items: List.generate(
+                          24,
+                          (h) => DropdownMenuItem(value: h, child: Text('$h h')),
+                        ),
+                        onChanged: (v) async {
+                          if (v == null) return;
+                          await prefs.setInt('pro_quiet_end', v);
+                          setSt(() => endH = v);
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Fermer'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -732,55 +952,150 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showThemeSelector() {
-    showDialog(
+  void _showThemeSelector(ThemeController tc) {
+    showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sélectionner le thème'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Thème de l\'application'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildThemeOption('light', 'Clair', Icons.light_mode),
-            _buildThemeOption('dark', 'Sombre', Icons.dark_mode),
-            _buildThemeOption('auto', 'Automatique', Icons.brightness_auto),
+            ListTile(
+              leading: const Icon(Icons.light_mode),
+              title: const Text('Clair'),
+              trailing: tc.mode == ThemeMode.light
+                  ? const Icon(Icons.check, color: Color(0xFF00A651))
+                  : null,
+              onTap: () async {
+                await tc.setTheme(ThemeMode.light);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.dark_mode),
+              title: const Text('Sombre'),
+              trailing: tc.mode == ThemeMode.dark
+                  ? const Icon(Icons.check, color: Color(0xFF00A651))
+                  : null,
+              onTap: () async {
+                await tc.setTheme(ThemeMode.dark);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.brightness_auto),
+              title: const Text('Système'),
+              trailing: tc.mode == ThemeMode.system
+                  ? const Icon(Icons.check, color: Color(0xFF00A651))
+                  : null,
+              onTap: () async {
+                await tc.setTheme(ThemeMode.system);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+            ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Fermer'),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildThemeOption(String theme, String name, IconData icon) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(name),
-      trailing: _theme == theme ? const Icon(Icons.check, color: Color(0xFF00A651)) : null,
-      onTap: () {
-        setState(() => _theme = theme);
-        Navigator.pop(context);
-      },
     );
   }
 
   void _changePassword() {
-    showDialog(
+    final cur = TextEditingController();
+    final neu = TextEditingController();
+    final conf = TextEditingController();
+
+    void disposePw() {
+      cur.dispose();
+      neu.dispose();
+      conf.dispose();
+    }
+
+    showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Changer le mot de passe'),
-        content: const Text('Fonctionnalité à implémenter'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: cur,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Mot de passe actuel',
+                ),
+              ),
+              TextField(
+                controller: neu,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Nouveau (min. 6 caractères)',
+                ),
+              ),
+              TextField(
+                controller: conf,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Confirmer le nouveau',
+                ),
+              ),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (neu.text.length < 6) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Le nouveau mot de passe doit faire au moins 6 caractères'),
+                  ),
+                );
+                return;
+              }
+              if (neu.text != conf.text) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Les mots de passe ne correspondent pas')),
+                );
+                return;
+              }
+              try {
+                await ApiService.changePassword(cur.text, neu.text);
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Mot de passe modifié'),
+                      backgroundColor: Color(0xFF00A651),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Valider'),
           ),
         ],
       ),
-    );
+    ).whenComplete(disposePw);
   }
 
   void _deleteAccount() {

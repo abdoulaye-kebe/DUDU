@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:provider/provider.dart';
 import 'dart:math' as math;
- import 'dart:async';
+import 'dart:async';
+import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/places_service.dart';
 import '../services/socket_service.dart';
 import '../services/search_history_service.dart';
+import '../constants/map_style.dart';
+import '../services/directions_service.dart';
 import 'delivery_tracking_screen.dart';
 import 'ride_tracking_screen.dart';
 import 'ride_confirmation_screen.dart';
@@ -57,6 +61,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   double _motoPricePerKm = 500;
   // Véhicules simulés à proximité (pour affichage liste + markers)
   List<LatLng> _nearbyVehicles = [];
+  bool _isRouteLoading = false;
+  /// Durée d'itinéraire (Google Directions), en secondes — sinon estimation locale.
+  int? _routeDurationSeconds;
 
   static const Map<String, String> _paymentLogos = {
     'orange_money': 'assets/images/payments/orange_money_logo.png',
@@ -485,6 +492,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
       _markers.clear();
       _polylines.clear();
+      _routeDurationSeconds = null;
+      _isRouteLoading = false;
     });
 
     _searchDebounce?.cancel();
@@ -867,9 +876,11 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // Calcul simple d'un ETA en minutes (distance / 30 km/h)
+    // ETA : priorité à la durée routière (Directions), sinon distance / 30 km/h
     int? etaMinutes;
-    if (_estimatedDistance > 0) {
+    if (_routeDurationSeconds != null && _routeDurationSeconds! > 0) {
+      etaMinutes = (_routeDurationSeconds! / 60).ceil();
+    } else if (_estimatedDistance > 0) {
       etaMinutes = (_estimatedDistance / 30 * 60).ceil();
     }
 
@@ -882,6 +893,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                 : const LatLng(14.6928, -17.4467), // Dakar
             zoom: 18.0,
           ),
+          style: kDuDuMapStyle,
           onMapCreated: (controller) => _mapController = controller,
           markers: _markers,
           polylines: _polylines,
@@ -895,6 +907,18 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           tiltGesturesEnabled: false,
           liteModeEnabled: false,
         ),
+
+        if (_isRouteLoading)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: LinearProgressIndicator(
+              minHeight: 3,
+              backgroundColor: Colors.white24,
+              color: primaryGreen,
+            ),
+          ),
         
         // Animation de recherche de chauffeur
         if (_isSearchingDriver)
@@ -1291,7 +1315,6 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                                           });
                                           if (_pickupLatLng != null && _destinationLatLng != null) {
                                             _drawRoute();
-                                            _fitPickupAndDestination();
                                           } else {
                                             _focusOnLatLng(LatLng(lat, lng));
                                           }
@@ -1357,9 +1380,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                                   });
                                   if (_pickupLatLng != null && _destinationLatLng != null) {
                                     _drawRoute();
-                                    _fitPickupAndDestination();
                                   } else {
-                                    _focusOnLatLng(LatLng(lat!, lng!));
+                                    _focusOnLatLng(LatLng(lat, lng));
                                   }
                                 } else {
                                   print('❌ Aucune coordonnée disponible pour cette suggestion');
@@ -1414,11 +1436,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     );
   }
 
-  Future<void> _fitPickupAndDestination({double padding = 100}) async {
-    if (_mapController == null) return;
-    if (_pickupLatLng == null || _destinationLatLng == null) return;
-
-    final bounds = _boundsFromLatLngs([_pickupLatLng!, _destinationLatLng!]);
+  Future<void> _fitCameraToRoutePoints(
+    List<LatLng> points, {
+    double padding = 72,
+  }) async {
+    if (_mapController == null || points.length < 2) return;
+    final bounds = _boundsFromLatLngs(points);
     await _mapController!.animateCamera(
       CameraUpdate.newLatLngBounds(bounds, padding),
     );
@@ -1476,48 +1499,90 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     });
   }
 
-  void _drawRoute() {
+  Future<void> _drawRoute() async {
     if (_pickupLatLng == null || _destinationLatLng == null) return;
 
-    // Calcul de la distance
-    _estimatedDistance = _calculateDistance(
-      _pickupLatLng!.latitude,
-      _pickupLatLng!.longitude,
-      _destinationLatLng!.latitude,
-      _destinationLatLng!.longitude,
+    final p0 = _pickupLatLng!;
+    final p1 = _destinationLatLng!;
+
+    final haversineKm = _calculateDistance(
+      p0.latitude,
+      p0.longitude,
+      p1.latitude,
+      p1.longitude,
     );
 
-    // Pour Luxe, pas de calcul automatique par distance
-    // Le client entre son prix librement (minimum 15000 FCFA)
-    if (_selectedMode != 'delivery' && _selectedRideType == 'moto') {
-      _customPrice = (_motoPricePerKm * (_estimatedDistance <= 0 ? 0 : _estimatedDistance)).round();
-    }
-
-    // Tracer une ligne simple (en production, utiliser Google Directions API)
-    final polyline = Polyline(
-      polylineId: const PolylineId('route'),
-      points: [_pickupLatLng!, _destinationLatLng!],
-      color: primaryGreen,
-      width: 4,
-    );
-
+    if (!mounted) return;
     setState(() {
-      _polylines.clear();
-      _polylines.add(polyline);
+      _isRouteLoading = true;
+      _estimatedDistance = haversineKm;
+      _routeDurationSeconds = null;
+      if (_selectedMode != 'delivery' && _selectedRideType == 'moto') {
+        _customPrice =
+            (_motoPricePerKm * (haversineKm <= 0 ? 0 : haversineKm)).round();
+      }
     });
 
-    // Ajuster la caméra pour voir tout le trajet
-    final bounds = LatLngBounds(
-      southwest: LatLng(
-        math.min(_pickupLatLng!.latitude, _destinationLatLng!.latitude),
-        math.min(_pickupLatLng!.longitude, _destinationLatLng!.longitude),
-      ),
-      northeast: LatLng(
-        math.max(_pickupLatLng!.latitude, _destinationLatLng!.latitude),
-        math.max(_pickupLatLng!.longitude, _destinationLatLng!.longitude),
-      ),
-    );
-    _mapController?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+    final route = await DirectionsService.getDrivingRoute(p0, p1);
+
+    if (!mounted) return;
+
+    if (route == null || route.points.length < 2) {
+      setState(() {
+        _isRouteLoading = false;
+        _polylines.clear();
+        _routeDurationSeconds = null;
+        _estimatedDistance = haversineKm;
+        if (_selectedMode != 'delivery' && _selectedRideType == 'moto') {
+          _customPrice = (_motoPricePerKm *
+                  (haversineKm <= 0 ? 0 : haversineKm))
+              .round();
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Itinéraire routier indisponible. Vérifiez la connexion et que l'API Directions est activée pour votre clé Google.",
+          ),
+          backgroundColor: Colors.deepOrange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      await _fitCameraToRoutePoints([p0, p1], padding: 72);
+      return;
+    }
+
+    final linePoints = route.points;
+    final distanceKm = route.distanceKm;
+    final durationSec = route.durationSeconds;
+
+    setState(() {
+      _isRouteLoading = false;
+      _estimatedDistance = distanceKm;
+      _routeDurationSeconds = durationSec;
+
+      if (_selectedMode != 'delivery' && _selectedRideType == 'moto') {
+        _customPrice = (_motoPricePerKm *
+                (_estimatedDistance <= 0 ? 0 : _estimatedDistance))
+            .round();
+      }
+
+      _polylines.clear();
+      _polylines.add(
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: linePoints,
+          color: primaryGreen,
+          width: 5,
+          jointType: JointType.round,
+          startCap: Cap.roundCap,
+          endCap: Cap.roundCap,
+        ),
+      );
+    });
+
+    if (!mounted) return;
+    await _fitCameraToRoutePoints(linePoints, padding: 72);
   }
 
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
@@ -2282,9 +2347,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       } else {
         final lowerMsg = response.message.toLowerCase();
         final isAuthExpired = lowerMsg.contains('token expir') ||
+            lowerMsg.contains('session expir') ||
             lowerMsg.contains('jwt') ||
             lowerMsg.contains('unauthorized') ||
-            lowerMsg.contains('non autoris');
+            lowerMsg.contains('non autoris') ||
+            lowerMsg.contains('accès requis') ||
+            lowerMsg.contains('authentification');
 
         if (mounted) {
           Navigator.pop(context);
@@ -2300,7 +2368,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           );
 
           if (isAuthExpired) {
-            Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+            await context.read<AuthProvider>().clearLocalSession(
+                  message: response.message,
+                );
+            if (!mounted) return;
+            Navigator.of(context).pushNamedAndRemoveUntil(
+                '/login', (route) => false);
           }
         }
       }
