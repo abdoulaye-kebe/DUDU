@@ -506,6 +506,7 @@ class ApiService {
     double? customPricePerKm,
     required double estimatedDistance,
     required String paymentMethod,
+    bool? isUrgentDelivery,
   }) async {
     try {
       final response = await http.post(
@@ -527,6 +528,7 @@ class ApiService {
           if (customPricePerKm != null) 'customPricePerKm': customPricePerKm,
           'estimatedDistance': estimatedDistance,
           'paymentMethod': paymentMethod,
+          if (rideType == 'delivery' && isUrgentDelivery == true) 'isUrgentDelivery': true,
         }),
       ).timeout(timeout);
 

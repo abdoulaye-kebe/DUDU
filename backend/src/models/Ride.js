@@ -216,6 +216,11 @@ const rideSchema = new mongoose.Schema({
     requiresSignature: {
       type: Boolean,
       default: false
+    },
+    /** Si true : livraison prioritaire — le livreur ne peut pas en prendre une autre en parallèle */
+    isUrgent: {
+      type: Boolean,
+      default: false
     }
   },
   

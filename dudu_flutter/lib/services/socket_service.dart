@@ -18,6 +18,7 @@ class SocketService {
   Function(Map<String, dynamic>)? onTripStarted;
   Function(Map<String, dynamic>)? onRideCompleted;
   Function(Map<String, dynamic>)? onRideAccepted;
+  Function(Map<String, dynamic>)? onRideRefusedByDriver;
 
   /// Connecter au serveur Socket.io
   void connect(String token) {
@@ -63,6 +64,13 @@ class SocketService {
       print('✅ Course acceptée par un chauffeur');
       if (onRideAccepted != null && data is Map) {
         onRideAccepted!(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('ride-refused-by-driver', (data) {
+      print('ℹ️ Refus chauffeur pour une demande: $data');
+      if (onRideRefusedByDriver != null && data is Map) {
+        onRideRefusedByDriver!(Map<String, dynamic>.from(data));
       }
     });
 

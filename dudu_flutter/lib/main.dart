@@ -11,36 +11,44 @@ import 'screens/dashboard_screen.dart';
 import 'screens/app_gate.dart';
 import 'screens/splash_screen.dart';
 import 'config/app_config.dart';
+import 'firebase_options.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase (FCM)
+  // Sur iOS, enregistrer le handler FCM *avant* Firebase.initializeApp, sinon erreur
+  // [firebase_core/not-initialized] fréquente (voir doc FlutterFire / firebase_messaging).
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   try {
-    await Firebase.initializeApp();
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  } catch (e) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    debugPrint('✅ Firebase initialisé');
+  } catch (e, st) {
     debugPrint('⚠️ Firebase init error: $e');
+    debugPrint('$st');
   }
 
   // Afficher la config au démarrage
   AppConfig.printConfig();
 
-  // Initialiser les notifications (avec protection)
-  try {
-    await NotificationService().initialize();
-    NotificationService.setNavigatorKey(appNavigatorKey);
-    debugPrint('✅ Notifications initialisées');
-  } catch (e) {
-    debugPrint('⚠️ Erreur notifications: $e');
-    // Continue sans notifications
+  // FCM / notifs locales : seulement si le noyau Firebase est prêt
+  if (Firebase.apps.isNotEmpty) {
+    try {
+      await NotificationService().initialize();
+      NotificationService.setNavigatorKey(appNavigatorKey);
+      debugPrint('✅ Notifications initialisées');
+    } catch (e) {
+      debugPrint('⚠️ Erreur notifications: $e');
+    }
+  } else {
+    debugPrint('⚠️ Notifications ignorées : Firebase non initialisé');
   }
 
   // Gestionnaire d'erreurs global

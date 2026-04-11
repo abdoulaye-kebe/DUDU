@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, kDebugMode, debugPrint, defaultTargetPlatform, TargetPlatform;
 import '../models/driver_profile.dart';
 import '../config/app_config.dart';
 
@@ -633,6 +634,26 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Erreur réseau: $e');
+    }
+  }
+
+  /// Détails d'une course (GET /rides/:id) — chauffeur assigné ou passager
+  static Future<Map<String, dynamic>?> getRideDetails(String rideId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/rides/$rideId'),
+        headers: _headers,
+      );
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        return decoded is Map<String, dynamic> ? decoded : null;
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('getRideDetails: $e');
+      }
+      return null;
     }
   }
 

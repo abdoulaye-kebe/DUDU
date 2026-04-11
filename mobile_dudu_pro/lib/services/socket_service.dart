@@ -159,6 +159,15 @@ class SocketService {
         _pendingAccepts.remove(rideId)?.complete(Map<String, dynamic>.from(data));
       }
     });
+
+    _socket!.on('accept-ride-rejected', (data) {
+      if (data is! Map) return;
+      final rideId = data['rideId']?.toString();
+      final msg = data['message']?.toString() ?? 'Acceptation refusée';
+      if (rideId != null && _pendingAccepts.containsKey(rideId)) {
+        _pendingAccepts.remove(rideId)?.completeError(Exception(msg));
+      }
+    });
   }
 
   /// Émettre la position du chauffeur en temps réel
@@ -356,6 +365,16 @@ class SocketService {
         throw TimeoutException('Aucune réponse du serveur pour l\'acceptation');
       },
     );
+  }
+
+  /// Refus d'une demande de course — notifie le passager via le serveur
+  void refuseRide(String rideId) {
+    if (!_isConnected || _socket == null) {
+      print('⚠️ Socket non connecté — refus non envoyé');
+      return;
+    }
+    _socket!.emit('refuse-ride', {'rideId': rideId});
+    print('📤 refuse-ride émis pour $rideId');
   }
 
   void dispose() {

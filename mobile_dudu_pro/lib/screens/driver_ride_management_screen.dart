@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import '../constants/senegal_map.dart';
 import '../models/ride.dart';
 import '../services/api_service.dart';
 import '../services/tracking_service.dart';
@@ -272,9 +273,10 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
               initialCameraPosition: CameraPosition(
                 target: _currentPosition != null
                     ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-                    : const LatLng(14.4974, -14.4524), // Centre du Sénégal
-                zoom: 15,
+                    : SenegalMap.countryOverviewCenter,
+                zoom: _currentPosition != null ? 15 : SenegalMap.countryOverviewZoom,
               ),
+              mapType: MapType.normal,
               markers: _buildMarkers(),
             ),
           ),

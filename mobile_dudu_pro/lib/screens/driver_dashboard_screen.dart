@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import '../constants/senegal_map.dart';
 import '../models/driver_profile.dart';
 import '../services/api_service.dart';
 import 'subscription_screen.dart';
@@ -26,10 +27,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   bool _acceptDeliveries = false;
   bool _acceptLuggage = false;
   Position? _currentPosition;
-
-  // Position par défaut : Dakar, Sénégal
-  final LatLng _defaultLocation = const LatLng(14.6928, -17.4467); // Dakar - Place de l'Indépendance
-  final LatLng _senegalCenter = const LatLng(14.4974, -14.4524); // Centre du Sénégal
 
   @override
   void initState() {
@@ -257,15 +254,23 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
           GoogleMap(
             onMapCreated: (controller) {
               _mapController = controller;
-              // Centrer sur le Sénégal
-              _mapController?.animateCamera(
-                CameraUpdate.newLatLngZoom(_senegalCenter, 7.0),
-              );
+              if (_currentPosition != null) {
+                _mapController?.animateCamera(
+                  CameraUpdate.newLatLngZoom(
+                    LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                    14.0,
+                  ),
+                );
+              } else {
+                _mapController?.animateCamera(
+                  CameraUpdate.newLatLngZoom(SenegalMap.countryOverviewCenter, 7.0),
+                );
+              }
             },
             initialCameraPosition: CameraPosition(
               target: _currentPosition != null
                   ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-                  : _defaultLocation,
+                  : SenegalMap.dakar,
               zoom: _currentPosition != null ? 14.0 : 7.0,
             ),
             myLocationEnabled: true,

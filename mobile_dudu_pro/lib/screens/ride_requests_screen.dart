@@ -191,6 +191,25 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
                           ),
                         ),
                       ),
+                      if (request.isUrgentDelivery &&
+                          (normalizedType == 'delivery' || rawType == 'delivery')) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade700,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'URGENT',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
                       const Spacer(),
                       Icon(Icons.timer, color: color, size: 20),
                       const SizedBox(width: 4),
@@ -526,31 +545,36 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
       
       if (!mounted) return;
       
-      // Navigation vers l'écran de course active
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ActiveRideScreen(
-            rideId: rideId,
-            rideData: rideData,
-          ),
+      final route = MaterialPageRoute<void>(
+        builder: (context) => ActiveRideScreen(
+          rideId: rideId,
+          rideData: rideData,
         ),
       );
+      // Livraison : empiler les écrans pour pouvoir gérer 2 courses (comme Yango)
+      final isDelivery = request.rideType == 'delivery';
+      if (isDelivery) {
+        Navigator.push(context, route);
+      } else {
+        Navigator.pushReplacement(context, route);
+      }
     } catch (e) {
       if (!mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de l\'acceptation: $e')),
+        SnackBar(content: Text(msg)),
       );
     }
   }
 
   void _refuseRide(String rideId) {
+    SocketService().refuseRide(rideId);
     setState(() {
       _pendingRequests.removeWhere((r) => r.id == rideId);
       SocketService().removeRideRequest(rideId);
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Course refusée')),
+      const SnackBar(content: Text('Course refusée — le client est informé')),
     );
   }
 }
@@ -570,6 +594,7 @@ class RideRequest {
   final int expiresInSeconds;
   final DateTime? scheduledFor;
   final String scheduledTimeText;
+  final bool isUrgentDelivery;
 
   RideRequest({
     required this.id,
@@ -586,6 +611,7 @@ class RideRequest {
     required this.expiresInSeconds,
     this.scheduledFor,
     this.scheduledTimeText = '',
+    this.isUrgentDelivery = false,
   });
 
   int get timeLeft {
@@ -668,6 +694,13 @@ class RideRequest {
       return 0;
     }
 
+    bool parseBool(dynamic v) {
+      if (v == true) return true;
+      if (v == false || v == null) return false;
+      if (v is String) return v == 'true' || v == '1';
+      return false;
+    }
+
     return RideRequest(
       id: requestId,
       passengerName: (data['passengerName']?.toString() ?? passenger['name']?.toString()) ?? 'Client DUDU',
@@ -685,6 +718,7 @@ class RideRequest {
       expiresInSeconds: 180,
       scheduledFor: scheduledFor,
       scheduledTimeText: scheduledTimeText,
+      isUrgentDelivery: parseBool(data['isUrgentDelivery']),
     );
   }
 }

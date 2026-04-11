@@ -64,6 +64,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   bool _isRouteLoading = false;
   /// Durée d'itinéraire (Google Directions), en secondes — sinon estimation locale.
   int? _routeDurationSeconds;
+  /// Livraison prioritaire (un seul colis à la fois côté livreur) — sinon empilement possible (2 courses).
+  bool _deliveryUrgent = false;
 
   static const Map<String, String> _paymentLogos = {
     'orange_money': 'assets/images/payments/orange_money_logo.png',
@@ -494,6 +496,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       _polylines.clear();
       _routeDurationSeconds = null;
       _isRouteLoading = false;
+      _deliveryUrgent = false;
     });
 
     _searchDebounce?.cancel();
@@ -1499,6 +1502,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     });
   }
 
+  void _clearPassengerRideSocketListeners() {
+    final s = SocketService();
+    s.onRideAccepted = null;
+    s.onRideRefusedByDriver = null;
+  }
+
   Future<void> _drawRoute() async {
     if (_pickupLatLng == null || _destinationLatLng == null) return;
 
@@ -1539,13 +1548,15 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
               .round();
         }
       });
+      final detail = DirectionsService.lastFailureDetail ?? 'erreur inconnue';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            "Itinéraire routier indisponible. Vérifiez la connexion et que l'API Directions est activée pour votre clé Google.",
+            "Itinéraire indisponible ($detail). "
+            "Dans Google Cloud : activer l'API Directions, facturation, et autoriser cette API sur la clé utilisée (restrictions).",
           ),
           backgroundColor: Colors.deepOrange,
-          duration: Duration(seconds: 4),
+          duration: const Duration(seconds: 6),
         ),
       );
       await _fitCameraToRoutePoints([p0, p1], padding: 72);
@@ -1645,6 +1656,22 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildPriceInput(),
+            if (_selectedMode == 'delivery') ...[
+              const SizedBox(height: 4),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Livraison urgente',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'Activé : livreur dédié à votre course. Désactivé (défaut) : le livreur peut combiner avec une autre livraison non urgente.',
+                  style: TextStyle(fontSize: 11),
+                ),
+                value: _deliveryUrgent,
+                onChanged: (v) => setState(() => _deliveryUrgent = v),
+              ),
+            ],
             const SizedBox(height: 10),
             // Moyen de paiement
             _buildPaymentMethodSelector(),
@@ -2075,61 +2102,6 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       _generateNearbyCarMarkers();
     }
 
-    // Préparer l'écoute de "ride-accepted" pour cette demande
-    final socketService = SocketService();
-    socketService.onRideAccepted = (data) {
-      if (!mounted) return;
-
-      try {
-        final rideId = data['rideId']?.toString();
-        if (rideId == null || _pickupLatLng == null || _destinationLatLng == null) {
-          return;
-        }
-
-        final driver = data['driver'] ?? {};
-        final vehicle = driver['vehicle'] ?? {};
-
-        if (_selectedMode == 'delivery') {
-          final confirmationCode = data['confirmationCode']?.toString() ?? '----';
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => DeliveryTrackingScreen(
-                deliveryId: rideId,
-                confirmationCode: confirmationCode,
-              ),
-            ),
-          );
-        } else {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => RideTrackingScreen(
-                rideId: rideId,
-                vehicleType: 'car',
-                pickupLocation: {
-                  'latitude': _pickupLatLng!.latitude,
-                  'longitude': _pickupLatLng!.longitude,
-                },
-                destinationLocation: {
-                  'latitude': _destinationLatLng!.latitude,
-                  'longitude': _destinationLatLng!.longitude,
-                },
-                driverInfo: {
-                  'name': driver['name'] ?? 'Chauffeur',
-                  'phone': driver['phone'] ?? '',
-                  'vehicle': vehicle['model'] != null
-                      ? '${vehicle['make'] ?? ''} ${vehicle['model']}'
-                      : '',
-                  'rating': driver['rating'] ?? 5.0,
-                },
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        print('Erreur lors de l\'ouverture du tracking: $e');
-      }
-    };
-
     final searchingLabel = _selectedMode == 'delivery' ? 'Recherche de livreur...' : 'Recherche de chauffeur...';
     bool cancelRequested = false;
     showDialog(
@@ -2183,6 +2155,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         customPricePerKm: isMotoRide ? _motoPricePerKm : null,
         estimatedDistance: _estimatedDistance,
         paymentMethod: _selectedPaymentMethod,
+        isUrgentDelivery: _selectedMode == 'delivery' ? _deliveryUrgent : null,
       );
 
       if (response.success) {
@@ -2249,6 +2222,80 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           Navigator.pop(context);
         }
 
+        // Écoute après création course et _pendingRideMongoId (évite course fantôme / refus prématuré)
+        final pendingId = _pendingRideMongoId;
+        if (pendingId != null && pendingId.isNotEmpty) {
+          final socketService = SocketService();
+          socketService.onRideRefusedByDriver = (data) {
+            if (!mounted) return;
+            final rideId = data['rideId']?.toString();
+            final msg = data['message']?.toString() ??
+                'Un chauffeur a refusé. Nous cherchons un autre chauffeur.';
+            if (rideId != null && rideId == pendingId) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(msg),
+                  backgroundColor: Colors.blueGrey,
+                  duration: const Duration(seconds: 5),
+                ),
+              );
+            }
+          };
+          socketService.onRideAccepted = (data) {
+            if (!mounted) return;
+            _clearPassengerRideSocketListeners();
+
+            try {
+              final rideId = data['rideId']?.toString();
+              if (rideId == null || _pickupLatLng == null || _destinationLatLng == null) {
+                return;
+              }
+
+              final driver = data['driver'] ?? {};
+              final vehicle = driver['vehicle'] ?? {};
+
+              if (_selectedMode == 'delivery') {
+                final confirmationCode = data['confirmationCode']?.toString() ?? '----';
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => DeliveryTrackingScreen(
+                      deliveryId: rideId,
+                      confirmationCode: confirmationCode,
+                    ),
+                  ),
+                );
+              } else {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => RideTrackingScreen(
+                      rideId: rideId,
+                      vehicleType: 'car',
+                      pickupLocation: {
+                        'latitude': _pickupLatLng!.latitude,
+                        'longitude': _pickupLatLng!.longitude,
+                      },
+                      destinationLocation: {
+                        'latitude': _destinationLatLng!.latitude,
+                        'longitude': _destinationLatLng!.longitude,
+                      },
+                      driverInfo: {
+                        'name': driver['name'] ?? 'Chauffeur',
+                        'phone': driver['phone'] ?? '',
+                        'vehicle': vehicle['model'] != null
+                            ? '${vehicle['make'] ?? ''} ${vehicle['model']}'
+                            : '',
+                        'rating': driver['rating'] ?? 5.0,
+                      },
+                    ),
+                  ),
+                );
+              }
+            } catch (e) {
+              print('Erreur lors de l\'ouverture du tracking: $e');
+            }
+          };
+        }
+
         if (mounted) {
           // Afficher un dialogue d'attente avec possibilité d'annuler
           showDialog(
@@ -2288,6 +2335,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                       if (rideId == null || rideId.isEmpty) {
                         Navigator.pop(context);
                         if (mounted) {
+                          _clearPassengerRideSocketListeners();
                           _clearNearbyCarMarkers();
                           setState(() {
                             _isSearchingDriver = false;
@@ -2308,6 +2356,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                         Navigator.pop(context);
                         if (mounted) {
                           _pendingRideMongoId = null;
+                          _clearPassengerRideSocketListeners();
                           _clearNearbyCarMarkers();
                           setState(() {
                             _isSearchingDriver = false;
@@ -2323,6 +2372,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                       } catch (e) {
                         Navigator.pop(context);
                         if (mounted) {
+                          _clearPassengerRideSocketListeners();
                           _clearNearbyCarMarkers();
                           setState(() {
                             _isSearchingDriver = false;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import '../constants/senegal_map.dart';
 import '../models/ride.dart';
 import '../services/api_service.dart';
 
@@ -30,9 +31,6 @@ class _RideRequestScreenState extends State<RideRequestScreen> {
   int _estimatedDuration = 0;
   
   bool _isRequesting = false;
-
-  // Position par défaut : Dakar
-  final LatLng _defaultLocation = const LatLng(14.6928, -17.4467);
 
   @override
   void initState() {
@@ -269,7 +267,7 @@ class _RideRequestScreenState extends State<RideRequestScreen> {
               },
               onTap: _onMapTap,
               initialCameraPosition: CameraPosition(
-                target: _pickupLocation ?? _defaultLocation,
+                target: _pickupLocation ?? SenegalMap.dakar,
                 zoom: 15,
               ),
               markers: _buildMarkers(),

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
@@ -21,6 +22,16 @@ class DirectionsRouteResult {
 
 class DirectionsService {
   static final PolylinePoints _polylinePoints = PolylinePoints();
+
+  /// Dernière erreur renvoyée par l’API Directions (status + message Google), pour l’UI / debug.
+  static String? lastFailureDetail;
+
+  static void _setFailure(String detail) {
+    lastFailureDetail = detail;
+    if (kDebugMode) {
+      debugPrint('🗺️ Directions API: $detail');
+    }
+  }
 
   /// Trajet détaillé : concatène les polylines de **chaque étape** (virages, rues, sens uniques).
   /// Si les étapes manquent, utilise l’overview (toujours sur le réseau routier, pas une ligne droite).
@@ -67,6 +78,7 @@ class DirectionsService {
     LatLng origin,
     LatLng destination,
   ) async {
+    lastFailureDetail = null;
     final key = PlacesService.mapsApiKey;
     final uri = Uri.parse(
       'https://maps.googleapis.com/maps/api/directions/json'
@@ -74,22 +86,38 @@ class DirectionsService {
       '&destination=${destination.latitude},${destination.longitude}'
       '&mode=driving'
       '&language=fr'
+      '&region=sn'
       '&key=$key',
     );
 
     try {
       final res = await http.get(uri).timeout(const Duration(seconds: 20));
-      if (res.statusCode != 200) return null;
+      if (res.statusCode != 200) {
+        _setFailure('HTTP ${res.statusCode}');
+        return null;
+      }
 
       final data = json.decode(res.body) as Map<String, dynamic>;
-      if (data['status'] != 'OK') return null;
+      final status = data['status'] as String? ?? 'UNKNOWN';
+
+      if (status != 'OK') {
+        final msg = data['error_message'] as String? ?? '';
+        _setFailure('$status${msg.isNotEmpty ? ': $msg' : ''}');
+        return null;
+      }
 
       final routes = data['routes'] as List<dynamic>?;
-      if (routes == null || routes.isEmpty) return null;
+      if (routes == null || routes.isEmpty) {
+        _setFailure('OK mais aucune route');
+        return null;
+      }
 
       final route = routes.first as Map<String, dynamic>;
       final points = _pointsFromRoute(route);
-      if (points == null || points.length < 2) return null;
+      if (points == null || points.length < 2) {
+        _setFailure('Polyline vide ou invalide');
+        return null;
+      }
 
       final legs = route['legs'] as List<dynamic>?;
       double meters = 0;
@@ -108,7 +136,11 @@ class DirectionsService {
         distanceKm: meters / 1000.0,
         durationSeconds: seconds,
       );
-    } catch (_) {
+    } catch (e, st) {
+      _setFailure('$e');
+      if (kDebugMode) {
+        debugPrint('$st');
+      }
       return null;
     }
   }

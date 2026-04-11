@@ -28,6 +28,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
   Timer? _locationTimer;
   String _rideStatus = 'accepted'; // accepted, arrived, in_progress, completed
   bool _isLoading = false;
+  Map<String, dynamic> _ridePayload = {};
 
   // Données de la course
   late String _passengerName;
@@ -43,9 +44,50 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
   @override
   void initState() {
     super.initState();
+    _ridePayload = Map<String, dynamic>.from(widget.rideData);
     _initRideData();
+    _bootstrapRideData();
     _getCurrentLocation();
     _startLocationUpdates();
+  }
+
+  /// Si les données socket sont incomplètes, recharger depuis l’API (évite écran « vide »)
+  Future<void> _bootstrapRideData() async {
+    final pickup = _ridePayload['pickup'];
+    final hasCoords = pickup is Map &&
+        (pickup['coordinates'] != null ||
+            (pickup['location'] != null && pickup['location']['coordinates'] != null));
+    if (hasCoords && (_ridePayload['passenger'] is Map)) {
+      return;
+    }
+
+    final res = await ApiService.getRideDetails(widget.rideId);
+    if (!mounted) return;
+    final data = res?['data'];
+    final ride = data is Map ? data['ride'] : null;
+    if (ride is Map<String, dynamic>) {
+      setState(() {
+        _ridePayload = _mapApiRideToUi(ride);
+        _initRideData();
+      });
+    }
+  }
+
+  Map<String, dynamic> _mapApiRideToUi(Map<String, dynamic> ride) {
+    final p = ride['passenger'];
+    final pickup = ride['pickup'];
+    final dest = ride['destination'];
+    final pricing = ride['pricing'];
+    return {
+      'passenger': p is Map
+          ? p
+          : {
+              'name': p is Map && p['name'] != null ? p['name'] : 'Client',
+            },
+      'pickup': pickup ?? {},
+      'destination': dest ?? {},
+      'pricing': pricing ?? {},
+    };
   }
 
   @override
@@ -56,10 +98,10 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
   }
 
   void _initRideData() {
-    final passenger = widget.rideData['passenger'] ?? {};
-    final pickup = widget.rideData['pickup'] ?? {};
-    final destination = widget.rideData['destination'] ?? {};
-    final pricing = widget.rideData['pricing'] ?? {};
+    final passenger = _ridePayload['passenger'] ?? {};
+    final pickup = _ridePayload['pickup'] ?? {};
+    final destination = _ridePayload['destination'] ?? {};
+    final pricing = _ridePayload['pricing'] ?? {};
 
     _passengerName = passenger['name']?.toString() ?? 'Client';
     _pickupAddress = pickup['address']?.toString() ?? 'Point de départ';

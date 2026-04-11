@@ -4,6 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
+import '../constants/senegal_map.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import '../models/driver_profile.dart';
@@ -305,8 +307,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         // Utiliser une position par défaut (Dakar)
         setState(() {
           _currentPosition = Position(
-            latitude: 14.6928,
-            longitude: -17.4467,
+            latitude: AppConfig.defaultLatitude,
+            longitude: AppConfig.defaultLongitude,
             timestamp: DateTime.now(),
             accuracy: 0,
             altitude: 0,
@@ -315,6 +317,12 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
             speedAccuracy: 0,
             altitudeAccuracy: 0,
             headingAccuracy: 0,
+          );
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _mapController?.animateCamera(
+            CameraUpdate.newLatLngZoom(SenegalMap.dakar, 14.0),
           );
         });
         return;
@@ -331,8 +339,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         // Utiliser position par défaut
         setState(() {
           _currentPosition = Position(
-            latitude: 14.6928,
-            longitude: -17.4467,
+            latitude: AppConfig.defaultLatitude,
+            longitude: AppConfig.defaultLongitude,
             timestamp: DateTime.now(),
             accuracy: 0,
             altitude: 0,
@@ -341,6 +349,12 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
             speedAccuracy: 0,
             altitudeAccuracy: 0,
             headingAccuracy: 0,
+          );
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _mapController?.animateCamera(
+            CameraUpdate.newLatLngZoom(SenegalMap.dakar, 14.0),
           );
         });
         return;
@@ -355,8 +369,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         onTimeout: () {
           // Position par défaut si timeout
           return Position(
-            latitude: 14.6928,
-            longitude: -17.4467,
+            latitude: AppConfig.defaultLatitude,
+            longitude: AppConfig.defaultLongitude,
             timestamp: DateTime.now(),
             accuracy: 0,
             altitude: 0,
@@ -379,8 +393,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
       if (!isInSenegal) {
         print('📍 Position hors Sénégal détectée, utilisation de Dakar par défaut');
         position = Position(
-          latitude: 14.6928,
-          longitude: -17.4467,
+          latitude: AppConfig.defaultLatitude,
+          longitude: AppConfig.defaultLongitude,
           timestamp: DateTime.now(),
           accuracy: 0,
           altitude: 0,
@@ -418,8 +432,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
       if (!mounted) return;
       setState(() {
         _currentPosition = Position(
-          latitude: 14.6928,
-          longitude: -17.4467,
+          latitude: AppConfig.defaultLatitude,
+          longitude: AppConfig.defaultLongitude,
           timestamp: DateTime.now(),
           accuracy: 0,
           altitude: 0,
@@ -428,6 +442,12 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
           speedAccuracy: 0,
           altitudeAccuracy: 0,
           headingAccuracy: 0,
+        );
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(SenegalMap.dakar, 14.0),
         );
       });
     }
@@ -1303,13 +1323,39 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
       ),
       clipBehavior: Clip.antiAlias,
       child: GoogleMap(
+        mapType: MapType.normal,
         initialCameraPosition: CameraPosition(
           target: _currentPosition != null
               ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-              : const LatLng(14.6928, -17.4467), // Dakar
-          zoom: 14.0,
+              : SenegalMap.dakar,
+          zoom: _currentPosition != null ? 14.0 : SenegalMap.countryOverviewZoom,
         ),
-        onMapCreated: (controller) => _mapController = controller,
+        onMapCreated: (controller) {
+          _mapController = controller;
+          Future.microtask(() async {
+            if (!mounted || _mapController == null) return;
+            final c = _mapController!;
+            try {
+              if (_currentPosition != null) {
+                await c.animateCamera(
+                  CameraUpdate.newLatLngZoom(
+                    LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                    14.0,
+                  ),
+                );
+              } else {
+                await c.animateCamera(SenegalMap.fitCountry(20));
+              }
+            } catch (_) {
+              await c.animateCamera(
+                CameraUpdate.newLatLngZoom(
+                  SenegalMap.countryOverviewCenter,
+                  SenegalMap.countryOverviewZoom,
+                ),
+              );
+            }
+          });
+        },
         myLocationEnabled: true,
         myLocationButtonEnabled: true,
         zoomControlsEnabled: false,

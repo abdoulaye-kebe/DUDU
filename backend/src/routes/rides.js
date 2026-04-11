@@ -6,6 +6,10 @@ const User = require('../models/User');
 const { getIO } = require('../socket/socketIO');
 const { getDistanceAndDuration } = require('../services/googleMapsService');
 const { auth, requireVerification, requireDriver, requireActiveSubscription, requireOnline, requireAvailable } = require('../middleware/auth');
+const {
+  driverShouldReceiveDeliveryNotification,
+  driverCanAcceptNewDelivery,
+} = require('../utils/deliveryDriverRules');
 const router = express.Router();
 
 const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started'];
@@ -331,21 +335,21 @@ router.post('/:id/accept', [
       });
     }
 
-    // Règle livreur: max 2 livraisons actives en même temps
     let activeDeliveryCount = 0;
     if (ride.rideType === 'delivery') {
+      const acceptCheck = await driverCanAcceptNewDelivery(driver._id, ride);
+      if (!acceptCheck.ok) {
+        return res.status(403).json({
+          success: false,
+          message: acceptCheck.message,
+          code: acceptCheck.code,
+        });
+      }
       activeDeliveryCount = await Ride.countDocuments({
         driver: driver._id,
         rideType: 'delivery',
-        status: { $in: ACTIVE_RIDE_STATUSES }
+        status: { $in: ACTIVE_RIDE_STATUSES },
       });
-
-      if (activeDeliveryCount >= 2) {
-        return res.status(403).json({
-          success: false,
-          message: 'Vous avez déjà 2 livraisons en cours. Terminez-en une avant d\'en accepter une autre.'
-        });
-      }
     }
 
     // Assigner la course au chauffeur
@@ -1055,8 +1059,17 @@ router.post('/create', [
       rideType,
       customPrice,
       customPricePerKm,
-      estimatedDistance
+      estimatedDistance,
+      isUrgentDelivery,
+      isUrgent,
     } = req.body;
+
+    const deliveryIsUrgent =
+      rideType === 'delivery' &&
+      (isUrgentDelivery === true ||
+        isUrgent === true ||
+        isUrgentDelivery === 'true' ||
+        isUrgent === 'true');
 
     // Calculer le prix total selon le type
     let totalPrice;
@@ -1151,7 +1164,14 @@ router.post('/create', [
       payment: {
         method: 'cash',
         status: 'pending'
-      }
+      },
+      ...(rideType === 'delivery'
+        ? {
+            delivery: {
+              isUrgent: deliveryIsUrgent,
+            },
+          }
+        : {}),
     });
 
     await ride.save();
@@ -1245,6 +1265,18 @@ router.post('/create', [
 
     console.log('✅ Chauffeurs disponibles après filtre distance:', availableDrivers.length);
 
+    // Livreurs : ne notifier que les livreurs pouvant prendre cette course (2e livraison non urgente, ou urgent seul)
+    if (rideType === 'delivery' && availableDrivers.length > 0) {
+      const filtered = [];
+      for (const d of availableDrivers) {
+        if (await driverShouldReceiveDeliveryNotification(d._id, deliveryIsUrgent)) {
+          filtered.push(d);
+        }
+      }
+      availableDrivers = filtered;
+      console.log('📦 Livreurs éligibles (urgent / empilement):', availableDrivers.length);
+    }
+
     // Fallback de TEST: si aucun chauffeur trouvé, inclure automatiquement un chauffeur de test
     // Pour les tests actuels, on utilise le chauffeur Mame Seck (+221781000734)
     if (availableDrivers.length === 0) {
@@ -1305,6 +1337,7 @@ router.post('/create', [
         estimatedDuration: ride.estimatedDuration,
         passengerName,
         passengerPhone,
+        isUrgentDelivery: rideType === 'delivery' && deliveryIsUrgent,
       };
 
       if (rideType === 'comfort') {

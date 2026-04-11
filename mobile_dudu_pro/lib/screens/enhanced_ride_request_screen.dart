@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import '../constants/senegal_map.dart';
 import '../models/ride.dart';
 import '../services/api_service.dart';
 import '../services/geocoding_service.dart';
@@ -31,9 +32,6 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
   
   bool _isRequesting = false;
   bool _showMap = true;
-
-  // Position par défaut : Centre du Sénégal
-  final LatLng _senegalCenter = const LatLng(14.4974, -14.4524);
 
   @override
   void initState() {
@@ -279,10 +277,10 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
               _mapController = controller;
             },
             initialCameraPosition: CameraPosition(
-              target: _pickupPlace != null 
+              target: _pickupPlace != null
                   ? LatLng(_pickupPlace!.latitude, _pickupPlace!.longitude)
-                  : _senegalCenter,
-              zoom: 15,
+                  : SenegalMap.countryOverviewCenter,
+              zoom: _pickupPlace != null ? 15 : SenegalMap.countryOverviewZoom,
             ),
             markers: _buildMarkers(),
             polylines: _buildPolylines(),
@@ -375,10 +373,10 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
             _mapController = controller;
           },
           initialCameraPosition: CameraPosition(
-            target: _pickupPlace != null 
+            target: _pickupPlace != null
                 ? LatLng(_pickupPlace!.latitude, _pickupPlace!.longitude)
-                : _senegalCenter,
-            zoom: 15,
+                : SenegalMap.countryOverviewCenter,
+            zoom: _pickupPlace != null ? 15 : SenegalMap.countryOverviewZoom,
           ),
           markers: _buildMarkers(),
           polylines: _buildPolylines(),

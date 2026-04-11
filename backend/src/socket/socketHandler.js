@@ -2,8 +2,10 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Driver = require('../models/Driver');
 const Ride = require('../models/Ride');
-
-const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started'];
+const {
+  ACTIVE_RIDE_STATUSES,
+  driverCanAcceptNewDelivery,
+} = require('../utils/deliveryDriverRules');
 
 module.exports = (io) => {
   // Middleware d'authentification Socket.io
@@ -240,33 +242,40 @@ module.exports = (io) => {
         const ride = await Ride.findById(rideId);
         if (!ride) {
           console.log('❌ accept-ride: course introuvable', { rideId });
-          return socket.emit('error', { message: 'Course non trouvée' });
+          return socket.emit('accept-ride-rejected', {
+            rideId,
+            message: 'Course non trouvée',
+          });
         }
 
-        if (ride.status !== 'requested') {
+        if (ride.status !== 'requested' && ride.status !== 'searching') {
           console.log('❌ accept-ride: statut invalide', { rideId, status: ride.status });
-          return socket.emit('error', { message: 'Cette course ne peut plus être acceptée' });
+          return socket.emit('accept-ride-rejected', {
+            rideId,
+            message: 'Cette course ne peut plus être acceptée',
+          });
         }
 
-        // Règle livreur: max 2 livraisons actives en même temps
         let activeDeliveryCount = 0;
         if (ride.rideType === 'delivery') {
+          const acceptCheck = await driverCanAcceptNewDelivery(socket.driverId, ride);
+          if (!acceptCheck.ok) {
+            console.log('❌ accept-ride: règle livraison', {
+              rideId,
+              driverId: socket.driverId,
+              code: acceptCheck.code,
+            });
+            return socket.emit('accept-ride-rejected', {
+              rideId,
+              message: acceptCheck.message,
+              code: acceptCheck.code,
+            });
+          }
           activeDeliveryCount = await Ride.countDocuments({
             driver: socket.driverId,
             rideType: 'delivery',
-            status: { $in: ACTIVE_RIDE_STATUSES }
+            status: { $in: ACTIVE_RIDE_STATUSES },
           });
-
-          if (activeDeliveryCount >= 2) {
-            console.log('❌ accept-ride: limite livraisons atteinte', {
-              rideId,
-              driverId: socket.driverId,
-              activeDeliveryCount
-            });
-            return socket.emit('error', {
-              message: 'Vous avez déjà 2 livraisons en cours. Terminez-en une avant d\'en accepter une autre.'
-            });
-          }
         }
 
         // Assigner la course au chauffeur
@@ -347,6 +356,54 @@ module.exports = (io) => {
       } catch (error) {
         console.error('Erreur acceptation course:', error);
         socket.emit('error', { message: 'Erreur lors de l\'acceptation de la course' });
+      }
+    });
+
+    // Refus d'une demande par le chauffeur (notifie le client pour qu'il sache qu'un chauffeur a décliné)
+    socket.on('refuse-ride', async (data) => {
+      try {
+        if (!socket.driver) {
+          return socket.emit('error', { message: 'Accès réservé aux chauffeurs' });
+        }
+
+        const { rideId } = data || {};
+        if (!rideId) {
+          return socket.emit('error', { message: 'rideId requis' });
+        }
+
+        const ride = await Ride.findById(rideId);
+        if (!ride) {
+          return socket.emit('error', { message: 'Course non trouvée' });
+        }
+
+        if (ride.status !== 'requested') {
+          return socket.emit('error', { message: 'Cette course ne peut plus être refusée' });
+        }
+
+        const driverId = socket.driverId.toString();
+        const already = (ride.refusedBy || []).some(
+          (r) => r.driver && r.driver.toString() === driverId
+        );
+        if (!already) {
+          ride.refusedBy = ride.refusedBy || [];
+          ride.refusedBy.push({
+            driver: socket.driverId,
+            reason: 'declined',
+            refusedAt: new Date()
+          });
+          await ride.save();
+        }
+
+        const passengerRoom = `passenger_${ride.passenger.toString()}`;
+        io.to(passengerRoom).emit('ride-refused-by-driver', {
+          rideId: ride._id,
+          message: 'Un chauffeur a refusé cette demande. Nous continuons à chercher un autre chauffeur.'
+        });
+
+        socket.emit('ride-refused-ok', { rideId: ride._id });
+      } catch (error) {
+        console.error('Erreur refuse-ride:', error);
+        socket.emit('error', { message: 'Erreur lors du refus de la course' });
       }
     });
 
