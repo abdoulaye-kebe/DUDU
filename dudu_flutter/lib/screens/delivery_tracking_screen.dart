@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
+import '../config/app_config.dart';
 
 class DeliveryTrackingScreen extends StatefulWidget {
   final String deliveryId;
@@ -22,6 +24,24 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
   String _driverPhone = '+221 77 123 45 67';
   String _driverVehicle = 'Yamaha DT - SN 1234 AB';
   double _driverRating = 4.9;
+
+  Future<void> _shareDeliverySafety() async {
+    final msg = '''
+🛡️ DUDU — Livraison (sécurité)
+
+Je te partage ma livraison pour que tu saches où j’en suis.
+
+🆔 Livraison : ${widget.deliveryId}
+🔑 Code confirmation : ${widget.confirmationCode}
+👤 Livreur : $_driverName
+🏍️ $_driverVehicle
+
+📎 ${AppConfig.productionServerUrl}
+
+(Urgences Sénégal : 17 / 15 / 18)
+''';
+    await Share.share(msg, subject: 'DUDU — Ma livraison');
+  }
   
   // Photos
   String? _pickupPhoto;
@@ -34,6 +54,13 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
         title: const Text('Suivi de livraison 📦'),
         backgroundColor: const Color(0xFFFF6B00),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shield_outlined),
+            tooltip: 'Partager avec un proche (sécurité)',
+            onPressed: _shareDeliverySafety,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -172,6 +199,23 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
                               }
                             }
                           },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _shareDeliverySafety,
+                        icon: const Icon(Icons.group_add_outlined),
+                        label: const Text(
+                          'Partager la livraison avec un ami (sécurité)',
+                          textAlign: TextAlign.center,
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0B6E4F),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                       ),
                     ),

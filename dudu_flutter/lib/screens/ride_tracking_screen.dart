@@ -16,6 +16,9 @@ class RideTrackingScreen extends StatefulWidget {
   final Map<String, dynamic> pickupLocation;
   final Map<String, dynamic> destinationLocation;
   final Map<String, dynamic> driverInfo;
+  /// Libellés affichés pour le partage sécurité (depuis la recherche d’adresse)
+  final String pickupAddressLabel;
+  final String destinationAddressLabel;
 
   const RideTrackingScreen({
     Key? key,
@@ -24,6 +27,8 @@ class RideTrackingScreen extends StatefulWidget {
     required this.pickupLocation,
     required this.destinationLocation,
     required this.driverInfo,
+    this.pickupAddressLabel = '',
+    this.destinationAddressLabel = '',
   }) : super(key: key);
 
   @override
@@ -743,16 +748,45 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     return R * c;
   }
 
-  void _shareRide() {
+  String _mapsLink(Map<String, dynamic> loc) {
+    final lat = loc['latitude'];
+    final lng = loc['longitude'];
+    return 'https://www.google.com/maps?q=$lat,$lng';
+  }
+
+  String _vehicleLabel() {
+    final v = widget.driverInfo['vehicle'];
+    if (v is Map) {
+      final s = '${v['make'] ?? v['brand'] ?? ''} ${v['model'] ?? ''}'.trim();
+      final plate = v['plateNumber'] ?? v['plate'];
+      if (plate != null && '$plate'.isNotEmpty) {
+        return s.isEmpty ? '$plate' : '$s • $plate';
+      }
+      return s.isNotEmpty ? s : 'Véhicule';
+    }
+    if (v is String && v.isNotEmpty) return v;
+    return 'Véhicule';
+  }
+
+  /// Partage itinéraire avec un proche (sécurité) — écran dédié (WhatsApp, SMS, etc.)
+  void _openSafetyShare() {
+    final pickup = widget.pickupAddressLabel.trim().isNotEmpty
+        ? widget.pickupAddressLabel.trim()
+        : _mapsLink(widget.pickupLocation);
+    final dest = widget.destinationAddressLabel.trim().isNotEmpty
+        ? widget.destinationAddressLabel.trim()
+        : _mapsLink(widget.destinationLocation);
+    final driverName =
+        widget.driverInfo['fullName'] ?? widget.driverInfo['name'] ?? 'Chauffeur';
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ShareRideScreen(
           rideId: widget.rideId,
-          driverName: widget.driverInfo['name'] ?? 'Chauffeur',
-          vehicleInfo: widget.driverInfo['vehicle'] ?? 'Véhicule',
-          pickupAddress: 'Point de départ',
-          destinationAddress: 'Destination',
+          driverName: driverName,
+          vehicleInfo: _vehicleLabel(),
+          pickupAddress: pickup,
+          destinationAddress: dest,
           currentLat: _vehiclePosition?.latitude,
           currentLng: _vehiclePosition?.longitude,
         ),
@@ -839,6 +873,13 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
         ),
         backgroundColor: const Color(0xFF00A651),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shield_outlined),
+            tooltip: 'Partager l\'itinéraire avec un proche (sécurité)',
+            onPressed: _openSafetyShare,
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -962,59 +1003,34 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                               tooltip: 'Appeler le chauffeur',
                             ),
                           ),
-                        const SizedBox(width: 8),
-                        // Bouton partager
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.share, color: Colors.blue),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ShareRideScreen(
-                                    rideId: widget.rideId,
-                                    driverName: driverName,
-                                    vehicleInfo: '$vehicleBrand $vehicleModel',
-                                    pickupAddress: 'Point de départ',
-                                    destinationAddress: 'Destination',
-                                  ),
-                                ),
-                              );
-                            },
-                            tooltip: 'Partager le trajet',
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _shareRide,
-                            icon: const Icon(Icons.share_location),
-                            label: const Text('Partager'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _openSafetyShare,
+                        icon: const Icon(Icons.group_add_outlined),
+                        label: const Text(
+                          'Partager l\'itinéraire avec un ami (sécurité)',
+                          textAlign: TextAlign.center,
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextButton(
-                            onPressed: _showCancelConfirmation,
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                            ),
-                            child: const Text('Annuler'),
-                          ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0B6E4F),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                      ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton(
+                        onPressed: _showCancelConfirmation,
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        child: const Text('Annuler la course'),
+                      ),
                     ),
                   ],
                 ),
@@ -1088,28 +1104,6 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                           ),
                         ),
                         
-                        // Bouton de partage de trajet
-                        IconButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ShareRideScreen(
-                                  rideId: widget.rideId,
-                                  driverName: driverName,
-                                  vehicleInfo: '$vehicleBrand $vehicleModel',
-                                  pickupAddress: 'Point de départ',
-                                  destinationAddress: 'Destination',
-                                ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.share),
-                          iconSize: 28,
-                          color: const Color(0xFF00A651),
-                          tooltip: 'Partager mon trajet',
-                        ),
-                        
                         // Bouton d'appel classique
                         IconButton(
                           onPressed: () async {
@@ -1147,30 +1141,10 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                       ),
                     ),
                     SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _shareRide,
-                            icon: const Icon(Icons.share_location),
-                            label: const Text('Partager'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: TextButton(
-                            onPressed: _showCancelConfirmation,
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                            ),
-                            child: const Text('Annuler'),
-                          ),
-                        ),
-                      ],
+                    OutlinedButton.icon(
+                      onPressed: _openSafetyShare,
+                      icon: const Icon(Icons.shield_outlined),
+                      label: const Text('Rappel : partager le trajet (sécurité)'),
                     ),
                   ],
                 ),
@@ -1259,25 +1233,10 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: IconButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ShareRideScreen(
-                              rideId: widget.rideId,
-                              driverName: widget.driverInfo['name'] ?? 'Chauffeur',
-                              vehicleInfo: widget.driverInfo['vehicle'] ?? 'Véhicule',
-                              pickupAddress: widget.pickupLocation['address'] ?? 'Départ',
-                              destinationAddress: widget.destinationLocation['address'] ?? 'Destination',
-                              currentLat: _vehiclePosition?.latitude,
-                              currentLng: _vehiclePosition?.longitude,
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.share),
+                      onPressed: _openSafetyShare,
+                      icon: const Icon(Icons.shield_outlined),
                       color: const Color(0xFF00A651),
-                      tooltip: 'Partager mon trajet',
+                      tooltip: 'Partager l\'itinéraire (sécurité)',
                     ),
                   ),
               ],

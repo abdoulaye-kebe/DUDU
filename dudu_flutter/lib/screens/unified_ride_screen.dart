@@ -2278,6 +2278,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                         'latitude': _destinationLatLng!.latitude,
                         'longitude': _destinationLatLng!.longitude,
                       },
+                      pickupAddressLabel: _pickupAddress,
+                      destinationAddressLabel: _destinationAddress,
                       driverInfo: {
                         'name': driver['name'] ?? 'Chauffeur',
                         'phone': driver['phone'] ?? '',

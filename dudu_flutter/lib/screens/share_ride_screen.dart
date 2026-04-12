@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import '../config/app_config.dart';
 
 class ShareRideScreen extends StatefulWidget {
   final String rideId;
@@ -42,9 +43,8 @@ class _ShareRideScreenState extends State<ShareRideScreen> {
       _isGeneratingLink = true;
     });
 
-    // Générer un lien de suivi (à adapter selon votre backend)
-    final baseUrl = 'https://dudu.sn/track';
-    _trackingLink = '$baseUrl/${widget.rideId}';
+    // Lien d’information (suivi temps réel = position Google Maps dans le message)
+    _trackingLink = '${AppConfig.productionServerUrl}/track/${widget.rideId}';
 
     setState(() {
       _isGeneratingLink = false;
@@ -57,22 +57,22 @@ class _ShareRideScreenState extends State<ShareRideScreen> {
         : '';
 
     return '''
-🚗 Je partage mon trajet DUDU avec toi
+🛡️ DUDU — Partage trajet (sécurité)
+
+Je te partage mon itinéraire pour que tu saches où je suis.
 
 👤 Chauffeur: ${widget.driverName}
 🚙 Véhicule: ${widget.vehicleInfo}
+🆔 Course: ${widget.rideId}
 
 📍 Départ: ${widget.pickupAddress}
 🎯 Destination: ${widget.destinationAddress}
 
 $position
 
-🔗 Suivre mon trajet en temps réel:
-$_trackingLink
+🔗 Infos: $_trackingLink
 
-En cas d'urgence, contacte:
-🚨 Police: 17
-🚑 Pompiers: 18
+En cas d’urgence (Sénégal) : Police 17, SAMU 15, Pompiers 18.
 ''';
   }
 
@@ -161,7 +161,7 @@ En cas d'urgence, contacte:
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
-          'Partager mon trajet',
+          'Partage trajet (sécurité)',
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: const Color(0xFF00A651),
