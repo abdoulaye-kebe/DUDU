@@ -1,5 +1,13 @@
 # Déploiement de l’admin DUDU (admin.dudugroup.sn)
 
+## Connexion admin : « Erreur de connexion » alors que le serveur répond en curl
+
+Souvent dû au **contenu mixte** : le build embarquait `VITE_API_BASE_URL=http://213.154.90.11/...` (HTTP). Depuis **`https://admin.dudugroup.sn`**, le navigateur **bloque** les appels vers une API en HTTP → échec réseau sans message serveur.
+
+**Correctif :** `.env.production` avec **`https://www.dudugroup.sn`**, puis `npm run build` et redéploiement du `dist/`. Le code ignore aussi les `VITE_*` en `http://` non-local (sauf rebuild, mettre à jour le dépôt).
+
+---
+
 ## Pourquoi la page est blanche ?
 
 Si vous voyez une **page blanche** sur admin.dudugroup.sn, c’est en général parce que le serveur sert les **fichiers sources** (dont `index.html` qui charge `/src/main.jsx`) au lieu des **fichiers compilés**.  

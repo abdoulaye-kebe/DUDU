@@ -36,7 +36,15 @@ function Login({ onLoginSuccess }) {
       }
     } catch (err) {
       console.error('Erreur login:', err);
-      setError(err.response?.data?.message || 'Erreur de connexion');
+      const net =
+        err?.code === 'ERR_NETWORK' || err?.message === 'Network Error'
+          ? 'Problème réseau (souvent contenu mixte http/https ou CORS). '
+          : '';
+      const detail =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Erreur de connexion';
+      setError(`${net}${detail} — API: ${API_BASE_URL}`);
     } finally {
       setLoading(false);
     }
