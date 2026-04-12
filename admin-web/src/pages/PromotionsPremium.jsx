@@ -30,7 +30,7 @@ function PromotionsPremium() {
     }
   }, [dataJson]);
 
-  const canSend = Boolean(title.trim()) && Boolean(body.trim()) && Boolean(token.trim());
+  const canSend = Boolean(title.trim()) && Boolean(body.trim());
 
   const handleSaveToken = async () => {
     setError('');
@@ -56,11 +56,6 @@ function PromotionsPremium() {
     setError('');
     setSuccess('');
 
-    if (!token.trim()) {
-      setError('Token admin requis.');
-      return;
-    }
-
     if (!title.trim() || !body.trim()) {
       setError('Titre et message sont requis.');
       return;
@@ -80,6 +75,9 @@ function PromotionsPremium() {
 
     setSending(true);
     try {
+      if (token.trim()) {
+        localStorage.setItem('admin_token', token.trim());
+      }
       const res = await api.post('/notifications/promo', payload);
       const messageId = res?.data?.result;
 
@@ -293,7 +291,7 @@ function PromotionsPremium() {
                 }}
               />
               <div style={{ marginTop: 8, fontSize: 13, color: 'var(--gray-500)' }}>
-                Le token est stocké localement dans ton navigateur (localStorage).
+                L’envoi utilise le token de session admin (intercepteur axios). Tu peux surcharger le token ici pour test.
               </div>
             </div>
 

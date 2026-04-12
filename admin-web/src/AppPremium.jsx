@@ -11,6 +11,7 @@ import './styles/admin-premium.css';
 
 function AppPremium() {
   const [currentPage, setCurrentPage] = useState('drivers');
+  const [navbarSearch, setNavbarSearch] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return Boolean(localStorage.getItem('admin_token'));
   });
@@ -26,15 +27,15 @@ function AppPremium() {
   const renderPage = () => {
     switch (currentPage) {
       case 'drivers':
-        return <DriversPremium />;
+        return <DriversPremium navbarSearch={navbarSearch} />;
       case 'clients':
-        return <ClientsPremium />;
+        return <ClientsPremium navbarSearch={navbarSearch} />;
       case 'rides':
-        return <RidesPremium />;
+        return <RidesPremium navbarSearch={navbarSearch} />;
       case 'promotions':
         return <PromotionsPremium />;
       default:
-        return <DriversPremium />;
+        return <DriversPremium navbarSearch={navbarSearch} />;
     }
   };
 
@@ -42,7 +43,13 @@ function AppPremium() {
     <div className="admin-app">
       {isAuthenticated ? (
         <>
-          <Navbar currentPage={currentPage} onNavigate={setCurrentPage} onLogout={handleLogout} />
+          <Navbar
+            currentPage={currentPage}
+            onNavigate={setCurrentPage}
+            onLogout={handleLogout}
+            searchValue={navbarSearch}
+            onSearchChange={setNavbarSearch}
+          />
           
           <main className="main-content">
             <AnimatePresence mode="wait">

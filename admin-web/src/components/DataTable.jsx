@@ -2,9 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, 
-  Filter, 
   Download, 
-  MoreVertical,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -19,10 +17,15 @@ function DataTable({
   data, 
   actions = true,
   searchable = true,
-  filterable = true,
+  /** Panneau optionnel sous la barre d’outils (filtres métier), toujours visible si renseigné */
+  filterSlot = null,
   /** (row) => string — recherche sur prénom, téléphone, véhicule, etc. */
   searchText,
+  /** Recherche globale (ex. barre Navbar) — cumulée avec la recherche locale */
+  navbarSearch = '',
   onExport,
+  /** Nombre de lignes par page (0 = tout afficher) */
+  pageSize = 10,
   onView,
   onEdit,
   onDelete,
@@ -31,8 +34,25 @@ function DataTable({
   emptyMessage = "Aucune donnée disponible"
 }) {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [page, setPage] = React.useState(1);
+  React.useEffect(() => {
+    setPage(1);
+  }, [data, searchTerm, navbarSearch]);
+
+  const rowMatchesNav = (row) => {
+    const q = (navbarSearch || '').trim().toLowerCase();
+    if (!q) return true;
+    const hay = typeof searchText === 'function'
+      ? (searchText(row) || '')
+      : columns.map((c) => {
+          const v = row[c.key];
+          return v != null && typeof v !== 'object' ? String(v) : '';
+        }).join(' ');
+    return hay.toLowerCase().includes(q);
+  };
 
   const filteredData = data.filter(row => {
+    if (!rowMatchesNav(row)) return false;
     if (!searchTerm) return true;
     const q = searchTerm.toLowerCase();
     if (typeof searchText === 'function') {
@@ -47,6 +67,18 @@ function DataTable({
     });
   });
 
+  const usePagination = pageSize > 0 && filteredData.length > pageSize;
+  const totalPages = usePagination ? Math.max(1, Math.ceil(filteredData.length / pageSize)) : 1;
+  const safePage = Math.min(page, totalPages);
+  const paginatedData = usePagination
+    ? filteredData.slice((safePage - 1) * pageSize, safePage * pageSize)
+    : filteredData;
+
+  const showFrom = filteredData.length === 0 ? 0 : (safePage - 1) * (usePagination ? pageSize : filteredData.length) + 1;
+  const showTo = usePagination
+    ? Math.min(safePage * pageSize, filteredData.length)
+    : filteredData.length;
+
   return (
     <motion.div 
       className="table-container"
@@ -54,7 +86,6 @@ function DataTable({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      {/* Header */}
       <div className="table-header">
         <div className="table-title">
           {TitleIcon && <TitleIcon />}
@@ -72,17 +103,6 @@ function DataTable({
               />
             </div>
           )}
-          {filterable && (
-            <motion.button 
-              type="button"
-              className="btn btn-secondary btn-sm"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Filter size={16} />
-              Filtrer
-            </motion.button>
-          )}
           {onExport && (
             <motion.button 
               type="button"
@@ -98,7 +118,12 @@ function DataTable({
         </div>
       </div>
 
-      {/* Table */}
+      {filterSlot && (
+        <div style={{ padding: '0 0 16px', marginBottom: 8 }}>
+          {filterSlot}
+        </div>
+      )}
+
       <table className="table">
         <thead>
           <tr>
@@ -109,7 +134,7 @@ function DataTable({
           </tr>
         </thead>
         <tbody>
-          {filteredData.length === 0 ? (
+          {paginatedData.length === 0 ? (
             <tr>
               <td colSpan={columns.length + (actions ? 1 : 0)}>
                 <div className="empty-state">
@@ -121,12 +146,12 @@ function DataTable({
               </td>
             </tr>
           ) : (
-            filteredData.map((row, index) => (
+            paginatedData.map((row, index) => (
               <motion.tr 
                 key={row._id || row.id || index}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
+                transition={{ duration: 0.3, delay: index * 0.03 }}
               >
                 {columns.map((col) => (
                   <td key={col.key}>
@@ -138,6 +163,7 @@ function DataTable({
                     <div style={{ display: 'flex', gap: '8px' }}>
                       {onView && (
                         <motion.button 
+                          type="button"
                           className="btn btn-ghost btn-icon btn-sm"
                           onClick={() => onView(row)}
                           whileHover={{ scale: 1.1 }}
@@ -149,6 +175,7 @@ function DataTable({
                       )}
                       {onEdit && (
                         <motion.button 
+                          type="button"
                           className="btn btn-ghost btn-icon btn-sm"
                           onClick={() => onEdit(row)}
                           whileHover={{ scale: 1.1 }}
@@ -160,6 +187,7 @@ function DataTable({
                       )}
                       {onDelete && (
                         <motion.button 
+                          type="button"
                           className="btn btn-ghost btn-icon btn-sm"
                           onClick={() => onDelete(row)}
                           whileHover={{ scale: 1.1 }}
@@ -179,30 +207,42 @@ function DataTable({
         </tbody>
       </table>
 
-      {/* Pagination */}
       {filteredData.length > 0 && (
-        <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ fontSize: '14px', color: 'var(--gray-500)' }}>
-            Affichage de {filteredData.length} résultat{filteredData.length > 1 ? 's' : ''}
+            {usePagination
+              ? `Affichage ${showFrom}–${showTo} sur ${filteredData.length} résultat${filteredData.length > 1 ? 's' : ''}`
+              : `Affichage de ${filteredData.length} résultat${filteredData.length > 1 ? 's' : ''}`}
           </span>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <motion.button 
-              className="btn btn-ghost btn-sm"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <ChevronLeft size={16} />
-              Précédent
-            </motion.button>
-            <motion.button 
-              className="btn btn-ghost btn-sm"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              Suivant
-              <ChevronRight size={16} />
-            </motion.button>
-          </div>
+          {usePagination && (
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <motion.button 
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={safePage <= 1}
+                whileHover={{ scale: safePage <= 1 ? 1 : 1.05 }}
+                whileTap={{ scale: safePage <= 1 ? 1 : 0.95 }}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft size={16} />
+                Précédent
+              </motion.button>
+              <span style={{ fontSize: 13, color: 'var(--gray-600)' }}>
+                Page {safePage} / {totalPages}
+              </span>
+              <motion.button 
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={safePage >= totalPages}
+                whileHover={{ scale: safePage >= totalPages ? 1 : 1.05 }}
+                whileTap={{ scale: safePage >= totalPages ? 1 : 0.95 }}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Suivant
+                <ChevronRight size={16} />
+              </motion.button>
+            </div>
+          )}
         </div>
       )}
     </motion.div>

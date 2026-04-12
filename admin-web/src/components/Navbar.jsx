@@ -22,7 +22,7 @@ const navItems = [
   { id: 'promotions', label: 'Promotions', icon: Bell },
 ];
 
-function Navbar({ currentPage, onNavigate, onLogout }) {
+function Navbar({ currentPage, onNavigate, onLogout, searchValue = '', onSearchChange }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const toggleMobileMenu = () => {
@@ -101,9 +101,12 @@ function Navbar({ currentPage, onNavigate, onLogout }) {
           <div className="navbar-search">
             <Search className="search-icon" />
             <input 
-              type="text" 
+              type="search" 
               className="search-input" 
-              placeholder="Rechercher..." 
+              placeholder="Filtrer le tableau courant…" 
+              value={searchValue}
+              onChange={(e) => typeof onSearchChange === 'function' && onSearchChange(e.target.value)}
+              aria-label="Filtrer la liste affichée"
             />
           </div>
 

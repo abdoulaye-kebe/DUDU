@@ -20,7 +20,7 @@ import {
   Key
 } from 'lucide-react';
 
-function DriversPremium() {
+function DriversPremium({ navbarSearch = '' }) {
   const [pending, setPending] = useState([]);
   const [approved, setApproved] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -489,8 +489,9 @@ function DriversPremium() {
               columns={approvedColumns}
               data={approved}
               emptyMessage="Aucun chauffeur approuvé"
-              filterable={false}
               searchText={approvedSearchText}
+              navbarSearch={navbarSearch}
+              pageSize={12}
               onExport={exportApprovedCsv}
               onView={(driver) => {
                 setSelectedDriver(driver);

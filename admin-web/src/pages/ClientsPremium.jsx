@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import StatCard from '../components/StatCard';
 import DataTable from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
+import { API_BASE_URL } from '../config';
 import { 
   Users, 
   UserPlus, 
@@ -14,20 +15,20 @@ import {
   Mail,
   Calendar,
   Star,
-  TrendingUp
 } from 'lucide-react';
 
-function ClientsPremium() {
+function ClientsPremium({ navbarSearch = '' }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [stats, setStats] = useState({
     total: 0,
-    active: 0,
     newToday: 0,
     totalRides: 0
   });
   const [selectedClient, setSelectedClient] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     loadClients();
@@ -37,18 +38,23 @@ function ClientsPremium() {
   const loadClients = async () => {
     try {
       setLoading(true);
+      setError('');
       const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/v1/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/admin/users?limit=500`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      const data = await response.json();
-      const users = data.data?.users || data.users || [];
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.message || `Erreur ${response.status}`);
+      }
+      const users = json.data?.users || json.users || [];
       setClients(users);
-    } catch (error) {
-      console.error('Erreur chargement clients:', error);
+    } catch (err) {
+      console.error('Erreur chargement clients:', err);
+      setError(err.message || 'Impossible de charger les clients');
       setClients([]);
     } finally {
       setLoading(false);
@@ -58,7 +64,7 @@ function ClientsPremium() {
   const loadStats = async () => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/v1/admin/dashboard', {
+      const response = await fetch(`${API_BASE_URL}/admin/dashboard`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -69,10 +75,8 @@ function ClientsPremium() {
         const data = result.data;
         const overview = data.overview || {};
         const today = data.today || {};
-        
         setStats({
           total: overview.totalUsers || 0,
-          active: clients.filter(c => c.isActive).length,
           newToday: today.users || 0,
           totalRides: overview.totalRides || 0
         });
@@ -80,6 +84,57 @@ function ClientsPremium() {
     } catch (error) {
       console.error('Erreur chargement stats:', error);
     }
+  };
+
+  const filteredByStatus = useMemo(() => {
+    if (statusFilter === 'all') return clients;
+    if (statusFilter === 'active') return clients.filter((c) => c.isActive !== false);
+    return clients.filter((c) => c.isActive === false);
+  }, [clients, statusFilter]);
+
+  const toggleUserActive = async (client) => {
+    const id = client.id || client._id;
+    if (!id) return;
+    const next = !client.isActive;
+    if (!window.confirm(next ? 'Réactiver ce compte ?' : 'Désactiver ce compte ?')) return;
+    try {
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch(`${API_BASE_URL}/admin/users/${id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isActive: next })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Erreur');
+      await loadClients();
+    } catch (e) {
+      alert(e.message || 'Erreur');
+    }
+  };
+
+  const exportClientsCsv = () => {
+    const headers = ['Prénom', 'Nom', 'Téléphone', 'Email', 'Courses', 'Note', 'Actif', 'Inscription'];
+    const rows = filteredByStatus.map((c) => [
+      c.firstName || '',
+      c.lastName || '',
+      c.phone || '',
+      c.email || '',
+      c.totalRides ?? 0,
+      c.averageRating != null ? Number(c.averageRating).toFixed(1) : '',
+      c.isActive !== false ? 'oui' : 'non',
+      c.createdAt ? new Date(c.createdAt).toLocaleDateString('fr-FR') : ''
+    ]);
+    const esc = (x) => `"${String(x).replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows].map((line) => line.map(esc).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `dudu-clients-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   };
 
   const formatDate = (dateString) => {
@@ -163,12 +218,23 @@ function ClientsPremium() {
       key: 'isActive',
       label: 'Statut',
       render: (value) => (
-        <span className={`badge ${value ? 'badge-success' : 'badge-danger'}`}>
-          {value ? 'Actif' : 'Inactif'}
+        <span className={`badge ${value !== false ? 'badge-success' : 'badge-danger'}`}>
+          {value !== false ? 'Actif' : 'Inactif'}
         </span>
       )
     }
   ];
+
+  const searchText = (row) =>
+    [
+      row.firstName,
+      row.lastName,
+      row.name,
+      row.phone,
+      row.email
+    ]
+      .filter(Boolean)
+      .join(' ');
 
   if (loading) {
     return (
@@ -181,7 +247,6 @@ function ClientsPremium() {
 
   return (
     <div>
-      {/* Page Header */}
       <motion.div 
         className="page-header"
         initial={{ opacity: 0, y: -20 }}
@@ -197,8 +262,9 @@ function ClientsPremium() {
           </div>
           <div className="page-actions">
             <motion.button 
+              type="button"
               className="btn btn-secondary"
-              onClick={loadClients}
+              onClick={() => { loadClients(); loadStats(); }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -206,7 +272,9 @@ function ClientsPremium() {
               Actualiser
             </motion.button>
             <motion.button 
+              type="button"
               className="btn btn-secondary"
+              onClick={exportClientsCsv}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -217,7 +285,12 @@ function ClientsPremium() {
         </div>
       </motion.div>
 
-      {/* Stats Grid */}
+      {error && (
+        <div className="card" style={{ padding: '16px 24px', marginBottom: 24, background: '#fef2f2', borderColor: 'var(--accent-red)' }}>
+          {error}
+        </div>
+      )}
+
       <div className="stats-grid">
         <StatCard 
           title="Total Clients"
@@ -227,11 +300,9 @@ function ClientsPremium() {
           delay={0}
         />
         <StatCard 
-          title="Clients Actifs"
-          value={clients.filter(c => c.isActive !== false).length}
+          title="Liste affichée"
+          value={filteredByStatus.length}
           icon={UserCheck}
-          trend="up"
-          trendValue="98%"
           color="blue"
           delay={0.1}
         />
@@ -239,8 +310,6 @@ function ClientsPremium() {
           title="Nouveaux Aujourd'hui"
           value={stats.newToday}
           icon={UserPlus}
-          trend="up"
-          trendValue="+12%"
           color="purple"
           delay={0.2}
         />
@@ -248,28 +317,49 @@ function ClientsPremium() {
           title="Courses Totales"
           value={stats.totalRides}
           icon={Car}
-          trend="up"
-          trendValue="+8%"
           color="orange"
           delay={0.3}
         />
       </div>
 
-      {/* Clients Table */}
       <DataTable
         title="Liste des Clients"
         icon={Users}
         columns={columns}
-        data={clients}
+        data={filteredByStatus}
         emptyMessage="Aucun client trouvé"
+        filterSlot={(
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+            <span style={{ fontSize: 14, color: 'var(--gray-600)' }}>Filtrer par statut :</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--gray-200)',
+                fontSize: 14,
+                minWidth: 180
+              }}
+            >
+              <option value="all">Tous les comptes</option>
+              <option value="active">Actifs uniquement</option>
+              <option value="inactive">Inactifs uniquement</option>
+            </select>
+          </div>
+        )}
+        searchText={searchText}
+        navbarSearch={navbarSearch}
+        pageSize={12}
+        onExport={exportClientsCsv}
         onView={(client) => {
           setSelectedClient(client);
           setIsModalOpen(true);
         }}
-        onEdit={(client) => console.log('Edit client:', client)}
+        onEdit={(client) => toggleUserActive(client)}
+        editLabel="Activer / désactiver"
       />
 
-      {/* Detail Modal */}
       <DetailModal
         isOpen={isModalOpen}
         onClose={() => {

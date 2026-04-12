@@ -518,7 +518,8 @@ router.get('/rides', auth, requireAdmin, async (req, res) => {
             method: ride.payment?.method,
             status: ride.payment?.status,
             transactionId: ride.payment?.transactionId
-          }
+          },
+          createdAt: ride.createdAt
         })),
         stats,
         pagination: {
