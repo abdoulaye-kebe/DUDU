@@ -890,6 +890,22 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                     }
                   }
 
+                  if (_driverProfile == null) {
+                    await _loadTodayStats();
+                  }
+                  if (_driverProfile == null) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Profil chauffeur indisponible. Vérifiez votre connexion ou reconnectez-vous.',
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
                   await Navigator.push(
                     context,
                     MaterialPageRoute(

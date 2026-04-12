@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Configuration centralisée de l'application DUDU Pro (Chauffeur)
 class AppConfig {
@@ -15,8 +16,8 @@ class AppConfig {
   // CONFIGURATION DES URLS
   // ============================================
 
-  /// URL du serveur de production (Backend Live)
-  static const String productionServerUrl = 'http://213.154.90.11:3000';
+  /// Repli si `app.env` absent et `ENV` ≠ local (aligné sur la prod HTTPS).
+  static const String productionServerUrl = 'https://www.dudugroup.sn';
   
   /// URL du serveur local
   static const String localServerUrl = 'http://localhost:3000';
@@ -30,9 +31,23 @@ class AppConfig {
   static const String _env = String.fromEnvironment('ENV', defaultValue: 'prod');
   static const String _serverOriginOverride = String.fromEnvironment('SERVER_ORIGIN', defaultValue: '');
 
+  /// Origine API lue depuis `assets/config/app.env` (`DUDU_API_ORIGIN`), après [loadFromDotenv].
+  static String? _dotenvOrigin;
+
+  /// À appeler depuis [main] après [dotenv.load], si le fichier `.env` est présent.
+  static void loadFromDotenv() {
+    final v = dotenv.maybeGet('DUDU_API_ORIGIN')?.trim();
+    if (v != null && v.isNotEmpty) {
+      _dotenvOrigin = v.endsWith('/') ? v.substring(0, v.length - 1) : v;
+    }
+  }
+
   static String get _serverOrigin {
     if (_serverOriginOverride.isNotEmpty) {
       return _serverOriginOverride;
+    }
+    if (_dotenvOrigin != null && _dotenvOrigin!.isNotEmpty) {
+      return _dotenvOrigin!;
     }
     if (_env == 'local') {
       if (defaultTargetPlatform == TargetPlatform.android) {
@@ -116,12 +131,17 @@ class AppConfig {
   /// Afficher les infos de configuration
   static void printConfig() {
     if (showDebugLogs) {
+      final dotenvLine = dotenv.maybeGet('DUDU_API_ORIGIN');
+      final override = _serverOriginOverride;
       print('╔══════════════════════════════════════════╗');
       print('║         DUDU PRO (CHAUFFEUR) CONFIG      ║');
       print('╠══════════════════════════════════════════╣');
       print('║ Mode: ${kDebugMode ? "DEBUG" : "RELEASE"}');
       print('║ Platform: ${kIsWeb ? "WEB" : defaultTargetPlatform.toString()}');
-      print('║ API URL: $apiUrl');
+      print('║ ENV (dart-define): $_env');
+      print('║ DUDU_API_ORIGIN (fichier): ${dotenvLine ?? "(vide / non chargé)"}');
+      print('║ SERVER_ORIGIN (dart-define): ${override.isEmpty ? "(aucun)" : override}');
+      print('║ API URL effective: $apiUrl');
       print('║ Socket URL: $socketUrl');
       print('╚══════════════════════════════════════════╝');
     }

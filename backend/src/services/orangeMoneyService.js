@@ -86,8 +86,8 @@ class OrangeMoneyService {
         metadata: {
           orderId: orderId,
           description: description || `Paiement DUDU - ${orderId}`,
-          reference: `DUDU-${orderId}`
-        }
+          reference: orderId,
+        },
       };
 
       // Générer le QR Code
@@ -106,15 +106,25 @@ class OrangeMoneyService {
 
       console.log('✅ QR Code Orange Money généré');
 
+      const rawDl = response.data.deeplinks || response.data.deepLinks || {};
+      const deeplinks = {
+        maxIt: rawDl.maxIt || rawDl.MAX_IT || rawDl.MAXIT || rawDl.maxit,
+        orangeMoney: rawDl.om || rawDl.OM || rawDl.orangeMoney,
+      };
+
+      const providerRef =
+        response.data.transactionId ||
+        response.data.id ||
+        response.data.reference ||
+        response.data.shortCode ||
+        (typeof response.data.qrCode === 'string' ? response.data.qrCode.substring(0, 80) : null);
+
       return {
         success: true,
         qrCode: response.data.qrCode,
         qrCodeUrl: response.data.qrCodeUrl,
-        // Deeplinks pour ouverture directe des apps
-        deeplinks: {
-          maxIt: response.data.deeplinks?.maxIt || response.data.deeplinks?.MAXIT,
-          orangeMoney: response.data.deeplinks?.om || response.data.deeplinks?.OM,
-        },
+        deeplinks,
+        providerReference: providerRef,
         orderId: orderId,
         amount: amount,
         currency: this.currency,
@@ -164,9 +174,17 @@ class OrangeMoneyService {
       console.log('📥 Callback Orange Money reçu:', callbackData);
 
       // Extraire les données du callback
-      const orderId = callbackData.reference || callbackData.metadata?.orderId;
+      const orderId =
+        callbackData.metadata?.orderId ||
+        callbackData.orderId ||
+        callbackData.paymentId ||
+        (typeof callbackData.reference === 'string' && callbackData.reference.startsWith('PAY')
+          ? callbackData.reference
+          : null) ||
+        callbackData.metadata?.reference ||
+        callbackData.reference;
       const status = this.mapStatus(callbackData.status);
-      const transactionId = callbackData.transactionId;
+      const transactionId = callbackData.transactionId || callbackData.transaction_id;
       const amount = callbackData.amount?.value || callbackData.amount;
       
       return {
@@ -178,6 +196,7 @@ class OrangeMoneyService {
         currency: callbackData.amount?.unit || this.currency,
         paidAt: new Date(),
         event: callbackData.type,
+        message: callbackData.message || '',
       };
     } catch (error) {
       console.error('❌ Erreur lors du traitement du callback Orange Money:', error.message);

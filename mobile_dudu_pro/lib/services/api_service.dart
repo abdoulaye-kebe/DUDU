@@ -465,6 +465,59 @@ class ApiService {
     }
   }
 
+  /// Paiement abonnement via API Orange (QR + deeplinks MAX IT / OM).
+  static Future<Map<String, dynamic>> initiateSubscriptionOrangeMoney({
+    required String planType,
+    String? phone,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/mobile-payments/subscription/orange-money/initiate'),
+        headers: _headers,
+        body: jsonEncode({
+          'planType': planType,
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
+        }),
+      );
+
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (decoded is Map<String, dynamic> && decoded['success'] == true) {
+          return decoded;
+        }
+      }
+      final msg = decoded is Map && decoded['message'] != null
+          ? decoded['message'].toString()
+          : 'Erreur initiation paiement Orange';
+      throw Exception(msg);
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur réseau: $e');
+    }
+  }
+
+  /// Statut d’un paiement (polling après MAX IT).
+  static Future<String?> getPaymentStatus(String paymentMongoId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/mobile-payments/$paymentMongoId/status'),
+        headers: _headers,
+      );
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200 &&
+          decoded is Map<String, dynamic> &&
+          decoded['success'] == true) {
+        final data = decoded['data'];
+        if (data is Map && data['status'] != null) {
+          return data['status'].toString();
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // Abonnements - Achat
   static Future<Map<String, dynamic>> purchaseSubscription({
     required String planType,

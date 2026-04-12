@@ -15,8 +15,8 @@ class AppConfig {
   // CONFIGURATION DES URLS
   // ============================================
 
-  /// URL du serveur de production (AWS)
-  static const String productionServerUrl = 'http://213.154.90.11:3000';
+  /// URL du serveur de production (HTTPS, même origine que les webhooks)
+  static const String productionServerUrl = 'https://www.dudugroup.sn';
   
   /// URL du serveur local
   static const String localServerUrl = 'http://localhost:3000';

@@ -29,6 +29,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   crypto: ^3.0.5
   flutter_tts: ^4.2.0
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -39,6 +40,7 @@ flutter:
   uses-material-design: true
   
   assets:
+    - assets/config/app.env
     - assets/images/logo_dudu_off.png
     - assets/images/payments/
     - assets/images/vehicles/

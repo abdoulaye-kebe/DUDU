@@ -121,18 +121,11 @@ class WaveService {
   }
 
   /**
-   * Traiter la notification webhook
-   * @param {Object} webhookData - Données du webhook
-   * @param {string} signature - Signature du webhook
+   * Traite le JSON du webhook après vérification HMAC sur le corps brut (route HTTP).
+   * @param {Object} webhookData - Données parsées du webhook
    */
-  async handleWebhook(webhookData, signature) {
+  async handleWebhook(webhookData) {
     try {
-      // Vérifier la signature du webhook
-      const isValid = this.verifyWebhookSignature(webhookData, signature);
-      if (!isValid) {
-        throw new Error('Signature du webhook invalide');
-      }
-
       const status = this.mapStatus(webhookData.status);
       
       return {

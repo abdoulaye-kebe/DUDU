@@ -142,7 +142,7 @@ const paymentSchema = new mongoose.Schema({
     }
   },
   
-  // Métadonnées
+  // Métadonnées (paiements mobile / abonnements)
   metadata: {
     ipAddress: String,
     userAgent: String,
@@ -151,7 +151,10 @@ const paymentSchema = new mongoose.Schema({
       latitude: Number,
       longitude: Number,
       address: String
-    }
+    },
+    type: String,
+    subscriptionId: String,
+    planType: String,
   },
   
   // Notifications

@@ -9,24 +9,23 @@ module.exports = {
     // Mode: 'sandbox' pour les tests, 'production' pour la prod
     mode: process.env.ORANGE_MONEY_MODE || 'sandbox',
     
-    // Sandbox (Test)
+    // Sandbox (Test) — OAuth: client_id / client_secret (portail développeur) ; Mercode = code marchand QR
     sandbox: {
-      apiUrl: 'https://api.sandbox.orange-sonatel.com',
-      oauthUrl: 'https://api.sandbox.orange-sonatel.com/oauth/v1/token',
-      merchantKey: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_KEY || 'c98da064-dd7e-4aae-9a80-6bbe4360b8e3',
-      merchantSecret: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_SECRET || 'de8266ac-2a46-42a1-ae26-aa162b5ceafd',
-      merchantCode: process.env.ORANGE_MONEY_SANDBOX_MERCHANT_CODE || '599242',
+      apiUrl: process.env.ORANGE_SONATEL_API_BASE || 'https://api.sandbox.orange-sonatel.com',
+      oauthUrl: process.env.ORANGE_SONATEL_OAUTH_URL || 'https://api.sandbox.orange-sonatel.com/oauth/v1/token',
+      merchantKey: process.env.ORANGE_SONATEL_CLIENT_ID || process.env.ORANGE_MONEY_SANDBOX_MERCHANT_KEY || '',
+      merchantSecret: process.env.ORANGE_SONATEL_CLIENT_SECRET || process.env.ORANGE_MONEY_SANDBOX_MERCHANT_SECRET || '',
+      merchantCode: process.env.ORANGE_SONATEL_MERCODE || process.env.ORANGE_MONEY_SANDBOX_MERCHANT_CODE || '599242',
       callbackUrl: process.env.ORANGE_MONEY_SANDBOX_CALLBACK_URL || 'http://localhost:3000/api/v1/mobile-payments/orange-money/callback',
     },
     
-    // Production
     production: {
-      apiUrl: 'https://api.orange-sonatel.com',
-      oauthUrl: 'https://api.orange-sonatel.com/oauth/v1/token',
-      merchantKey: process.env.ORANGE_MONEY_MERCHANT_KEY || 'c98da064-dd7e-4aae-9a80-6bbe4360b8e3',
-      merchantSecret: process.env.ORANGE_MONEY_MERCHANT_SECRET || 'de8266ac-2a46-42a1-ae26-aa162b5ceafd',
-      merchantCode: process.env.ORANGE_MONEY_MERCHANT_CODE || '599242',
-      merchantPhone: process.env.ORANGE_MONEY_MERCHANT_PHONE || '777438796',
+      apiUrl: process.env.ORANGE_SONATEL_API_BASE || 'https://api.orange-sonatel.com',
+      oauthUrl: process.env.ORANGE_SONATEL_OAUTH_URL || 'https://api.orange-sonatel.com/oauth/v1/token',
+      merchantKey: process.env.ORANGE_SONATEL_CLIENT_ID || process.env.ORANGE_MONEY_MERCHANT_KEY || '',
+      merchantSecret: process.env.ORANGE_SONATEL_CLIENT_SECRET || process.env.ORANGE_MONEY_MERCHANT_SECRET || '',
+      merchantCode: process.env.ORANGE_SONATEL_MERCODE || process.env.ORANGE_MONEY_MERCHANT_CODE || '',
+      merchantPhone: process.env.ORANGE_SONATEL_MSISDN || process.env.ORANGE_MONEY_MERCHANT_PHONE || '',
       callbackUrl: process.env.ORANGE_MONEY_CALLBACK_URL || 'https://www.dudugroup.sn/api/v1/mobile-payments/orange-money/callback',
     },
     

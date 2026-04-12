@@ -4,8 +4,42 @@ const Payment = require('../models/Payment');
 const Ride = require('../models/Ride');
 const orangeMoneyService = require('../services/orangeMoneyService');
 const waveService = require('../services/waveService');
-const { auth, requireVerification } = require('../middleware/auth');
+const { auth, requireVerification, requireDriver } = require('../middleware/auth');
+const Subscription = require('../models/Subscription');
 const router = express.Router();
+
+/**
+ * Active l’abonnement chauffeur/livreur après paiement Orange (callback ou polling).
+ */
+async function activateDriverSubscriptionFromPayment(payment) {
+  if (payment.status !== 'completed' || payment.metadata?.type !== 'subscription' || !payment.driver) {
+    return;
+  }
+  const Driver = require('../models/Driver');
+  const driver = await Driver.findById(payment.driver);
+  if (!driver) return;
+
+  const planType = payment.metadata.planType || 'monthly';
+  let durationDays = 30;
+  if (planType === 'daily') durationDays = 1;
+  else if (planType === 'weekly') durationDays = 7;
+
+  driver.subscription = driver.subscription || {};
+  driver.subscription.plan = planType;
+  driver.subscription.startDate = new Date();
+  driver.subscription.endDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+  driver.subscription.isActive = true;
+
+  await driver.save();
+  console.log(`✅ Abonnement ${planType} activé pour le chauffeur ${driver._id} (paiement ${payment.paymentId})`);
+}
+
+function canAccessPayment(req, payment) {
+  const uid = req.userId.toString();
+  if (payment.user && payment.user.toString() === uid) return true;
+  if (payment.driver && payment.driver.toString() === uid) return true;
+  return false;
+}
 
 // @route   POST /api/v1/mobile-payments/orange-money/initiate
 // @desc    Initier un paiement Orange Money
@@ -69,13 +103,11 @@ router.post('/orange-money/initiate', [
     const omPayment = await orangeMoneyService.initiatePayment({
       orderId: payment.paymentId,
       amount: amount,
-      phone: phone,
-      description: ride ? `Course DUDU ${ride.rideId}` : 'Paiement DUDU'
+      description: ride ? `Course DUDU ${ride.rideId}` : 'Paiement DUDU',
     });
 
-    // Mettre à jour le paiement avec les infos Orange Money
-    payment.transaction.externalId = omPayment.paymentToken;
-    payment.status = 'processing';
+    payment.transaction.externalId = omPayment.providerReference || payment.paymentId;
+    payment.transaction.provider = 'orange_money';
     payment.updateStatus('processing', 'Paiement Orange Money initié', 'system');
     await payment.save();
 
@@ -213,7 +245,7 @@ router.get('/:id/status', auth, async (req, res) => {
       });
     }
 
-    if (payment.user.toString() !== req.userId.toString()) {
+    if (!canAccessPayment(req, payment)) {
       return res.status(403).json({
         success: false,
         message: 'Accès non autorisé'
@@ -272,6 +304,9 @@ router.get('/:id/status', auth, async (req, res) => {
             ride.payment.paidAt = new Date();
             await ride.save();
           }
+        }
+        if (providerStatus.status === 'completed' && payment.metadata?.type === 'subscription') {
+          await activateDriverSubscriptionFromPayment(payment);
         }
       }
       
@@ -334,36 +369,8 @@ router.post('/orange-money/callback', async (req, res) => {
       }
     }
     
-    // Si c'est un paiement d'abonnement
     if (result.status === 'completed' && payment.metadata?.type === 'subscription') {
-      const Driver = require('../models/Driver');
-      const driver = await Driver.findById(payment.driver);
-      
-      if (driver) {
-        const subscriptionId = payment.metadata.subscriptionId;
-        
-        // Déterminer la durée selon le type d'abonnement
-        let durationDays = 30; // Par défaut mensuel
-        let planType = 'monthly';
-        
-        if (subscriptionId.includes('daily')) {
-          durationDays = 1;
-          planType = 'daily';
-        } else if (subscriptionId.includes('weekly')) {
-          durationDays = 7;
-          planType = 'weekly';
-        }
-        
-        // Activer l'abonnement
-        driver.subscription.plan = planType;
-        driver.subscription.startDate = new Date();
-        driver.subscription.endDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
-        driver.subscription.isActive = true;
-        
-        await driver.save();
-        
-        console.log(`✅ Abonnement ${planType} activé pour le chauffeur ${driver._id} via Orange Money`);
-      }
+      await activateDriverSubscriptionFromPayment(payment);
     }
     
     await payment.save();
@@ -399,7 +406,7 @@ router.post('/wave/webhook', express.raw({ type: 'application/json' }), async (r
     const webhookData = JSON.parse(rawBody);
     
     // Traiter le webhook
-    const result = await waveService.handleWebhook(webhookData, signature);
+    const result = await waveService.handleWebhook(webhookData);
     
     // Trouver le paiement
     const payment = await Payment.findOne({ paymentId: result.orderId });
@@ -472,66 +479,98 @@ router.post('/wave/webhook', express.raw({ type: 'application/json' }), async (r
 });
 
 // @route   POST /api/v1/mobile-payments/subscription/orange-money/initiate
-// @desc    Initier un paiement d'abonnement via Orange Money
-// @access  Private
-router.post('/subscription/orange-money/initiate', auth, async (req, res) => {
+// @desc    Initier un paiement d'abonnement chauffeur/livreur (QR Orange + deeplinks MAX IT / OM)
+// @access  Private (chauffeur)
+router.post('/subscription/orange-money/initiate', auth, requireDriver, async (req, res) => {
   try {
-    const { subscriptionId, amount, phone } = req.body;
+    const { planType, phone } = req.body;
 
-    if (!subscriptionId || !amount || !phone) {
+    if (!planType || !['daily', 'weekly', 'monthly'].includes(planType)) {
       return res.status(400).json({
         success: false,
-        message: 'Données manquantes (subscriptionId, amount, phone requis)'
+        message: 'planType requis : daily, weekly ou monthly',
       });
     }
 
+    const driver = req.driver;
+    const vehicleType = driver.vehicle?.category === 'moto' ? 'moto' : 'car';
+    const plans = Subscription.getAvailablePlans();
+    const plan = plans.find((p) => p.type === planType);
+
+    if (!plan || !plan.vehicleTypes.includes(vehicleType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce forfait n\'est pas disponible pour votre véhicule',
+      });
+    }
+
+    if (vehicleType === 'moto' && planType !== 'daily') {
+      return res.status(400).json({
+        success: false,
+        message: 'Les livreurs moto ne peuvent souscrire qu\'au forfait journalier',
+      });
+    }
+
+    const amount = plan.price;
+    const subscriptionMetaId = `sub_${planType}_${driver._id}_${Date.now()}`;
+
     const payment = new Payment({
-      user: req.userId,
-      driver: req.userId,
+      user: driver.user || driver._id,
+      driver: driver._id,
+      type: 'subscription',
       amount,
       currency: 'XOF',
       method: 'orange_money',
       status: 'pending',
-      description: `Paiement abonnement - ${subscriptionId}`,
       metadata: {
-        subscriptionId,
-        type: 'subscription'
-      }
+        type: 'subscription',
+        subscriptionId: subscriptionMetaId,
+        planType,
+      },
     });
+
+    if (phone) {
+      payment.mobileMoney = {
+        phone: String(phone).replace(/\s/g, ''),
+        operator: 'orange',
+      };
+    }
 
     await payment.save();
 
     const omPayment = await orangeMoneyService.initiatePayment({
       orderId: payment.paymentId,
       amount,
-      description: `Abonnement DUDU - ${subscriptionId}`
+      description: `Abonnement DUDU — ${plan.name}`,
     });
 
-    payment.transaction.externalId = omPayment.qrCode;
-    payment.mobileMoney.provider = 'orange_money';
-    payment.mobileMoney.phoneNumber = phone;
+    payment.transaction.externalId = omPayment.providerReference || payment.paymentId;
+    payment.transaction.provider = 'orange_money';
+    payment.updateStatus('processing', 'Paiement Orange / MAX IT initié', 'system');
     await payment.save();
 
     res.json({
       success: true,
-      message: 'Paiement d\'abonnement Orange Money initié avec succès',
+      message: 'Paiement initié — ouvrez MAX IT ou Orange Money pour finaliser',
       data: {
-        paymentId: payment.paymentId,
+        paymentMongoId: payment._id,
+        paymentReference: payment.paymentId,
         qrCode: omPayment.qrCode,
         qrCodeUrl: omPayment.qrCodeUrl,
         deeplinks: omPayment.deeplinks,
         amount: omPayment.amount,
         currency: omPayment.currency,
-        expiresAt: omPayment.expiresAt
-      }
+        expiresAt: omPayment.expiresAt,
+        planType,
+        planName: plan.name,
+      },
     });
-
   } catch (error) {
     console.error('Erreur lors de l\'initiation du paiement d\'abonnement OM:', error);
     res.status(500).json({
       success: false,
       message: 'Erreur lors de l\'initiation du paiement',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -628,7 +667,7 @@ router.post('/:id/cancel', auth, async (req, res) => {
       });
     }
 
-    if (payment.user.toString() !== req.userId.toString()) {
+    if (!canAccessPayment(req, payment)) {
       return res.status(403).json({
         success: false,
         message: 'Accès non autorisé'

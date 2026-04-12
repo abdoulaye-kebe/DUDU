@@ -27,7 +27,11 @@ const io = new Server(server, {
           'https://dudugroup.sn',
           'http://dudugroup.sn',
           'https://www.dudugroup.sn',
-          'http://www.dudugroup.sn'
+          'http://www.dudugroup.sn',
+          'https://admin.dudugroup.sn',
+          'http://admin.dudugroup.sn',
+          'https://www.admin.dudugroup.sn',
+          'http://www.admin.dudugroup.sn',
         ]
       : true,
     methods: ["GET", "POST"],
@@ -44,12 +48,16 @@ app.use(morgan('combined'));
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? [
-        'https://dudu.sn', 
+        'https://dudu.sn',
         'https://admin.dudu.sn',
         'https://dudugroup.sn',
         'http://dudugroup.sn',
         'https://www.dudugroup.sn',
-        'http://www.dudugroup.sn'
+        'http://www.dudugroup.sn',
+        'https://admin.dudugroup.sn',
+        'http://admin.dudugroup.sn',
+        'https://www.admin.dudugroup.sn',
+        'http://www.admin.dudugroup.sn',
       ] 
     : true, // Autoriser toutes les origines en dev
   credentials: true
