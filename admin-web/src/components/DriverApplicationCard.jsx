@@ -14,10 +14,11 @@ import {
   Star,
   Zap,
   ClipboardCheck,
-  MessageSquare
+  MessageSquare,
+  Trash2
 } from 'lucide-react';
 
-function DriverApplicationCard({ driver, onApprove, onReject, delay = 0 }) {
+function DriverApplicationCard({ driver, onApprove, onReject, onDeleteRecord, delay = 0 }) {
   const [showValidationForm, setShowValidationForm] = useState(false);
   const [validationData, setValidationData] = useState({
     serviceLevel: 'standard',
@@ -395,7 +396,7 @@ function DriverApplicationCard({ driver, onApprove, onReject, delay = 0 }) {
 
       {/* Footer */}
       {!showValidationForm && (
-        <div className="application-card-footer">
+        <div className="application-card-footer" style={{ flexWrap: 'wrap', gap: 8 }}>
           <motion.button 
             className="btn btn-danger"
             onClick={() => onReject(driver._id)}
@@ -414,6 +415,24 @@ function DriverApplicationCard({ driver, onApprove, onReject, delay = 0 }) {
             <Check size={18} />
             Valider
           </motion.button>
+          {typeof onDeleteRecord === 'function' && (
+            <motion.button
+              type="button"
+              className="btn"
+              title="Supprimer définitivement le dossier (base de données)"
+              onClick={() => onDeleteRecord(driver)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              style={{
+                background: '#fff',
+                color: '#b91c1c',
+                border: '2px solid #fecaca',
+              }}
+            >
+              <Trash2 size={18} />
+              Supprimer le compte
+            </motion.button>
+          )}
         </div>
       )}
     </motion.div>

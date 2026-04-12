@@ -116,7 +116,7 @@ function AddDriverModal({ isOpen, onClose, onCreated }) {
             <div>
               <h2 className="modal-title">Ajouter un chauffeur</h2>
               <p style={{ fontSize: 14, color: 'var(--gray-500)', marginTop: 4 }}>
-                Compte approuvé immédiatement (équipe interne)
+                Chauffeur VTC ou livreur moto — compte créé déjà validé (sans passer par l’app Pro).
               </p>
             </div>
           </div>

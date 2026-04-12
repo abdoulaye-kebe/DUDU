@@ -176,6 +176,38 @@ function DriversPremium({ navbarSearch = '' }) {
     }
   };
 
+  const handleDeleteDriver = async (driver) => {
+    const id = driver._id || driver.id;
+    if (!id) return;
+    const moto = driver.vehicle?.category === 'moto';
+    const profil = moto ? 'ce livreur moto' : 'ce chauffeur';
+    if (
+      !window.confirm(
+        `Supprimer définitivement le compte de ${profil} (${driver.firstName || ''} ${driver.lastName || ''}) ?\n\n` +
+          'Les données associées peuvent empêcher la suppression (courses, paiements). Cette action est irréversible.'
+      )
+    ) {
+      return;
+    }
+    try {
+      const token = localStorage.getItem('admin_token');
+      const response = await fetch(`${API_BASE_URL}/admin/drivers/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || `Erreur ${response.status}`);
+      }
+      await loadData();
+    } catch (err) {
+      console.error('Erreur suppression chauffeur:', err);
+      alert(err.message || 'Impossible de supprimer ce compte (références en base ou droits).');
+    }
+  };
+
   const approvedColumns = [
     {
       key: '_profile',
@@ -296,7 +328,7 @@ function DriversPremium({ navbarSearch = '' }) {
           <div className="page-title-section">
             <h1 className="page-title">Gestion des Chauffeurs</h1>
             <p className="page-subtitle">
-              Validez les inscriptions et gérez les chauffeurs DUDU Pro
+              Inscription chauffeur (VTC) ou livreur (moto) depuis l’app Pro ; ici vous validez, ajoutez ou supprimez un compte.
             </p>
           </div>
           <div className="page-actions">
@@ -469,6 +501,7 @@ function DriversPremium({ navbarSearch = '' }) {
                     driver={driver}
                     onApprove={(id, validationData) => handleDecision(id, 'approved', validationData)}
                     onReject={(id) => handleDecision(id, 'rejected')}
+                    onDeleteRecord={(d) => handleDeleteDriver(d)}
                     delay={index * 0.1}
                   />
                 ))}
@@ -503,6 +536,7 @@ function DriversPremium({ navbarSearch = '' }) {
               }}
               editLabel="Modifier mot de passe"
               editIcon={Key}
+              onDelete={(driver) => handleDeleteDriver(driver)}
             />
           </motion.div>
         )}
