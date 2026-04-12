@@ -20,6 +20,9 @@ function DataTable({
   actions = true,
   searchable = true,
   filterable = true,
+  /** (row) => string — recherche sur prénom, téléphone, véhicule, etc. */
+  searchText,
+  onExport,
   onView,
   onEdit,
   onDelete,
@@ -31,10 +34,14 @@ function DataTable({
 
   const filteredData = data.filter(row => {
     if (!searchTerm) return true;
+    const q = searchTerm.toLowerCase();
+    if (typeof searchText === 'function') {
+      return (searchText(row) || '').toLowerCase().includes(q);
+    }
     return columns.some(col => {
       const value = row[col.key];
       if (typeof value === 'string') {
-        return value.toLowerCase().includes(searchTerm.toLowerCase());
+        return value.toLowerCase().includes(q);
       }
       return false;
     });
@@ -67,6 +74,7 @@ function DataTable({
           )}
           {filterable && (
             <motion.button 
+              type="button"
               className="btn btn-secondary btn-sm"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -75,14 +83,18 @@ function DataTable({
               Filtrer
             </motion.button>
           )}
-          <motion.button 
-            className="btn btn-secondary btn-sm"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Download size={16} />
-            Exporter
-          </motion.button>
+          {onExport && (
+            <motion.button 
+              type="button"
+              className="btn btn-secondary btn-sm"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onExport}
+            >
+              <Download size={16} />
+              Exporter
+            </motion.button>
+          )}
         </div>
       </div>
 

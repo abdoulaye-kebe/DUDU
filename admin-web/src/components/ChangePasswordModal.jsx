@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 function ChangePasswordModal({ isOpen, onClose, driver, onPasswordChanged }) {
   const [newPassword, setNewPassword] = useState('');
@@ -27,7 +28,7 @@ function ChangePasswordModal({ isOpen, onClose, driver, onPasswordChanged }) {
       setLoading(true);
       const token = localStorage.getItem('admin_token');
       
-      const response = await fetch(`/api/v1/admin/drivers/${driver._id}/password`, {
+      const response = await fetch(`${API_BASE_URL}/admin/drivers/${driver._id}/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

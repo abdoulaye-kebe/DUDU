@@ -307,10 +307,12 @@ router.post('/apply', [
         criminalRecord: documents.criminalRecord,
       },
       rideTypes: {
-        standard: rideTypes.standard ?? true,
-        express: rideTypes.express ?? false,
-        shared: rideTypes.shared ?? false,
-        womenOnly: rideTypes.womenOnly ?? false
+        standard: true,
+        comfort: rideTypes.comfort ?? rideTypes.express ?? false,
+        luxe: rideTypes.luxe ?? false,
+        delivery: normalizedVehicleCategory === 'moto',
+        moto: normalizedVehicleCategory === 'moto',
+        women_only: rideTypes.women_only ?? rideTypes.womenOnly ?? false
       },
       preferences: {
         maxDistance: preferences.maxDistance ?? 10,

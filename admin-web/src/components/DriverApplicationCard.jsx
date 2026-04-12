@@ -87,7 +87,19 @@ function DriverApplicationCard({ driver, onApprove, onReject, delay = 0 }) {
             </div>
           </div>
         </div>
-        <span className="badge badge-warning">En attente</span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          <span
+            className="badge"
+            style={{
+              background: driver.vehicle?.category === 'moto' ? '#0ea5e9' : '#00A651',
+              color: '#fff',
+              fontWeight: 600
+            }}
+          >
+            {driver.vehicle?.category === 'moto' ? 'Livreur moto' : 'Chauffeur VTC'}
+          </span>
+          <span className="badge badge-warning">En attente</span>
+        </div>
       </div>
 
       {/* Body */}

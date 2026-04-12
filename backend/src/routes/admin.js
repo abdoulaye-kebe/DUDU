@@ -9,6 +9,21 @@ const Subscription = require('../models/Subscription');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
+const normalizePhoneNumber = (phone) => {
+  if (!phone) return null;
+  let normalized = phone.toString().trim().replace(/\s+/g, '');
+  if (normalized.startsWith('+')) {
+    normalized = '+' + normalized.slice(1).replace(/\D/g, '');
+  } else {
+    normalized = normalized.replace(/\D/g, '');
+  }
+  if (normalized.startsWith('+221')) return normalized;
+  if (normalized.startsWith('221')) return `+${normalized}`;
+  if (normalized.length === 9) return `+221${normalized}`;
+  if (!normalized.startsWith('+') && normalized.length > 0) return `+${normalized}`;
+  return normalized;
+};
+
 // @route   POST /api/v1/admin/login
 // @desc    Login admin
 // @access  Public
@@ -787,8 +802,11 @@ router.post('/drivers', async (req, res) => {
       address, driverLicense, vehicle, rideTypes, preferences, subscription
     } = req.body;
 
+    const normalizedPhone = normalizePhoneNumber(phone);
+    const emailNorm = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
     // Validation des champs requis
-    if (!firstName || !lastName || !phone || !email) {
+    if (!firstName || !lastName || !normalizedPhone || !emailNorm) {
       return res.status(400).json({
         success: false,
         message: 'Les champs prénom, nom, téléphone et email sont requis'
@@ -797,7 +815,7 @@ router.post('/drivers', async (req, res) => {
 
     // Vérifier si le chauffeur existe déjà
     const existingDriver = await Driver.findOne({
-      $or: [{ phone }, { email }, { 'driverLicense.number': driverLicense?.number }]
+      $or: [{ phone: normalizedPhone }, { email: emailNorm }, { 'driverLicense.number': driverLicense?.number }]
     });
 
     if (existingDriver) {
@@ -807,32 +825,43 @@ router.post('/drivers', async (req, res) => {
       });
     }
 
+    const vCat = vehicle?.category === 'moto' ? 'moto' : 'car';
+    const mergedRideTypes = {
+      standard: true,
+      comfort: rideTypes?.comfort ?? rideTypes?.express ?? false,
+      luxe: rideTypes?.luxe ?? false,
+      delivery: vCat === 'moto',
+      moto: vCat === 'moto',
+      women_only: rideTypes?.women_only ?? rideTypes?.womenOnly ?? false
+    };
+
     // Utiliser le mot de passe fourni ou générer un par défaut
-    const driverPassword = password || `dudu${phone.slice(-4)}`;
+    const driverPassword = password || `dudu${normalizedPhone.slice(-4)}`;
 
     // Créer le chauffeur (le mot de passe sera hashé automatiquement par le middleware pre-save)
     const driver = new Driver({
       firstName,
       lastName,
-      phone,
-      email,
+      phone: normalizedPhone,
+      email: emailNorm,
       password: driverPassword,
-      dateOfBirth,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
       gender,
       nationalId,
       address,
-      driverLicense,
+      driverLicense: driverLicense
+        ? {
+            ...driverLicense,
+            expiryDate: driverLicense.expiryDate ? new Date(driverLicense.expiryDate) : undefined,
+            issueDate: driverLicense.issueDate ? new Date(driverLicense.issueDate) : undefined
+          }
+        : undefined,
       vehicle,
-      rideTypes: rideTypes || {
-        standard: true,
-        express: false,
-        shared: false,
-        womenOnly: false
-      },
+      rideTypes: mergedRideTypes,
       preferences: preferences || {
         maxDistance: 10,
         minPrice: 1000,
-        acceptsShared: false
+        acceptSharedRides: false
       },
       status: 'offline',
       isAvailable: false,

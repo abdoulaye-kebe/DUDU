@@ -142,18 +142,30 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
       setState(() => _errorMessage = 'Vous devez accepter les conditions d\'utilisation.');
       return;
     }
+    if (_dateOfBirth == null ||
+        _licenseExpiry == null ||
+        _insuranceExpiry == null ||
+        _technicalInspectionExpiry == null) {
+      setState(() {
+        _errorMessage =
+            'Veuillez renseigner toutes les dates obligatoires (naissance, permis, assurance, contrôle technique).';
+      });
+      return;
+    }
 
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
     });
 
+    String isoDay(DateTime d) => DateTime(d.year, d.month, d.day).toIso8601String();
+
     final payload = <String, dynamic>{
       'firstName': _firstNameController.text.trim(),
       'lastName': _lastNameController.text.trim(),
       'phone': _phoneController.text.trim(),
       'password': _passwordController.text.trim(),
-      'dateOfBirth': _dateOfBirth?.toIso8601String().split('T')[0],
+      'dateOfBirth': isoDay(_dateOfBirth!),
       'gender': _gender,
       'nationalId': _nationalIdController.text.trim(),
       'address': {
@@ -163,15 +175,14 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
       },
       'driverLicense': {
         'number': _licenseNumberController.text.trim(),
-        'expiryDate': _licenseExpiry?.toIso8601String().split('T')[0],
+        'expiryDate': isoDay(_licenseExpiry!),
         'category': _isMotoCourier ? 'A' : 'B',
       },
       'documents': {
         'insurance': _insuranceController.text.trim(),
-        'insuranceExpiryDate': _insuranceExpiry?.toIso8601String().split('T')[0],
+        'insuranceExpiryDate': isoDay(_insuranceExpiry!),
         'technicalInspection': _technicalInspectionController.text.trim(),
-        'technicalInspectionExpiryDate':
-            _technicalInspectionExpiry?.toIso8601String().split('T')[0],
+        'technicalInspectionExpiryDate': isoDay(_technicalInspectionExpiry!),
       },
       'vehicle': {
         'make': _vehicleMakeController.text.trim(),

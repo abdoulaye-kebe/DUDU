@@ -4,6 +4,7 @@ import DriverApplicationCard from '../components/DriverApplicationCard';
 import DataTable from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
+import AddDriverModal from '../components/AddDriverModal';
 import { API_BASE_URL } from '../config';
 import { 
   UserCheck, 
@@ -12,7 +13,6 @@ import {
   XCircle,
   RefreshCw,
   Plus,
-  Filter,
   Users,
   Car,
   Phone,
@@ -30,6 +30,7 @@ function DriversPremium() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [driverForPasswordChange, setDriverForPasswordChange] = useState(null);
+  const [addDriverOpen, setAddDriverOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -47,12 +48,29 @@ function DriversPremium() {
       };
 
       const [pendingRes, approvedRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/admin/driver-applications`, { headers }).then(r => r.json()),
-        fetch(`${API_BASE_URL}/admin/drivers?verificationStatus=approved&limit=50`, { headers }).then(r => r.json())
+        fetch(`${API_BASE_URL}/admin/driver-applications`, { headers }),
+        fetch(`${API_BASE_URL}/admin/drivers?verificationStatus=approved&limit=200`, { headers })
       ]);
 
-      setPending(pendingRes.applications || []);
-      setApproved(approvedRes.drivers || []);
+      const pendingJson = await pendingRes.json();
+      const approvedJson = await approvedRes.json();
+
+      const errs = [];
+      if (!pendingRes.ok) {
+        setPending([]);
+        errs.push(pendingJson.message || `Erreur candidatures (${pendingRes.status})`);
+      } else {
+        setPending(pendingJson.applications || []);
+      }
+
+      if (!approvedRes.ok) {
+        setApproved([]);
+        errs.push(approvedJson.message || `Erreur liste chauffeurs (${approvedRes.status})`);
+      } else {
+        setApproved(approvedJson.drivers || []);
+      }
+
+      setError(errs.length ? errs.join(' — ') : '');
     } catch (err) {
       console.error('Erreur chargement chauffeurs:', err);
       setError(err.message || 'Impossible de charger les données');
@@ -60,6 +78,54 @@ function DriversPremium() {
       setLoading(false);
     }
   };
+
+  const exportApprovedCsv = () => {
+    const headers = ['Prénom', 'Nom', 'Téléphone', 'Email', 'Profil', 'Véhicule', 'Plaque', 'Niveau', 'Courses'];
+    const rows = approved.map((d) => {
+      const moto = d.vehicle?.category === 'moto';
+      const profil = moto ? 'Livreur moto' : 'Chauffeur VTC';
+      const veh = `${d.vehicle?.make || ''} ${d.vehicle?.model || ''}`.trim();
+      const level =
+        d.rideTypes?.women_only === true
+          ? 'Femme'
+          : d.serviceLevel === 'express'
+            ? 'Comfort+'
+            : 'Standard';
+      return [
+        d.firstName || '',
+        d.lastName || '',
+        d.phone || '',
+        d.email || '',
+        profil,
+        veh,
+        d.vehicle?.plateNumber || '',
+        level,
+        d.stats?.totalRides ?? 0
+      ];
+    });
+    const esc = (c) => `"${String(c).replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows].map((line) => line.map(esc).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `dudu-chauffeurs-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const approvedSearchText = (row) =>
+    [
+      row.firstName,
+      row.lastName,
+      row.phone,
+      row.email,
+      row.nationalId,
+      row.vehicle?.make,
+      row.vehicle?.model,
+      row.vehicle?.plateNumber
+    ]
+      .filter(Boolean)
+      .join(' ');
 
   const handleDecision = async (driverId, decision, validationData = null) => {
     // Si c'est un rejet, demander confirmation
@@ -111,6 +177,25 @@ function DriversPremium() {
   };
 
   const approvedColumns = [
+    {
+      key: '_profile',
+      label: 'Profil',
+      render: (_, row) => {
+        const moto = row.vehicle?.category === 'moto';
+        return (
+          <span
+            className="badge badge-info"
+            style={{
+              background: moto ? '#0ea5e9' : '#00A651',
+              color: '#fff',
+              fontWeight: 600
+            }}
+          >
+            {moto ? 'Livreur moto' : 'Chauffeur VTC'}
+          </span>
+        );
+      }
+    },
     {
       key: 'name',
       label: 'Chauffeur',
@@ -225,9 +310,11 @@ function DriversPremium() {
               Actualiser
             </motion.button>
             <motion.button 
+              type="button"
               className="btn btn-primary"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              onClick={() => setAddDriverOpen(true)}
             >
               <Plus size={18} />
               Ajouter un chauffeur
@@ -402,6 +489,9 @@ function DriversPremium() {
               columns={approvedColumns}
               data={approved}
               emptyMessage="Aucun chauffeur approuvé"
+              filterable={false}
+              searchText={approvedSearchText}
+              onExport={exportApprovedCsv}
               onView={(driver) => {
                 setSelectedDriver(driver);
                 setIsModalOpen(true);
@@ -437,6 +527,12 @@ function DriversPremium() {
         }}
         driver={driverForPasswordChange}
         onPasswordChanged={loadData}
+      />
+
+      <AddDriverModal
+        isOpen={addDriverOpen}
+        onClose={() => setAddDriverOpen(false)}
+        onCreated={loadData}
       />
     </div>
   );

@@ -95,8 +95,18 @@ function DetailModal({ isOpen, onClose, data, type }) {
         </h4>
         <div className="modal-grid">
           <div className="modal-field">
+            <span className="modal-label">Profil</span>
+            <span className="modal-value">
+              {data.vehicle?.category === 'moto' ? 'Livreur moto (livraison)' : 'Chauffeur VTC (voiture)'}
+            </span>
+          </div>
+          <div className="modal-field">
             <span className="modal-label">Nom complet</span>
             <span className="modal-value">{data.firstName} {data.lastName}</span>
+          </div>
+          <div className="modal-field">
+            <span className="modal-label">CNI</span>
+            <span className="modal-value">{data.nationalId || '—'}</span>
           </div>
           <div className="modal-field">
             <span className="modal-label">Email</span>
@@ -111,6 +121,10 @@ function DetailModal({ isOpen, onClose, data, type }) {
             <span className="modal-value">
               {data.gender === 'male' ? 'Homme' : data.gender === 'female' ? 'Femme' : 'Non spécifié'}
             </span>
+          </div>
+          <div className="modal-field">
+            <span className="modal-label">Vérification</span>
+            <span className="modal-value">{data.verificationStatus || '—'}</span>
           </div>
         </div>
       </div>
@@ -136,6 +150,15 @@ function DetailModal({ isOpen, onClose, data, type }) {
           <div className="modal-field">
             <span className="modal-label">Plaque</span>
             <span className="modal-value">{data.vehicle?.plateNumber}</span>
+          </div>
+          <div className="modal-field">
+            <span className="modal-label">Permis</span>
+            <span className="modal-value">
+              {data.driverLicense?.number || '—'}
+              {data.driverLicense?.expiryDate
+                ? ` (exp. ${formatDate(data.driverLicense.expiryDate)})`
+                : ''}
+            </span>
           </div>
         </div>
       </div>
@@ -299,13 +322,16 @@ function DetailModal({ isOpen, onClose, data, type }) {
               >
                 Fermer
               </motion.button>
-              <motion.button
-                className="btn btn-primary"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                Modifier
-              </motion.button>
+              {type !== 'driver' && (
+                <motion.button
+                  type="button"
+                  className="btn btn-primary"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Modifier
+                </motion.button>
+              )}
             </div>
           </motion.div>
         </>
