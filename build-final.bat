@@ -60,6 +60,7 @@ echo Copie des APKs...
 if not exist "backend\public\downloads" mkdir "backend\public\downloads"
 
 copy /Y "dudu_flutter\build\app\outputs\flutter-apk\app-release.apk" "backend\public\downloads\dudu-client.apk"
+copy /Y "mobile_dudu_pro\build\app\outputs\flutter-apk\app-release.apk" "backend\public\downloads\dudu-pro.apk"
 copy /Y "mobile_dudu_pro\build\app\outputs\flutter-apk\app-release.apk" "backend\public\downloads\dudu-driver.apk"
 
 echo.
@@ -69,7 +70,8 @@ echo ========================================
 echo.
 echo APKs generes:
 echo - Client:    backend\public\downloads\dudu-client.apk
-echo - Chauffeur: backend\public\downloads\dudu-driver.apk
+echo - Pro (site): backend\public\downloads\dudu-pro.apk
+echo - Chauffeur:  backend\public\downloads\dudu-driver.apk
 echo.
 echo Telechargement:
 echo - Client:    http://213.154.90.11:3000/download-client.html

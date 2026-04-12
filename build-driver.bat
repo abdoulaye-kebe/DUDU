@@ -29,9 +29,10 @@ if %ERRORLEVEL% EQU 0 (
     :: Copier vers downloads
     cd ..
     if not exist "backend\public\downloads" mkdir "backend\public\downloads"
+    copy /Y "mobile_dudu_pro\build\app\outputs\flutter-apk\app-release.apk" "backend\public\downloads\dudu-pro.apk"
     copy /Y "mobile_dudu_pro\build\app\outputs\flutter-apk\app-release.apk" "backend\public\downloads\dudu-driver.apk"
     
-    echo APK copie vers: backend\public\downloads\dudu-driver.apk
+    echo APK copie vers: backend\public\downloads\dudu-pro.apk et dudu-driver.apk
     echo Telechargement: http://213.154.90.11:3000/download-driver.html
 ) else (
     echo.
