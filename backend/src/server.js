@@ -40,7 +40,12 @@ const io = new Server(server, {
 });
 
 // Middleware de sécurité
-app.use(helmet());
+// Par défaut Helmet envoie Cross-Origin-Resource-Policy: same-origin, ce qui bloque
+// les réponses XHR/fetch depuis un autre sous-domaine (ex. admin.dudugroup.sn → www.dudugroup.sn).
+// CORS contrôle déjà les origines autorisées.
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(compression());
 app.use(morgan('combined'));
 
