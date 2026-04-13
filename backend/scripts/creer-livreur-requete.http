@@ -1,0 +1,137 @@
+### Variables — adapte l’URL et le token admin si besoin
+@baseUrl = http://localhost:3000/api/v1
+@adminToken = COLLE_TON_JWT_ADMIN_ICI
+
+###############################################################################
+# Option A — Candidature livreur (PUBLIC) : POST /drivers/apply
+# Inclut assurance + contrôle technique (champs requis par la validation).
+# Le livreur moto : vehicle.category = "moto", type "moto_delivery".
+###############################################################################
+
+POST {{baseUrl}}/drivers/apply
+Content-Type: application/json
+
+{
+  "firstName": "Mamadou",
+  "lastName": "Diop",
+  "phone": "+221786205992",
+  "email": "livreur786205992@example.com",
+  "password": "Livreur2026!",
+  "dateOfBirth": "1991-12-10",
+  "gender": "male",
+  "nationalId": "158419900587",
+  "address": {
+    "street": "Parcelles Assainies U15",
+    "city": "Dakar",
+    "region": "Dakar",
+    "country": "Sénégal",
+    "postalCode": "12500"
+  },
+  "driverLicense": {
+    "number": "10792191",
+    "issueDate": "2015-06-01",
+    "expiryDate": "2031-10-06",
+    "category": "A"
+  },
+  "vehicle": {
+    "make": "Honda",
+    "model": "Wave 110",
+    "year": 2022,
+    "color": "Noir",
+    "plateNumber": "AB-909-GT",
+    "category": "moto",
+    "type": "moto_delivery",
+    "capacity": 1,
+    "hasAirConditioning": false,
+    "features": ["large_cargo"]
+  },
+  "documents": {
+    "insurance": "Sunu assurance — police n° SUNU-SN-2025-784512",
+    "insuranceExpiryDate": "2027-12-12",
+    "technicalInspection": "Contrôle technique — centre CT Dakar, réf. CT-2025-88421",
+    "technicalInspectionExpiryDate": "2026-12-31",
+    "driverLicensePhoto": "https://example.com/docs/permis-placeholder.jpg",
+    "vehicleRegistration": "https://example.com/docs/carte-grise-placeholder.jpg",
+    "criminalRecord": "https://example.com/docs/casier-placeholder.pdf"
+  },
+  "rideTypes": {
+    "comfort": false,
+    "luxe": false,
+    "women_only": false
+  },
+  "preferences": {
+    "maxDistance": 25,
+    "minPrice": 500,
+    "acceptSharedRides": true,
+    "acceptExpressRides": true,
+    "acceptLuggage": true
+  }
+}
+
+###############################################################################
+# Option A2 — Autre livreur (identifiants uniques) : même route, fichier JSON
+# Fichier : scripts/payload-livreur-apply-nouveau.json
+# curl : PAYLOAD=payload-livreur-apply-nouveau.json API=... ./scripts/creer-livreur-curl.sh
+###############################################################################
+
+###############################################################################
+# Option B — Création directe par admin : POST /admin/drivers
+# 1) Login admin puis copier data.token dans @adminToken ci-dessus
+# 2) Ne pas réutiliser un téléphone / CNI / permis / plaque déjà en base
+###############################################################################
+
+### Login admin (identifiants selon .env : ADMIN_USERNAME / ADMIN_PASSWORD)
+POST {{baseUrl}}/admin/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "dudu2026"
+}
+
+### Créer le livreur (moto + livraison) — compte approuvé côté admin
+POST {{baseUrl}}/admin/drivers
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Mamadou",
+  "lastName": "Diop",
+  "phone": "+221786205992",
+  "email": "livreur786205992@example.com",
+  "password": "Livreur2026!",
+  "dateOfBirth": "1991-12-10",
+  "gender": "male",
+  "nationalId": "158419900587",
+  "address": {
+    "street": "Parcelles Assainies U15",
+    "city": "Dakar",
+    "region": "Dakar",
+    "country": "Sénégal",
+    "postalCode": "12500"
+  },
+  "driverLicense": {
+    "number": "10792191",
+    "issueDate": "2015-06-01",
+    "expiryDate": "2031-10-06",
+    "category": "A"
+  },
+  "vehicle": {
+    "make": "Honda",
+    "model": "Wave 110",
+    "year": 2022,
+    "color": "Noir",
+    "plateNumber": "AB-909-GT",
+    "category": "moto",
+    "type": "moto_delivery"
+  },
+  "rideTypes": {
+    "comfort": false,
+    "luxe": false,
+    "women_only": false
+  },
+  "subscription": {
+    "plan": "daily",
+    "isActive": true
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "firstName": "Mamadou",
+  "lastName": "Diop",
+  "phone": "+221786205992",
+  "email": "livreur786205992@example.com",
+  "password": "Livreur2026!",
+  "dateOfBirth": "1991-12-10",
+  "gender": "male",
+  "nationalId": "158419900587",
+  "address": {
+    "street": "Parcelles Assainies U15",
+    "city": "Dakar",
+    "region": "Dakar",
+    "country": "Senegal",
+    "postalCode": "12500"
+  },
+  "driverLicense": {
+    "number": "10792191",
+    "issueDate": "2015-06-01",
+    "expiryDate": "2031-10-06",
+    "category": "A"
+  },
+  "vehicle": {
+    "make": "Honda",
+    "model": "Wave 110",
+    "year": 2022,
+    "color": "Noir",
+    "plateNumber": "AB-909-GT",
+    "category": "moto",
+    "type": "moto_delivery",
+    "capacity": 1,
+    "hasAirConditioning": false,
+    "features": ["large_cargo"]
+  },
+  "documents": {
+    "insurance": "Sunu assurance - police n SUNU-SN-2025-784512",
+    "insuranceExpiryDate": "2027-12-12",
+    "technicalInspection": "Controle technique - centre CT Dakar, ref. CT-2025-88421",
+    "technicalInspectionExpiryDate": "2026-12-31",
+    "driverLicensePhoto": "https://example.com/docs/permis-placeholder.jpg",
+    "vehicleRegistration": "https://example.com/docs/carte-grise-placeholder.jpg",
+    "criminalRecord": "https://example.com/docs/casier-placeholder.pdf"
+  },
+  "rideTypes": {
+    "comfort": false,
+    "luxe": false,
+    "women_only": false
+  },
+  "preferences": {
+    "maxDistance": 25,
+    "minPrice": 500,
+    "acceptSharedRides": true,
+    "acceptExpressRides": true,
+    "acceptLuggage": true
+  }
+}

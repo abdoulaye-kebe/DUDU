@@ -1,0 +1,56 @@
+{
+  "firstName": "Ibrahima",
+  "lastName": "Sarr",
+  "phone": "+221772456789",
+  "email": "livreur.test.202604@dudugroup.sn",
+  "password": "Livreur2026!",
+  "dateOfBirth": "1993-05-22",
+  "gender": "male",
+  "nationalId": "1993123456789",
+  "address": {
+    "street": "Hlm Grand Yoff",
+    "city": "Dakar",
+    "region": "Dakar",
+    "country": "Senegal",
+    "postalCode": "13000"
+  },
+  "driverLicense": {
+    "number": "88442211",
+    "issueDate": "2018-03-15",
+    "expiryDate": "2030-08-20",
+    "category": "A"
+  },
+  "vehicle": {
+    "make": "Yamaha",
+    "model": "Crypton 110",
+    "year": 2021,
+    "color": "Bleu",
+    "plateNumber": "DK-772-LM",
+    "category": "moto",
+    "type": "moto_delivery",
+    "capacity": 1,
+    "hasAirConditioning": false,
+    "features": ["large_cargo"]
+  },
+  "documents": {
+    "insurance": "Allianz Senegal - police POL-2026-009944",
+    "insuranceExpiryDate": "2028-06-01",
+    "technicalInspection": "CT Dakar Plateau - ref CT-2026-1122",
+    "technicalInspectionExpiryDate": "2027-03-31",
+    "driverLicensePhoto": "https://example.com/docs/permis-livreur-2.jpg",
+    "vehicleRegistration": "https://example.com/docs/cg-livreur-2.jpg",
+    "criminalRecord": "https://example.com/docs/casier-livreur-2.pdf"
+  },
+  "rideTypes": {
+    "comfort": false,
+    "luxe": false,
+    "women_only": false
+  },
+  "preferences": {
+    "maxDistance": 30,
+    "minPrice": 500,
+    "acceptSharedRides": true,
+    "acceptExpressRides": true,
+    "acceptLuggage": true
+  }
+}

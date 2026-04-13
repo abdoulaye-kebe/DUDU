@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
@@ -23,12 +24,19 @@ class ActiveRideScreen extends StatefulWidget {
 }
 
 class _ActiveRideScreenState extends State<ActiveRideScreen> {
+  /// Nombre d’écrans livraison actifs (empilement Navigator pour 2 courses).
+  static int _stackedDeliveryScreens = 0;
+
   GoogleMapController? _mapController;
   Position? _currentPosition;
   Timer? _locationTimer;
   String _rideStatus = 'accepted'; // accepted, arrived, in_progress, completed
   bool _isLoading = false;
+  bool _autoNavigationLaunched = false;
   Map<String, dynamic> _ridePayload = {};
+
+  StreamSubscription<Map<String, dynamic>>? _extraDeliverySub;
+  final Set<String> _hintedExtraDeliveryIds = <String>{};
 
   // Données de la course
   late String _passengerName;
@@ -41,14 +49,46 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
 
+  bool get _isDeliveryRide {
+    final t = widget.rideData['rideType']?.toString() ??
+        widget.rideData['ride_type']?.toString();
+    return t == 'delivery';
+  }
+
   @override
   void initState() {
     super.initState();
     _ridePayload = Map<String, dynamic>.from(widget.rideData);
+    if (_isDeliveryRide) {
+      _stackedDeliveryScreens++;
+    }
     _initRideData();
     _bootstrapRideData();
     _getCurrentLocation();
     _startLocationUpdates();
+    _listenExtraDeliveryRequests();
+  }
+
+  /// Pendant une livraison, informer le livreur qu’une autre livraison est disponible (pile 2 courses).
+  void _listenExtraDeliveryRequests() {
+    if (!_isDeliveryRide) return;
+    _extraDeliverySub = SocketService().rideRequestsStream.listen((data) {
+      final id = data['id']?.toString() ?? data['rideId']?.toString();
+      if (id == null || id == widget.rideId) return;
+      if (data['rideType']?.toString() != 'delivery') return;
+      if (_hintedExtraDeliveryIds.contains(id)) return;
+      _hintedExtraDeliveryIds.add(id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 8),
+          content: const Text(
+            'Nouvelle livraison. Terminez celle-ci, puis revenez à l’écran des demandes pour accepter la suivante.',
+          ),
+        ),
+      );
+    });
   }
 
   /// Si les données socket sont incomplètes, recharger depuis l’API (évite écran « vide »)
@@ -92,6 +132,10 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
 
   @override
   void dispose() {
+    if (_isDeliveryRide && _stackedDeliveryScreens > 0) {
+      _stackedDeliveryScreens--;
+    }
+    _extraDeliverySub?.cancel();
     _locationTimer?.cancel();
     _mapController?.dispose();
     super.dispose();
@@ -308,10 +352,11 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ Course démarrée'),
+          content: Text('✅ Course démarrée — navigation plein écran'),
           backgroundColor: Colors.green,
         ),
       );
+      _openNavigationFullscreenAfterStart();
     } catch (e) {
       setState(() => _isLoading = false);
       if (!mounted) return;
@@ -319,6 +364,35 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
         SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
       );
     }
+  }
+
+  /// Ouvre la carte navigation (itinéraire + voix) en plein écran une fois le trajet démarré.
+  void _openNavigationFullscreenAfterStart() {
+    if (_autoNavigationLaunched || !mounted) return;
+    _autoNavigationLaunched = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push<void>(
+        PageRouteBuilder<void>(
+          opaque: true,
+          barrierDismissible: false,
+          pageBuilder: (context, animation, secondaryAnimation) {
+            return NavigationScreen(
+              rideId: widget.rideId,
+              pickupLocation: _pickupLocation,
+              destinationLocation: _destinationLocation,
+              pickupAddress: _pickupAddress,
+              destinationAddress: _destinationAddress,
+              passengerName: _passengerName,
+              rideStatus: 'in_progress',
+            );
+          },
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
+    });
   }
 
   Future<void> _completeRide() async {
@@ -420,9 +494,54 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
             },
           ),
 
+          // Livraisons empilées : l’écran au-dessus indique qu’une autre course attend en dessous
+          if (_isDeliveryRide &&
+              _stackedDeliveryScreens > 1 &&
+              (ModalRoute.of(context)?.isCurrent ?? true))
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: Material(
+                    color: Colors.orange.shade800,
+                    borderRadius: BorderRadius.circular(10),
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.layers, color: Colors.white, size: 22),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Plusieurs livraisons : terminez celle-ci, puis utilisez Retour pour la précédente.',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           // Header avec infos course
           Positioned(
-            top: 0,
+            top: _isDeliveryRide &&
+                    _stackedDeliveryScreens > 1 &&
+                    (ModalRoute.of(context)?.isCurrent ?? true)
+                ? 56
+                : 0,
             left: 0,
             right: 0,
             child: SafeArea(

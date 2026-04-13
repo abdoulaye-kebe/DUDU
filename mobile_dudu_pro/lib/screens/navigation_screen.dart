@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -55,6 +56,10 @@ class _NavigationScreenState extends State<NavigationScreen> {
   double _maxDeviationDistance = 100; // 100 mètres
   bool _isRecalculating = false;
   DateTime? _lastRecalculationTime;
+
+  /// Annonces vocales : évite de répéter la même phrase trop souvent.
+  String? _lastSpokenInstruction;
+  DateTime? _lastSpokenTime;
   
   static const Color primaryGreen = Color(0xFF00A651);
 
@@ -65,8 +70,20 @@ class _NavigationScreenState extends State<NavigationScreen> {
         ? widget.pickupLocation 
         : widget.destinationLocation;
     _initializeTts();
+    _enterImmersiveMapMode();
     _getCurrentLocation();
     _startLocationUpdates();
+  }
+
+  void _enterImmersiveMapMode() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  void _exitImmersiveMapMode() {
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
   }
 
   Future<void> _initializeTts() async {
@@ -86,6 +103,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   @override
   void dispose() {
+    _exitImmersiveMapMode();
     _locationTimer?.cancel();
     _mapController?.dispose();
     _flutterTts.stop();
@@ -201,6 +219,37 @@ class _NavigationScreenState extends State<NavigationScreen> {
     _centerMap(currentLatLng, _targetLocation!);
 
     setState(() {});
+    _announceInstructionIfNeeded(_currentInstruction);
+  }
+
+  /// Lit à voix haute les instructions (throttle + priorité aux messages d’arrivée).
+  Future<void> _announceInstructionIfNeeded(String instruction) async {
+    if (instruction.isEmpty || instruction == 'Calcul de l\'itinéraire...') {
+      return;
+    }
+    final lower = instruction.toLowerCase();
+    final isArrival = lower.contains('arrivé');
+    final now = DateTime.now();
+    final same = instruction == _lastSpokenInstruction;
+    if (!isArrival) {
+      if (same &&
+          _lastSpokenTime != null &&
+          now.difference(_lastSpokenTime!).inSeconds < 22) {
+        return;
+      }
+      if (!same &&
+          _lastSpokenTime != null &&
+          now.difference(_lastSpokenTime!).inSeconds < 10) {
+        return;
+      }
+    }
+
+    _lastSpokenInstruction = instruction;
+    _lastSpokenTime = now;
+    try {
+      await _flutterTts.stop();
+      await _speak(instruction);
+    } catch (_) {}
   }
 
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
@@ -365,10 +414,14 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final topInset = MediaQuery.of(context).padding.top;
+
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          // Carte Google Maps
+          // Carte Google Maps (plein cadre)
           GoogleMap(
             initialCameraPosition: CameraPosition(
               target: _targetLocation ?? widget.pickupLocation,
@@ -387,26 +440,26 @@ class _NavigationScreenState extends State<NavigationScreen> {
             },
           ),
 
-          // Panneau d'instructions en haut
+          // Panneau d'instructions en haut (décalé pour laisser le bouton retour)
           Positioned(
-            top: 50,
-            left: 16,
-            right: 16,
+            top: topInset + 8,
+            left: 56,
+            right: 12,
             child: _buildInstructionPanel(),
           ),
 
           // Panneau d'informations en bas
           Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
+            bottom: MediaQuery.of(context).padding.bottom + 12,
+            left: 12,
+            right: 12,
             child: _buildInfoPanel(),
           ),
 
           // Bouton retour
           Positioned(
-            top: 50,
-            left: 16,
+            top: topInset + 8,
+            left: 12,
             child: FloatingActionButton(
               mini: true,
               backgroundColor: Colors.white,
@@ -417,7 +470,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
           // Bouton centrer
           Positioned(
-            bottom: 200,
+            bottom: MediaQuery.of(context).padding.bottom + 200,
             right: 16,
             child: FloatingActionButton(
               mini: true,
