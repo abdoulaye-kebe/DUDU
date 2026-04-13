@@ -53,6 +53,12 @@
 	<!-- ITMS-90683 : requis si le binaire ou une bibliothèque référence l'API caméra -->
 	<key>NSCameraUsageDescription</key>
 	<string>DuDu peut utiliser la caméra lorsque vous ajoutez une photo (profil, pièce jointe) ou utilisez une fonctionnalité qui le demande.</string>
+	<!-- Requis par Apple si l’app utilise Face ID / Touch ID (local_auth) -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>DUDU utilise Face ID ou Touch ID pour déverrouiller l’application lorsque vous activez cette option.</string>
+	<!-- Peut être exigé si des SDK (ex. WebRTC) lient l’API microphone -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>DUDU peut accéder au microphone pour les appels ou communications intégrées à l’application, si vous les utilisez.</string>
 	
 	<!-- Google Maps API Key -->
 	<key>GMSApiKey</key>

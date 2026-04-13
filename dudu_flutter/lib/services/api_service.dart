@@ -123,6 +123,7 @@ class ApiService {
     required String rideType,
     required int customPrice,
     required DateTime scheduledFor,
+    String paymentMethod = 'cash',
   }) async {
     try {
       final response = await http.post(
@@ -142,6 +143,7 @@ class ApiService {
           'rideType': rideType,
           'customPrice': customPrice,
           'scheduledFor': scheduledFor.toUtc().toIso8601String(),
+          'paymentMethod': paymentMethod,
         }),
       ).timeout(timeout);
 

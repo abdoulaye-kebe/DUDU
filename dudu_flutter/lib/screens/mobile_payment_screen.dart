@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/mobile_payment_service.dart';
 
 /// Écran de paiement mobile (Orange Money ou Wave)
@@ -568,7 +569,7 @@ class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
       }
 
       setState(() {
-        _paymentId = result['paymentId'];
+        _paymentId = result['paymentId']?.toString();
         _paymentStatus = 'processing';
         _isLoading = false;
       });
@@ -576,14 +577,19 @@ class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
       // Démarrer la vérification du statut
       _startStatusCheck();
 
-      // Ouvrir l'URL de paiement (dans un navigateur externe ou WebView)
-      // Pour simplifier, on simule ici - dans une vraie app, utiliser url_launcher ou webview_flutter
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ouvrez ce lien pour payer: $_paymentUrl'),
-          duration: const Duration(seconds: 5),
-        ),
-      );
+      if (_paymentUrl != null && _paymentUrl!.isNotEmpty) {
+        final uri = Uri.parse(_paymentUrl!);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ouvrez ce lien pour payer : $_paymentUrl'),
+              duration: const Duration(seconds: 8),
+            ),
+          );
+        }
+      }
 
     } catch (e) {
       setState(() => _isLoading = false);

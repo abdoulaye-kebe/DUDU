@@ -11,7 +11,7 @@ import '../services/notification_service.dart';
 import '../services/secure_auth_service.dart';
 import '../services/socket_service.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'mobile_payment_screen.dart';
 
 class ScheduledRidesScreen extends StatefulWidget {
   const ScheduledRidesScreen({Key? key}) : super(key: key);
@@ -1406,10 +1406,11 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     return result == true;
   }
 
-  Future<bool> _showPaymentDialog() async {
+  /// Choisir Wave ou Orange Money ; le paiement réel se fait via l’API (`MobilePaymentScreen`) après création de la course.
+  Future<String?> _pickScheduledPaymentMethod() async {
     final amount = _price > 0 ? _price : 2500;
-    
-    final paymentMethod = await showDialog<String>(
+
+    return showDialog<String>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
@@ -1443,7 +1444,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
             ),
             const SizedBox(height: 16),
             const Text(
-              'Veuillez payer maintenant pour confirmer votre réservation',
+              'Paiement sécurisé via notre serveur (Wave / Orange Money).',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14),
             ),
@@ -1458,7 +1459,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                 child: const Icon(Icons.payment, color: Color(0xFF00D9A5)),
               ),
               title: const Text('Wave'),
-              subtitle: const Text('Paiement mobile Wave'),
+              subtitle: const Text('Lien de paiement Wave (API)'),
               onTap: () => Navigator.pop(context, 'wave'),
             ),
             ListTile(
@@ -1471,7 +1472,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                 child: const Icon(Icons.phone_android, color: Color(0xFFFF6600)),
               ),
               title: const Text('Orange Money'),
-              subtitle: const Text('Paiement mobile Orange Money'),
+              subtitle: const Text('Paiement Orange Money (API)'),
               onTap: () => Navigator.pop(context, 'orange_money'),
             ),
           ],
@@ -1484,106 +1485,13 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
         ],
       ),
     );
-    
-    if (paymentMethod == null) return false;
-    
-    // Numéro DUDU pour recevoir les paiements
-    const String duduPaymentNumber = '221771234567'; // À remplacer par le vrai numéro
-    
-    try {
-      String deepLinkUrl;
-      String appName;
-      
-      if (paymentMethod == 'wave') {
-        appName = 'Wave';
-        deepLinkUrl = 'wave://send?phone=$duduPaymentNumber&amount=$amount&note=Course planifiée DUDU';
-      } else {
-        appName = 'Orange Money';
-        deepLinkUrl = 'orangemoney://send?phone=$duduPaymentNumber&amount=$amount&reason=Course planifiée DUDU';
-      }
-      
-      final uri = Uri.parse(deepLinkUrl);
-      bool launched = false;
-      
-      try {
-        if (await canLaunchUrl(uri)) {
-          launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
-      } catch (e) {
-        print('Erreur ouverture $appName: $e');
-      }
-      
-      if (!launched) {
-        // Afficher dialogue avec instructions
-        await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Paiement $appName'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Montant: $amount FCFA'),
-                const SizedBox(height: 8),
-                Text('Numéro DUDU: $duduPaymentNumber'),
-                const SizedBox(height: 16),
-                const Text(
-                  '1. Ouvrez votre application de paiement\n'
-                  '2. Envoyez le montant au numéro ci-dessus\n'
-                  '3. Confirmez le paiement',
-                  style: TextStyle(fontSize: 14),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-      
-      // Demander confirmation du paiement
-      final confirmed = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Text('Confirmer le paiement'),
-          content: const Text(
-            'Avez-vous effectué le paiement ?\n\n'
-            'Votre course sera planifiée uniquement si le paiement est confirmé.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Non, annuler'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryGreen,
-              ),
-              child: const Text('Oui, j\'ai payé'),
-            ),
-          ],
-        ),
-      );
-      
-      return confirmed ?? false;
-    } catch (e) {
-      print('Erreur paiement: $e');
-      return false;
-    }
   }
 
   Future<void> _savePlannedRide() async {
     if (!_canSave()) return;
 
-    // Demander le paiement AVANT de confirmer la course planifiée
-    final paymentConfirmed = await _showPaymentDialog();
-    if (!paymentConfirmed) {
+    final paymentMethod = await _pickScheduledPaymentMethod();
+    if (paymentMethod == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Paiement requis pour planifier une course')),
       );
@@ -1591,7 +1499,9 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     }
 
     final rideType = _mode == 'delivery' ? 'delivery' : 'standard';
+    final payAmount = _price > 0 ? _price : 2500;
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Planification en cours...')),
     );
@@ -1606,27 +1516,12 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       rideType: rideType,
       customPrice: _price,
       scheduledFor: _dateTime!,
+      paymentMethod: paymentMethod,
     );
 
     if (!mounted) return;
 
-    if (response.success && response.data != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Trajet planifié avec succès')),
-      );
-
-      // Notification locale simple de rappel 1h avant si possible
-      final now = DateTime.now();
-      final diff = _dateTime!.difference(now);
-      if (diff.inMinutes > 65 && diff.inHours <= 3) {
-        NotificationService().showScheduledRideReminder1h(
-          scheduledAt: _dateTime!,
-        );
-      }
-
-      await _loadScheduledRides();
-      _tabController.animateTo(1);
-    } else {
+    if (!response.success || response.data == null) {
       final lowerMsg = response.message.toLowerCase();
       final isAuthExpired = lowerMsg.contains('token expir') ||
           lowerMsg.contains('jwt') ||
@@ -1640,7 +1535,57 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       if (isAuthExpired && mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       }
+      return;
     }
+
+    final ride = response.data!;
+    final rideId = ride.id;
+
+    if (paymentMethod == 'wave' || paymentMethod == 'orange_money') {
+      final payResult = await Navigator.of(context).push<dynamic>(
+        MaterialPageRoute(
+          builder: (ctx) => MobilePaymentScreen(
+            rideId: rideId,
+            amount: payAmount,
+            method: paymentMethod,
+          ),
+        ),
+      );
+
+      final paid = payResult is Map &&
+          payResult['status'] == 'completed';
+
+      if (!paid) {
+        await ApiService.cancelRide(rideId, 'Paiement non finalisé');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Paiement non complété : la réservation a été annulée.',
+            ),
+          ),
+        );
+        await _loadScheduledRides();
+        return;
+      }
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Trajet planifié avec succès')),
+    );
+
+    final now = DateTime.now();
+    final diff = _dateTime!.difference(now);
+    if (diff.inMinutes > 65 && diff.inHours <= 3) {
+      NotificationService().showScheduledRideReminder1h(
+        scheduledAt: _dateTime!,
+      );
+    }
+
+    await _loadScheduledRides();
+    _tabController.animateTo(1);
   }
 
   void _showDestinationSearch() {

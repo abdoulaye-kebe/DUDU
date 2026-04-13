@@ -1395,7 +1395,8 @@ router.post('/schedule', [
   body('destination.longitude').isFloat().withMessage('Longitude de destination invalide'),
   body('rideType').isIn(['standard', 'comfort', 'women_only', 'delivery']).withMessage('Type de course invalide'),
   body('customPrice').isInt({ min: 500 }).withMessage('Le prix minimum est 500 FCFA'),
-  body('scheduledFor').notEmpty().withMessage('Date de programmation requise')
+  body('scheduledFor').notEmpty().withMessage('Date de programmation requise'),
+  body('paymentMethod').optional().isIn(['wave', 'orange_money', 'cash']).withMessage('Méthode de paiement invalide')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -1412,8 +1413,13 @@ router.post('/schedule', [
       destination,
       rideType,
       customPrice,
-      scheduledFor
+      scheduledFor,
+      paymentMethod: rawPaymentMethod
     } = req.body;
+
+    const paymentMethod = ['wave', 'orange_money', 'cash'].includes(rawPaymentMethod)
+      ? rawPaymentMethod
+      : 'cash';
 
     const pickupLat = pickup.latitude;
     const pickupLng = pickup.longitude;
@@ -1467,7 +1473,7 @@ router.post('/schedule', [
       status: 'requested',
       scheduledFor: new Date(scheduledFor),
       payment: {
-        method: 'cash',
+        method: paymentMethod,
         status: 'pending'
       }
     });

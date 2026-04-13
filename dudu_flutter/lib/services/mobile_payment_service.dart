@@ -1,19 +1,18 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 
 /// Service de paiement mobile (Orange Money et Wave)
 class MobilePaymentService {
-  static String? _authToken;
-
-  static void setAuthToken(String token) {
-    _authToken = token;
+  static Future<Map<String, String>> _headers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    return {
+      'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
   }
-
-  static Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    if (_authToken != null) 'Authorization': 'Bearer $_authToken',
-  };
 
   /// Initier un paiement Orange Money
   static Future<Map<String, dynamic>> initiateOrangeMoneyPayment({
@@ -24,7 +23,7 @@ class MobilePaymentService {
     try {
       final response = await http.post(
         Uri.parse('${AppConfig.baseUrl}/mobile-payments/orange-money/initiate'),
-        headers: _headers,
+        headers: await _headers(),
         body: jsonEncode({
           'rideId': rideId,
           'amount': amount,
@@ -62,7 +61,7 @@ class MobilePaymentService {
     try {
       final response = await http.post(
         Uri.parse('${AppConfig.baseUrl}/mobile-payments/wave/initiate'),
-        headers: _headers,
+        headers: await _headers(),
         body: jsonEncode({
           'rideId': rideId,
           'amount': amount,
@@ -96,7 +95,7 @@ class MobilePaymentService {
     try {
       final response = await http.get(
         Uri.parse('${AppConfig.baseUrl}/mobile-payments/$paymentId/status'),
-        headers: _headers,
+        headers: await _headers(),
       );
 
       final data = jsonDecode(response.body);
@@ -126,7 +125,7 @@ class MobilePaymentService {
     try {
       final response = await http.post(
         Uri.parse('${AppConfig.baseUrl}/mobile-payments/$paymentId/cancel'),
-        headers: _headers,
+        headers: await _headers(),
       );
 
       final data = jsonDecode(response.body);
