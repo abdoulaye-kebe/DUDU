@@ -1,7 +1,7 @@
 name: mobile_dudu_pro
 description: "DUDU Pro - Application pour les chauffeurs"
 publish_to: 'none'
-version: 1.0.0+3
+version: 1.0.0+4
 
 environment:
   sdk: ^3.8.1
