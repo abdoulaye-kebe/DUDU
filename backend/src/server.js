@@ -85,6 +85,13 @@ app.post(
   express.raw({ type: 'application/json' }),
   mobilePaymentsRouter.handleWaveWebhook
 );
+// Health checks Wave/portail : ping en GET/HEAD (pas de signature)
+app.get('/api/v1/mobile-payments/wave/webhook', (req, res) => {
+  res.status(200).json({ success: true, message: 'Wave webhook endpoint OK' });
+});
+app.head('/api/v1/mobile-payments/wave/webhook', (req, res) => {
+  res.sendStatus(200);
+});
 
 // Middleware pour parser le JSON
 app.use(express.json({ limit: '10mb' }));
