@@ -141,7 +141,8 @@ router.post('/orange-money/initiate', [
 // @access  Private
 router.post('/wave/initiate', [
   auth,
-  requireVerification,
+  // Aligné sur Orange Money : ne pas bloquer les trajets planifiés si le numéro n’est pas encore « vérifié » côté compte
+  // requireVerification,
   body('rideId').optional().isMongoId().withMessage('ID de course invalide'),
   body('amount').isFloat({ min: 100 }).withMessage('Le montant minimum est 100 FCFA'),
   body('phone').matches(/^(\+221|221)?[0-9]{9}$/).withMessage('Numéro de téléphone invalide'),
@@ -383,46 +384,76 @@ router.post('/orange-money/callback', async (req, res) => {
   }
 });
 
-// @route   POST /api/v1/mobile-payments/wave/webhook
-// @desc    Webhook Wave
-// @access  Public (avec validation signature)
-router.post('/wave/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+/**
+ * POST /api/v1/mobile-payments/wave/webhook
+ * Enregistré dans server.js AVANT express.json() pour conserver le corps brut (signature Wave).
+ */
+async function handleWaveWebhook(req, res) {
   try {
-    // Récupérer le payload brut pour la vérification de signature
+    if (!Buffer.isBuffer(req.body)) {
+      console.error(
+        '❌ Webhook Wave : req.body n’est pas un Buffer — enregistrer la route avant express.json()'
+      );
+      return res.status(500).json({
+        success: false,
+        message: 'Configuration serveur incorrecte (corps non brut)',
+      });
+    }
+
     const rawBody = req.body.toString('utf8');
-    const signature = req.headers['x-wave-signature'];
-    
-    // Vérifier la signature du webhook
-    const isValid = waveService.verifyWebhookSignature(rawBody, signature);
-    
+    const waveSignature =
+      req.headers['wave-signature'] || req.headers['x-wave-signature'];
+
+    const isValid = waveService.verifyWebhookSignature(rawBody, waveSignature);
+
     if (!isValid) {
       console.error('❌ Signature webhook Wave invalide');
       return res.status(401).json({ success: false, message: 'Signature invalide' });
     }
-    
-    console.log('✅ Signature webhook Wave vérifiée');
-    
-    // Parser les données
-    const webhookData = JSON.parse(rawBody);
-    
-    // Traiter le webhook
-    const result = await waveService.handleWebhook(webhookData);
-    
-    // Trouver le paiement
-    const payment = await Payment.findOne({ paymentId: result.orderId });
-    
-    if (!payment) {
-      console.error('Paiement non trouvé pour le webhook Wave:', result.orderId);
-      return res.status(404).json({ success: false, message: 'Paiement non trouvé' });
+
+    let webhookData;
+    try {
+      webhookData = JSON.parse(rawBody);
+    } catch (e) {
+      return res.status(400).json({ success: false, message: 'JSON invalide' });
     }
 
-    // Mettre à jour le paiement
-    payment.updateStatus(result.status, `Webhook Wave: ${result.event}`, 'system');
-    payment.transaction.externalId = result.transactionId;
-    payment.transaction.processedAt = result.paidAt;
-    payment.mobileMoney.confirmationCode = result.transactionId;
-    
-    // Si c'est un paiement de course
+    const result = await waveService.handleWebhook(webhookData);
+
+    if (result.skipProcessing) {
+      console.log(`✅ Webhook Wave (test / noop): ${result.event}`);
+      return res.status(200).json({ success: true, message: 'Événement test reçu' });
+    }
+
+    if (!result.orderId) {
+      console.warn('⚠️ Webhook Wave sans client_reference — accusé de réception', result.event);
+      return res.status(200).json({
+        success: true,
+        message: 'Événement reçu (sans référence commande)',
+      });
+    }
+
+    const payment = await Payment.findOne({ paymentId: result.orderId });
+
+    if (!payment) {
+      console.warn('⚠️ Webhook Wave : aucun paiement local pour', result.orderId, result.event);
+      return res.status(200).json({
+        success: true,
+        message: 'Événement reçu (aucun paiement correspondant)',
+      });
+    }
+
+    if (result.status !== 'noop') {
+      payment.updateStatus(result.status, `Webhook Wave: ${result.event}`, 'system');
+    }
+    if (result.transactionId) {
+      payment.transaction.externalId = result.transactionId;
+      payment.mobileMoney.confirmationCode = result.transactionId;
+    }
+    if (result.paidAt) {
+      payment.transaction.processedAt = result.paidAt;
+    }
+
     if (result.status === 'completed' && payment.ride) {
       const ride = await Ride.findById(payment.ride);
       if (ride) {
@@ -431,19 +462,16 @@ router.post('/wave/webhook', express.raw({ type: 'application/json' }), async (r
         await ride.save();
       }
     }
-    
-    // Si c'est un paiement d'abonnement
+
     if (result.status === 'completed' && payment.metadata?.type === 'subscription') {
       const Driver = require('../models/Driver');
       const driver = await Driver.findById(payment.driver);
-      
+
       if (driver) {
-        const subscriptionId = payment.metadata.subscriptionId;
-        
-        // Déterminer la durée selon le type d'abonnement
-        let durationDays = 30; // Par défaut mensuel
+        const subscriptionId = String(payment.metadata.subscriptionId || '');
+        let durationDays = 30;
         let planType = 'monthly';
-        
+
         if (subscriptionId.includes('daily')) {
           durationDays = 1;
           planType = 'daily';
@@ -454,29 +482,27 @@ router.post('/wave/webhook', express.raw({ type: 'application/json' }), async (r
           durationDays = 365;
           planType = 'yearly';
         }
-        
-        // Activer l'abonnement
+
         driver.subscription.plan = planType;
         driver.subscription.startDate = new Date();
         driver.subscription.endDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
         driver.subscription.isActive = true;
-        
+
         await driver.save();
-        
+
         console.log(`✅ Abonnement ${planType} activé pour le chauffeur ${driver._id}`);
       }
     }
-    
+
     await payment.save();
 
     console.log(`✅ Webhook Wave traité: ${result.orderId} - ${result.status}`);
-    res.json({ success: true, message: 'Webhook traité avec succès' });
-
+    return res.json({ success: true, message: 'Webhook traité avec succès' });
   } catch (error) {
     console.error('Erreur lors du traitement du webhook Wave:', error);
-    res.status(500).json({ success: false, message: 'Erreur lors du traitement du webhook' });
+    return res.status(500).json({ success: false, message: 'Erreur lors du traitement du webhook' });
   }
-});
+}
 
 // @route   POST /api/v1/mobile-payments/subscription/orange-money/initiate
 // @desc    Initier un paiement d'abonnement chauffeur/livreur (QR Orange + deeplinks MAX IT / OM)
@@ -707,4 +733,5 @@ router.post('/:id/cancel', auth, async (req, res) => {
   }
 });
 
+router.handleWaveWebhook = handleWaveWebhook;
 module.exports = router;

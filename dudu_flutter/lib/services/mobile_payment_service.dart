@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 
-/// Service de paiement mobile (Orange Money et Wave)
+/// Service de paiement mobile Wave
 class MobilePaymentService {
   static Future<Map<String, String>> _headers() async {
     final prefs = await SharedPreferences.getInstance();
@@ -12,44 +12,6 @@ class MobilePaymentService {
       'Content-Type': 'application/json',
       if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
-  }
-
-  /// Initier un paiement Orange Money
-  static Future<Map<String, dynamic>> initiateOrangeMoneyPayment({
-    required String rideId,
-    required int amount,
-    required String phone,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.baseUrl}/mobile-payments/orange-money/initiate'),
-        headers: await _headers(),
-        body: jsonEncode({
-          'rideId': rideId,
-          'amount': amount,
-          'phone': phone,
-        }),
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && data['success'] == true) {
-        return {
-          'success': true,
-          'paymentId': data['data']['paymentId'],
-          'paymentToken': data['data']['paymentToken'],
-          'paymentUrl': data['data']['paymentUrl'],
-          'amount': data['data']['amount'],
-          'currency': data['data']['currency'],
-          'expiresAt': data['data']['expiresAt'],
-        };
-      } else {
-        throw Exception(data['message'] ?? 'Erreur lors de l\'initiation du paiement');
-      }
-    } catch (e) {
-      print('Erreur initiation paiement Orange Money: $e');
-      throw Exception('Erreur de connexion au serveur');
-    }
   }
 
   /// Initier un paiement Wave
@@ -141,20 +103,9 @@ class MobilePaymentService {
     }
   }
 
-  /// Calculer les frais de transaction
-  static Map<String, dynamic> calculateFees(int amount, String method) {
-    double feePercentage;
-    
-    switch (method) {
-      case 'orange_money':
-        feePercentage = 0.01; // 1%
-        break;
-      case 'wave':
-        feePercentage = 0.015; // 1.5%
-        break;
-      default:
-        feePercentage = 0.0;
-    }
+  /// Calculer les frais de transaction (Wave)
+  static Map<String, dynamic> calculateFees(int amount) {
+    const feePercentage = 0.015; // 1.5%
 
     final fees = (amount * feePercentage).round();
     final netAmount = amount - fees;

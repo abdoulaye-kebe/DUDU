@@ -19,6 +19,25 @@ class ActiveRideScreen extends StatefulWidget {
     required this.rideData,
   }) : super(key: key);
 
+  /// Après GET `/rides/:id` (chauffeur assigné) pour un payload cohérent avec l’UI.
+  static Map<String, dynamic> ridePayloadFromApiRide(Map<String, dynamic> ride) {
+    final p = ride['passenger'];
+    final pickup = ride['pickup'];
+    final dest = ride['destination'];
+    final pricing = ride['pricing'];
+    return {
+      'passenger': p is Map
+          ? p
+          : {
+              'name': p is Map && p['name'] != null ? p['name'] : 'Client',
+            },
+      'pickup': pickup ?? {},
+      'destination': dest ?? {},
+      'pricing': pricing ?? {},
+      'rideType': ride['rideType'],
+    };
+  }
+
   @override
   State<ActiveRideScreen> createState() => _ActiveRideScreenState();
 }
@@ -113,22 +132,8 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
     }
   }
 
-  Map<String, dynamic> _mapApiRideToUi(Map<String, dynamic> ride) {
-    final p = ride['passenger'];
-    final pickup = ride['pickup'];
-    final dest = ride['destination'];
-    final pricing = ride['pricing'];
-    return {
-      'passenger': p is Map
-          ? p
-          : {
-              'name': p is Map && p['name'] != null ? p['name'] : 'Client',
-            },
-      'pickup': pickup ?? {},
-      'destination': dest ?? {},
-      'pricing': pricing ?? {},
-    };
-  }
+  Map<String, dynamic> _mapApiRideToUi(Map<String, dynamic> ride) =>
+      ActiveRideScreen.ridePayloadFromApiRide(ride);
 
   @override
   void dispose() {
@@ -141,11 +146,25 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
     super.dispose();
   }
 
+  Map<String, dynamic> _normalizePlace(dynamic raw) {
+    if (raw is Map) {
+      return Map<String, dynamic>.from(raw);
+    }
+    if (raw is String) {
+      return {'address': raw, 'coordinates': <String, dynamic>{}};
+    }
+    return {};
+  }
+
   void _initRideData() {
-    final passenger = _ridePayload['passenger'] ?? {};
-    final pickup = _ridePayload['pickup'] ?? {};
-    final destination = _ridePayload['destination'] ?? {};
-    final pricing = _ridePayload['pricing'] ?? {};
+    final passenger = _ridePayload['passenger'] is Map
+        ? Map<String, dynamic>.from(_ridePayload['passenger'] as Map)
+        : <String, dynamic>{};
+    final pickup = _normalizePlace(_ridePayload['pickup']);
+    final destination = _normalizePlace(_ridePayload['destination']);
+    final pricing = _ridePayload['pricing'] is Map
+        ? Map<String, dynamic>.from(_ridePayload['pricing'] as Map)
+        : <String, dynamic>{};
 
     _passengerName = passenger['name']?.toString() ?? 'Client';
     _pickupAddress = pickup['address']?.toString() ?? 'Point de départ';

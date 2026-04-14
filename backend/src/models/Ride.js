@@ -166,24 +166,6 @@ const rideSchema = new mongoose.Schema({
     default: 'car'
   },
   
-  // Informations de covoiturage
-  carpoolInfo: {
-    isCarpool: {
-      type: Boolean,
-      default: false
-    },
-    requestedSeats: {
-      type: Number,
-      default: 1,
-      min: 1
-    },
-    availableSeats: Number, // Places restantes dans le véhicule
-    otherPassengers: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }]
-  },
-  
   // Informations de livraison (si rideType = 'delivery')
   delivery: {
     packageType: {
@@ -229,7 +211,12 @@ const rideSchema = new mongoose.Schema({
   reminderSent: {
     type: Boolean,
     default: false
-  }, // Rappel 1h avant envoyé
+  }, // Ancien flag rappel ~1h (conservé pour compatibilité)
+  /** Rappels multi-étapes : '120m' | '60m' | '30m' | '15m' */
+  scheduledRemindersSent: {
+    type: [String],
+    default: []
+  },
   requestedAt: {
     type: Date,
     default: Date.now

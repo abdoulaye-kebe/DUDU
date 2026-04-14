@@ -134,17 +134,6 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Orange Money
-                _buildPaymentOptionWithImage(
-                  method: 'orange_money',
-                  title: 'Orange Money',
-                  subtitle: 'Paiement sécurisé via Orange Money',
-                  imagePath: 'assets/images/payments/orange_money_logo.png',
-                  color: Colors.orange,
-                  fees: '1%',
-                ),
-                const SizedBox(height: 12),
-
                 // Wave
                 _buildPaymentOptionWithImage(
                   method: 'wave',
@@ -153,6 +142,29 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   imagePath: 'assets/images/payments/wave_logo.png',
                   color: Colors.blue,
                   fees: '1.5%',
+                  enabled: true,
+                ),
+                const SizedBox(height: 12),
+
+                _buildPaymentOptionWithImage(
+                  method: 'orange_money',
+                  title: 'Orange Money',
+                  subtitle: 'Indisponible pour le moment',
+                  imagePath: 'assets/images/payments/orange_money_logo.png',
+                  color: Colors.orange,
+                  fees: '—',
+                  enabled: false,
+                ),
+                const SizedBox(height: 12),
+
+                _buildPaymentOptionWithImage(
+                  method: 'free_money',
+                  title: 'Free Money',
+                  subtitle: 'Indisponible pour le moment',
+                  imagePath: 'assets/images/payments/free_money_logo..png',
+                  color: Colors.teal,
+                  fees: '—',
+                  enabled: false,
                 ),
                 const SizedBox(height: 12),
 
@@ -164,6 +176,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   icon: Icons.payments,
                   color: Colors.green,
                   fees: 'Gratuit',
+                  enabled: true,
                 ),
               ],
             ),
@@ -219,84 +232,100 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     required String imagePath,
     required Color color,
     required String fees,
+    bool enabled = true,
   }) {
-    final isSelected = _selectedMethod == method;
+    final isSelected = enabled && _selectedMethod == method;
 
-    return GestureDetector(
-      onTap: () => setState(() => _selectedMethod = method),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? color : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
+    return Opacity(
+      opacity: enabled ? 1 : 0.55,
+      child: GestureDetector(
+        onTap: enabled ? () => setState(() => _selectedMethod = method) : null,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.1) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? color : Colors.grey[300]!,
+              width: isSelected ? 2 : 1,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: color.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : [],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey[200]!, width: 1),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey[200]!, width: 1),
+                ),
+                child: Image.asset(
+                  imagePath,
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.contain,
+                ),
               ),
-              child: Image.asset(
-                imagePath,
-                width: 44,
-                height: 44,
-                fit: BoxFit.contain,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: enabled
+                                  ? (isSelected ? color : Colors.black87)
+                                  : Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                        if (!enabled)
+                          Icon(Icons.lock_outline, size: 20, color: Colors.grey.shade600),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      enabled ? 'Frais: $fees' : 'Frais: —',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: enabled ? color : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? color : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Frais: $fees',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: color, size: 28)
-            else
-              Icon(Icons.radio_button_unchecked, color: Colors.grey[400], size: 28),
-          ],
+              if (enabled)
+                isSelected
+                    ? Icon(Icons.check_circle, color: color, size: 28)
+                    : Icon(Icons.radio_button_unchecked, color: Colors.grey[400], size: 28)
+              else
+                Icon(Icons.block, color: Colors.grey[400], size: 24),
+            ],
+          ),
         ),
       ),
     );
@@ -309,78 +338,82 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     required IconData icon,
     required Color color,
     required String fees,
+    bool enabled = true,
   }) {
-    final isSelected = _selectedMethod == method;
+    final isSelected = enabled && _selectedMethod == method;
 
-    return GestureDetector(
-      onTap: () => setState(() => _selectedMethod = method),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? color : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
+    return Opacity(
+      opacity: enabled ? 1 : 0.55,
+      child: GestureDetector(
+        onTap: enabled ? () => setState(() => _selectedMethod = method) : null,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.1) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? color : Colors.grey[300]!,
+              width: isSelected ? 2 : 1,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: color.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : [],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 28),
               ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? color : Colors.black87,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? color : Colors.black87,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Frais: $fees',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: color,
+                    const SizedBox(height: 4),
+                    Text(
+                      'Frais: $fees',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: color, size: 28)
-            else
-              Icon(Icons.radio_button_unchecked, color: Colors.grey[400], size: 28),
-          ],
+              if (isSelected)
+                Icon(Icons.check_circle, color: color, size: 28)
+              else
+                Icon(Icons.radio_button_unchecked, color: Colors.grey[400], size: 28),
+            ],
+          ),
         ),
       ),
     );
@@ -410,7 +443,6 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           builder: (context) => MobilePaymentScreen(
             rideId: widget.rideId,
             amount: widget.amount,
-            method: _selectedMethod!,
           ),
         ),
       ).then((result) {

@@ -146,7 +146,6 @@ class DriverProfile {
   // Restrictions pour moto
   bool get canAcceptDeliveries => isMoto;
   bool get canAcceptPassengers => isCar;
-  bool get canAcceptCarpool => isCar;
   bool get canAcceptLuggage => isCar && vehicle.type == 'cargo';
 }
 

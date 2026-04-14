@@ -140,7 +140,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   void initState() {
     super.initState();
     _getCurrentLocation();
-    _selectedPaymentMethod = 'cash';
+    _selectedPaymentMethod = 'wave';
   }
 
   Widget _buildNearbyVehiclesList() {
@@ -331,41 +331,36 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Expanded(
-                child: _buildPaymentChip(
-                  label: 'Espèces',
-                  value: 'cash',
-                  icon: Icons.payments,
-                ),
+              _buildPaymentChip(
+                label: 'Espèces',
+                value: 'cash',
+                icon: Icons.payments,
+                enabled: true,
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildPaymentChip(
-                  label: 'Orange',
-                  value: 'orange_money',
-                  assetPath: _paymentLogos['orange_money'],
-                  icon: Icons.account_balance_wallet,
-                ),
+              _buildPaymentChip(
+                label: 'Wave',
+                value: 'wave',
+                assetPath: _paymentLogos['wave'],
+                icon: Icons.account_balance_wallet,
+                enabled: true,
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildPaymentChip(
-                  label: 'Wave',
-                  value: 'wave',
-                  assetPath: _paymentLogos['wave'],
-                  icon: Icons.account_balance_wallet,
-                ),
+              _buildPaymentChip(
+                label: 'Orange Money',
+                value: 'orange_money',
+                assetPath: _paymentLogos['orange_money'],
+                icon: Icons.account_balance_wallet,
+                enabled: false,
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildPaymentChip(
-                  label: 'Free',
-                  value: 'free_money',
-                  assetPath: _paymentLogos['free_money'],
-                  icon: Icons.account_balance_wallet,
-                ),
+              _buildPaymentChip(
+                label: 'Free Money',
+                value: 'free_money',
+                assetPath: _paymentLogos['free_money'],
+                icon: Icons.account_balance_wallet,
+                enabled: false,
               ),
             ],
           ),
@@ -379,60 +374,97 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     required String value,
     required IconData icon,
     String? assetPath,
+    bool enabled = true,
   }) {
     final isSelected = _selectedPaymentMethod == value;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedPaymentMethod = value;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? primaryGreen : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? primaryGreen : Colors.grey[300]!,
-            width: 1.5,
+    final Color fg = enabled
+        ? (isSelected ? Colors.white : accentBlack)
+        : Colors.grey.shade500;
+    final Color borderColor = enabled
+        ? (isSelected ? primaryGreen : Colors.grey[300]!)
+        : Colors.grey.shade300;
+    final Color bg = !enabled
+        ? Colors.grey.shade100
+        : (isSelected ? primaryGreen : Colors.white);
+
+    return Opacity(
+      opacity: enabled ? 1 : 0.65,
+      child: InkWell(
+        onTap: enabled
+            ? () {
+                setState(() {
+                  _selectedPaymentMethod = value;
+                });
+              }
+            : null,
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 100),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: borderColor,
+              width: 1.5,
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (assetPath != null)
-              Image.asset(
-                assetPath,
-                width: 16,
-                height: 16,
-                errorBuilder: (_, __, ___) => Icon(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (!enabled) ...[
+                Icon(Icons.lock_outline, size: 14, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+              ],
+              if (assetPath != null)
+                Image.asset(
+                  assetPath,
+                  width: 16,
+                  height: 16,
+                  errorBuilder: (_, __, ___) => Icon(
+                    icon,
+                    size: 16,
+                    color: isSelected && enabled ? Colors.white : primaryGreen,
+                  ),
+                )
+              else
+                Icon(
                   icon,
                   size: 16,
-                  color: isSelected ? Colors.white : primaryGreen,
+                  color: isSelected && enabled ? Colors.white : primaryGreen,
                 ),
-              )
-            else
-              Icon(
-                icon,
-                size: 16,
-                color: isSelected ? Colors.white : primaryGreen,
-              ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : accentBlack,
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: fg,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  String _paymentMethodSummaryLabel(String m) {
+    switch (m) {
+      case 'cash':
+        return 'Paiement en espèces';
+      case 'wave':
+        return 'Paiement Wave';
+      case 'orange_money':
+        return 'Orange Money (indisponible)';
+      case 'free_money':
+        return 'Free Money (indisponible)';
+      default:
+        return 'Paiement Wave';
+    }
   }
 
   Widget _buildModeSelector() {
@@ -1700,13 +1732,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                     ),
                   const SizedBox(width: 8),
                   Text(
-                    _selectedPaymentMethod == 'cash'
-                        ? 'Paiement en espèces'
-                        : _selectedPaymentMethod == 'orange_money'
-                            ? 'Orange Money'
-                            : _selectedPaymentMethod == 'wave'
-                                ? 'Wave'
-                                : 'Free Money',
+                    _paymentMethodSummaryLabel(_selectedPaymentMethod),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -2054,7 +2080,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
         _customPrice = result['price'] ?? 0;
-        _selectedPaymentMethod = result['paymentMethod'] ?? 'cash';
+        _selectedPaymentMethod = result['paymentMethod'] ?? 'wave';
         if (_selectedMode != 'delivery' && _selectedRideType == 'moto') {
           final distance = _estimatedDistance <= 0 ? 0 : _estimatedDistance;
           if (distance > 0) {

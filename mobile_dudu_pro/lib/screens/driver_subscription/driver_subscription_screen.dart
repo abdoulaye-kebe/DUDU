@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/driver_profile.dart';
@@ -23,12 +21,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   SubscriptionInfo? _currentSubscription;
   bool _isLoading = true;
   String? _error;
-  Timer? _paymentPollTimer;
-
   static const Map<String, String> _paymentLogos = {
-    'orange_money': 'assets/images/payments/orange_money.png',
     'wave': 'assets/images/payments/wave.png',
-    'free_money': 'assets/images/payments/free_money.png',
   };
 
   @override
@@ -39,7 +33,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   @override
   void dispose() {
-    _paymentPollTimer?.cancel();
     super.dispose();
   }
 
@@ -586,13 +579,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final paymentMethod = await _showPaymentMethodDialog(plan);
     if (paymentMethod == null) return;
 
-    if (paymentMethod == 'orange_money') {
-      await _startOrangeSubscriptionPayment(plan);
-      return;
-    }
-
     if (paymentMethod == 'wave') {
-      await _openPaymentApp(paymentMethod, plan);
+      await _openPaymentApp(plan);
       return;
     }
 
@@ -622,115 +610,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
   }
 
-  /// Orange Sonatel / MAX IT (QR + deeplinks).
-  Future<void> _startOrangeSubscriptionPayment(SubscriptionPlan plan) async {
-    try {
-      final phone = widget.driverProfile.phone.trim();
-      final res = await ApiService.initiateSubscriptionOrangeMoney(
-        planType: plan.type,
-        phone: phone.isNotEmpty ? phone : null,
-      );
-
-      final raw = res['data'];
-      if (raw is! Map) {
-        throw Exception('Réponse serveur invalide');
-      }
-      final data = Map<String, dynamic>.from(raw);
-      final deeplinks = data['deeplinks'];
-      String? url;
-      if (deeplinks is Map) {
-        final dl = Map<String, dynamic>.from(deeplinks);
-        url = dl['maxIt']?.toString() ??
-            dl['MAX_IT']?.toString() ??
-            dl['orangeMoney']?.toString() ??
-            dl['om']?.toString() ??
-            dl['OM']?.toString();
-      }
-
-      if (url != null && url.isNotEmpty) {
-        final uri = Uri.tryParse(url);
-        if (uri != null && await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
-      }
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Validez le paiement dans MAX IT ou Orange Money. L\'abonnement s\'active après confirmation.',
-          ),
-          duration: Duration(seconds: 5),
-        ),
-      );
-
-      final mongoId = data['paymentMongoId']?.toString();
-      if (mongoId != null && mongoId.isNotEmpty) {
-        _startPollingPayment(mongoId, plan.name);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      _showErrorDialog(
-        'Paiement Orange / MAX IT',
-        e.toString().replaceFirst('Exception: ', ''),
-      );
-    }
-  }
-
-  void _startPollingPayment(String paymentMongoId, String planName) {
-    _paymentPollTimer?.cancel();
-    var ticks = 0;
-    _paymentPollTimer =
-        Timer.periodic(const Duration(seconds: 4), (timer) async {
-      ticks++;
-      if (ticks > 30) {
-        timer.cancel();
-        return;
-      }
-      final status = await ApiService.getPaymentStatus(paymentMongoId);
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      if (status == 'completed') {
-        timer.cancel();
-        await _loadData();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Abonnement $planName activé.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else if (status == 'failed' || status == 'cancelled') {
-        timer.cancel();
-      }
-    });
-  }
-
-  Future<void> _openPaymentApp(
-      String paymentMethod, SubscriptionPlan plan) async {
+  Future<void> _openPaymentApp(SubscriptionPlan plan) async {
     try {
       final amount = plan.price.toInt();
 
       const String duduPaymentNumber = '221771234567';
 
-      String appName;
-      String deepLinkUrl;
-      String fallbackUrl;
-
-      if (paymentMethod == 'orange_money') {
-        appName = 'Orange Money';
-        deepLinkUrl =
-            'orangemoney://send?phone=$duduPaymentNumber&amount=$amount&reason=Abonnement ${plan.name}';
-        fallbackUrl = 'https://www.orangemoney.sn';
-      } else {
-        appName = 'Wave';
-        deepLinkUrl =
-            'wave://send?phone=$duduPaymentNumber&amount=$amount&note=Abonnement ${plan.name} - ${widget.driverProfile.phone}';
-        fallbackUrl = 'https://www.wave.com/sn';
-      }
+      const appName = 'Wave';
+      final deepLinkUrl =
+          'wave://send?phone=$duduPaymentNumber&amount=$amount&note=Abonnement ${plan.name} - ${widget.driverProfile.phone}';
+      const fallbackUrl = 'https://www.wave.com/sn';
 
       final uri = Uri.parse(deepLinkUrl);
       bool launched = false;
@@ -751,13 +640,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             builder: (context) => AlertDialog(
               title: Row(
                 children: [
-                  Icon(
-                    paymentMethod == 'wave'
-                        ? Icons.payment
-                        : Icons.phone_android,
-                    color: paymentMethod == 'wave'
-                        ? const Color(0xFF00D9A5)
-                        : const Color(0xFFFF6600),
+                  const Icon(
+                    Icons.payment,
+                    color: Color(0xFF00D9A5),
                   ),
                   const SizedBox(width: 8),
                   Text('Paiement $appName'),
@@ -845,14 +730,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
 
             if (mounted) {
-              _showPaymentConfirmationDialog(plan, paymentMethod);
+              _showPaymentConfirmationDialog(plan);
             }
           }
         }
       } else {
         await Future.delayed(const Duration(seconds: 2));
         if (mounted) {
-          _showPaymentConfirmationDialog(plan, paymentMethod);
+          _showPaymentConfirmationDialog(plan);
         }
       }
     } catch (e) {
@@ -865,8 +750,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
   }
 
-  Future<void> _showPaymentConfirmationDialog(
-      SubscriptionPlan plan, String paymentMethod) async {
+  Future<void> _showPaymentConfirmationDialog(SubscriptionPlan plan) async {
     final codeController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
@@ -932,17 +816,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
 
     if (confirmed == true) {
-      await _completePurchase(plan, paymentMethod, codeController.text.trim());
+      await _completePurchase(plan, codeController.text.trim());
     }
   }
 
   Future<void> _completePurchase(
-      SubscriptionPlan plan, String paymentMethod,
+      SubscriptionPlan plan,
       [String? transactionCode]) async {
     try {
       await ApiService.purchaseSubscription(
         planType: plan.type,
-        paymentMethod: paymentMethod,
+        paymentMethod: 'wave',
         phone: widget.driverProfile.phone.isNotEmpty
             ? widget.driverProfile.phone
             : null,
@@ -994,11 +878,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 color: Color(0xFF00A651),
               ),
             ),
-            const SizedBox(height: 16),
-            _buildPaymentOption('orange_money', 'Orange Money'),
-            _buildPaymentOption('wave', 'Wave'),
-            _buildPaymentOption('free_money', 'Free Money'),
-            _buildPaymentOption('cash', 'Espèces'),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Orange Money et Free Money : bientôt. Wave et espèces disponibles.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+            ),
+            _buildPaymentOption('wave', 'Wave', enabled: true),
+            _buildPaymentOption('cash', 'Espèces', enabled: true),
+            _buildPaymentOption('orange_money', 'Orange Money', enabled: false),
+            _buildPaymentOption('free_money', 'Free Money', enabled: false),
           ],
         ),
         actions: [
@@ -1011,20 +901,32 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  Widget _buildPaymentOption(String value, String label) {
+  Widget _buildPaymentOption(String value, String label, {bool enabled = true}) {
     final logoPath = _paymentLogos[value];
-    return ListTile(
-      leading: logoPath != null
-          ? Image.asset(
-              logoPath,
-              width: 28,
-              height: 28,
-              errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.account_balance_wallet),
-            )
-          : const Icon(Icons.payments),
-      title: Text(label),
-      onTap: () => Navigator.pop(context, value),
+    return Opacity(
+      opacity: enabled ? 1 : 0.55,
+      child: ListTile(
+        enabled: enabled,
+        leading: logoPath != null
+            ? Image.asset(
+                logoPath,
+                width: 28,
+                height: 28,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.account_balance_wallet),
+              )
+            : Icon(
+                value == 'cash' ? Icons.payments : Icons.account_balance_wallet,
+                color: enabled ? null : Colors.grey,
+              ),
+        title: Text(label),
+        subtitle: enabled
+            ? null
+            : const Text('Indisponible pour le moment'),
+        trailing:
+            enabled ? null : const Icon(Icons.lock_outline, color: Colors.grey),
+        onTap: enabled ? () => Navigator.pop(context, value) : null,
+      ),
     );
   }
 

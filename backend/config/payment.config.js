@@ -45,6 +45,8 @@ module.exports = {
     sandbox: {
       apiUrl: 'https://api.wave.com/v1',
       apiKey: process.env.WAVE_SANDBOX_API_KEY || '',
+      webhookSecret:
+        process.env.WAVE_SANDBOX_WEBHOOK_SECRET || process.env.WAVE_WEBHOOK_SECRET || '',
       callbackUrl: process.env.WAVE_SANDBOX_CALLBACK_URL || 'http://localhost:3000/api/v1/mobile-payments/wave/webhook',
       businessPhone: process.env.WAVE_SANDBOX_BUSINESS_PHONE || '',
     },

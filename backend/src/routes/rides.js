@@ -10,6 +10,7 @@ const {
   driverShouldReceiveDeliveryNotification,
   driverCanAcceptNewDelivery,
 } = require('../utils/deliveryDriverRules');
+const { notifyDriversNewRideRequest } = require('../services/notifyDriversNewRideRequest');
 const router = express.Router();
 
 const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started'];
@@ -1396,7 +1397,7 @@ router.post('/schedule', [
   body('rideType').isIn(['standard', 'comfort', 'women_only', 'delivery']).withMessage('Type de course invalide'),
   body('customPrice').isInt({ min: 500 }).withMessage('Le prix minimum est 500 FCFA'),
   body('scheduledFor').notEmpty().withMessage('Date de programmation requise'),
-  body('paymentMethod').optional().isIn(['wave', 'orange_money', 'cash']).withMessage('Méthode de paiement invalide')
+  body('paymentMethod').optional().isIn(['wave', 'cash']).withMessage('Méthode de paiement invalide')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -1417,7 +1418,7 @@ router.post('/schedule', [
       paymentMethod: rawPaymentMethod
     } = req.body;
 
-    const paymentMethod = ['wave', 'orange_money', 'cash'].includes(rawPaymentMethod)
+    const paymentMethod = ['wave', 'cash'].includes(rawPaymentMethod)
       ? rawPaymentMethod
       : 'cash';
 
@@ -1480,6 +1481,19 @@ router.post('/schedule', [
 
     await ride.save();
 
+    // Notifier tout de suite les chauffeurs à proximité (même format que demande immédiate)
+    let driversNotified = 0;
+    try {
+      const io = getIO();
+      const passengerUser = await User.findById(req.userId);
+      if (io && passengerUser) {
+        const { notified } = await notifyDriversNewRideRequest(io, ride, passengerUser);
+        driversNotified = notified;
+      }
+    } catch (notifyErr) {
+      console.error('Notification chauffeurs (course planifiée):', notifyErr);
+    }
+
     return res.status(201).json({
       success: true,
       message: 'Course planifiée avec succès',
@@ -1496,7 +1510,8 @@ router.post('/schedule', [
           rideType: ride.rideType,
           scheduledFor: ride.scheduledFor,
           requestedAt: ride.requestedAt
-        }
+        },
+        driversNotified
       }
     });
   } catch (error) {

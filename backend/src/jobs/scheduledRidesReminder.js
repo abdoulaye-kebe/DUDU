@@ -1,128 +1,126 @@
 const cron = require('node-cron');
 const Ride = require('../models/Ride');
-const Driver = require('../models/Driver');
-const User = require('../models/User');
 const notificationService = require('../services/notificationService');
 
 /**
- * Service de rappel automatique pour les courses planifiées
- * Envoie des notifications 1 heure avant la course au chauffeur ET au client
+ * Rappels chauffeur + client : 2h, 1h, 30 min et 15 min avant la course planifiée.
+ * Fenêtres en minutes restantes (minutesUntil) pour tolérer un cron chaque minute.
  */
+const REMINDER_TIERS = [
+  { key: '120m', label: '2 heures', minM: 118, maxM: 120 },
+  { key: '60m', label: '1 heure', minM: 58, maxM: 60 },
+  { key: '30m', label: '30 minutes', minM: 28, maxM: 30 },
+  { key: '15m', label: '15 minutes', minM: 13, maxM: 15 },
+];
+
 module.exports = function startScheduledRidesReminder(io) {
   if (!io) return;
 
-  // Vérifier toutes les 5 minutes
-  cron.schedule('*/5 * * * *', async () => {
+  cron.schedule('* * * * *', async () => {
     try {
       const now = new Date();
-      // Fenêtre de 1 heure (55-65 minutes pour éviter les doublons)
-      const reminderStart = new Date(now.getTime() + 55 * 60 * 1000);
-      const reminderEnd = new Date(now.getTime() + 65 * 60 * 1000);
 
-      // Trouver les courses planifiées qui ont un chauffeur assigné
       const rides = await Ride.find({
-        scheduledFor: { $gte: reminderStart, $lte: reminderEnd },
+        scheduledFor: { $gt: now },
         status: 'accepted',
         driver: { $exists: true, $ne: null },
-        reminderSent: { $ne: true } // Éviter d'envoyer plusieurs fois
       })
-      .populate('driver')
-      .populate('passenger');
+        .populate({ path: 'driver', populate: { path: 'user', select: 'firstName lastName phone fcmToken' } })
+        .populate('passenger');
 
       if (!rides.length) return;
-
-      console.log('🔔 Reminder - envoi de rappels pour', rides.length, 'courses planifiées');
 
       for (const ride of rides) {
         try {
           const driver = ride.driver;
           const passenger = ride.passenger;
-
           if (!driver || !passenger) continue;
 
           const scheduledTime = new Date(ride.scheduledFor);
-          const timeUntil = Math.round((scheduledTime - now) / (1000 * 60)); // minutes
+          const minutesUntil = Math.round((scheduledTime - now) / (1000 * 60));
+          const sent = ride.scheduledRemindersSent || [];
 
-          // Formater l'heure de la course
+          const tier = REMINDER_TIERS.find(
+            (t) => minutesUntil >= t.minM && minutesUntil <= t.maxM && !sent.includes(t.key),
+          );
+          if (!tier) continue;
+
           const hours = scheduledTime.getHours().toString().padStart(2, '0');
           const minutes = scheduledTime.getMinutes().toString().padStart(2, '0');
           const timeString = `${hours}:${minutes}`;
 
-          // 1. NOTIFICATION AU CHAUFFEUR
+          const driverName = driver.user
+            ? `${driver.user.firstName} ${driver.user.lastName}`
+            : 'Votre chauffeur';
+          const vehicleInfo = driver.vehicle
+            ? `${driver.vehicle.brand} ${driver.vehicle.model} ${driver.vehicle.color}`
+            : 'Véhicule';
+
+          // --- Chauffeur (push + socket) — sendPushNotification(userId, { title, body, data })
           if (driver.user && driver.user.fcmToken) {
             try {
-              await notificationService.sendPushNotification(
-                driver.user.fcmToken,
-                '🔔 Rappel de course planifiée',
-                `Course dans ${timeUntil} min à ${timeString}. Client: ${passenger.firstName} ${passenger.lastName}`,
-                {
+              await notificationService.sendPushNotification(driver.user._id, {
+                title: `🔔 Rappel (${tier.label})`,
+                body:
+                  `Course planifiée dans ${minutesUntil} min à ${timeString}. Client: ${passenger.firstName} ${passenger.lastName}`,
+                data: {
                   type: 'scheduled_ride_reminder',
+                  tier: tier.key,
                   rideId: ride._id.toString(),
                   scheduledFor: ride.scheduledFor.toISOString(),
-                  pickup: ride.pickup.address,
-                  destination: ride.destination.address
-                }
-              );
-              console.log('✅ Rappel envoyé au chauffeur:', driver._id);
+                  pickup: String(ride.pickup?.address ?? ''),
+                  destination: String(ride.destination?.address ?? ''),
+                },
+              });
             } catch (err) {
-              console.error('❌ Erreur envoi rappel chauffeur:', err);
+              console.error('❌ Rappel push chauffeur:', err);
             }
           }
 
-          // Notification Socket.IO au chauffeur
           io.to(`driver_${driver._id}`).emit('scheduled-ride-reminder', {
             rideId: ride._id,
+            tier: tier.key,
             scheduledFor: ride.scheduledFor,
-            timeUntil: timeUntil,
+            timeUntil: minutesUntil,
             passenger: {
               name: `${passenger.firstName} ${passenger.lastName}`,
-              phone: passenger.phone
+              phone: passenger.phone,
             },
             pickup: ride.pickup,
             destination: ride.destination,
-            pricing: ride.pricing
+            pricing: ride.pricing,
           });
 
-          // 2. NOTIFICATION AU CLIENT
+          // --- Client (push + socket)
           if (passenger.fcmToken) {
             try {
-              const driverName = driver.user 
-                ? `${driver.user.firstName} ${driver.user.lastName}`
-                : 'Votre chauffeur';
-              
-              const vehicleInfo = driver.vehicle 
-                ? `${driver.vehicle.brand} ${driver.vehicle.model} ${driver.vehicle.color}`
-                : 'Véhicule';
-
-              await notificationService.sendPushNotification(
-                passenger.fcmToken,
-                '🔔 Rappel de course planifiée',
-                `${driverName} viendra vous chercher dans ${timeUntil} min à ${timeString}. ${vehicleInfo}`,
-                {
+              await notificationService.sendPushNotification(passenger._id, {
+                title: `🔔 Rappel (${tier.label})`,
+                body:
+                  `${driverName} viendra vous chercher dans ${minutesUntil} min (prévu ${timeString}). ${vehicleInfo}`,
+                data: {
                   type: 'scheduled_ride_reminder',
+                  tier: tier.key,
                   rideId: ride._id.toString(),
                   scheduledFor: ride.scheduledFor.toISOString(),
-                  driver: {
-                    name: driverName,
-                    phone: driver.user?.phone || '',
-                    vehicle: vehicleInfo
-                  }
-                }
-              );
-              console.log('✅ Rappel envoyé au client:', passenger._id);
+                  driverName,
+                  driverPhone: String(driver.user?.phone ?? ''),
+                  vehicleInfo,
+                },
+              });
             } catch (err) {
-              console.error('❌ Erreur envoi rappel client:', err);
+              console.error('❌ Rappel push client:', err);
             }
           }
 
-          // Notification Socket.IO au client
           io.to(`passenger_${passenger._id}`).emit('scheduled-ride-reminder', {
             rideId: ride._id,
+            tier: tier.key,
             scheduledFor: ride.scheduledFor,
-            timeUntil: timeUntil,
+            timeUntil: minutesUntil,
             driver: {
               id: driver._id,
-              name: driver.user ? `${driver.user.firstName} ${driver.user.lastName}` : 'Chauffeur DUDU',
+              name: driverName,
               phone: driver.user?.phone || '',
               photo: driver.photo || null,
               rating: driver.stats?.averageRating || 0,
@@ -130,25 +128,20 @@ module.exports = function startScheduledRidesReminder(io) {
                 brand: driver.vehicle?.brand || '',
                 model: driver.vehicle?.model || '',
                 color: driver.vehicle?.color || '',
-                plate: driver.vehicle?.licensePlate || ''
-              }
+                plate: driver.vehicle?.licensePlate || '',
+              },
             },
             pickup: ride.pickup,
-            destination: ride.destination
+            destination: ride.destination,
           });
 
-          // Marquer le rappel comme envoyé
+          ride.scheduledRemindersSent = [...sent, tier.key];
           ride.reminderSent = true;
           await ride.save();
 
-          console.log('🔔 Rappel envoyé pour la course:', {
-            rideId: ride._id.toString(),
-            scheduledFor: ride.scheduledFor,
-            timeUntil: `${timeUntil} min`
-          });
-
+          console.log('🔔 Rappel envoyé', tier.key, 'course', ride._id.toString());
         } catch (err) {
-          console.error('🔔 Erreur envoi rappel pour une course:', err);
+          console.error('🔔 Erreur rappel pour une course:', err);
         }
       }
     } catch (error) {
@@ -156,5 +149,5 @@ module.exports = function startScheduledRidesReminder(io) {
     }
   });
 
-  console.log('🔔 Service de rappel automatique démarré');
+  console.log('🔔 Service de rappels planifiés (2h / 1h / 30m / 15m) démarré');
 };

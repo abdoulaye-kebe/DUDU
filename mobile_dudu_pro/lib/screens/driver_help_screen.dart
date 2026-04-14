@@ -83,7 +83,7 @@ class DriverHelpScreen extends StatelessWidget {
           ),
           _buildFaqItem(
             'Comment retirer mes gains ?',
-            'Les retraits sont disponibles via Orange Money, Wave ou Free Money. Rendez-vous dans la section "Gains" pour effectuer un retrait.',
+            'Les retraits sont disponibles via Wave. Rendez-vous dans la section « Gains » pour effectuer un retrait.',
           ),
           
           const SizedBox(height: 16),

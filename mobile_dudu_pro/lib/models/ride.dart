@@ -15,7 +15,6 @@ class Ride {
   final RidePayment payment;
   final RideRating? rating;
   final List<RideTracking> tracking;
-  final RideCarpoolInfo? carpoolInfo;
   final RideDeliveryInfo? deliveryInfo;
 
   const Ride({
@@ -35,7 +34,6 @@ class Ride {
     required this.payment,
     this.rating,
     this.tracking = const [],
-    this.carpoolInfo,
     this.deliveryInfo,
   });
 
@@ -59,9 +57,6 @@ class Ride {
       tracking: (json['tracking'] as List<dynamic>?)
           ?.map((e) => RideTracking.fromJson(e))
           .toList() ?? [],
-      carpoolInfo: json['carpoolInfo'] != null 
-          ? RideCarpoolInfo.fromJson(json['carpoolInfo']) 
-          : null,
       deliveryInfo: json['delivery'] != null 
           ? RideDeliveryInfo.fromJson(json['delivery']) 
           : null,
@@ -86,7 +81,6 @@ class Ride {
       'payment': payment.toJson(),
       'rating': rating?.toJson(),
       'tracking': tracking.map((e) => e.toJson()).toList(),
-      'carpoolInfo': carpoolInfo?.toJson(),
       'delivery': deliveryInfo?.toJson(),
     };
   }
@@ -108,7 +102,6 @@ class Ride {
     RidePayment? payment,
     RideRating? rating,
     List<RideTracking>? tracking,
-    RideCarpoolInfo? carpoolInfo,
     RideDeliveryInfo? deliveryInfo,
   }) {
     return Ride(
@@ -128,7 +121,6 @@ class Ride {
       payment: payment ?? this.payment,
       rating: rating ?? this.rating,
       tracking: tracking ?? this.tracking,
-      carpoolInfo: carpoolInfo ?? this.carpoolInfo,
       deliveryInfo: deliveryInfo ?? this.deliveryInfo,
     );
   }
@@ -530,38 +522,6 @@ class RideTracking {
       'timestamp': timestamp.toIso8601String(),
       'speed': speed,
       'heading': heading,
-    };
-  }
-}
-
-class RideCarpoolInfo {
-  final bool isCarpool;
-  final int requestedSeats;
-  final int? availableSeats;
-  final List<String> otherPassengers;
-
-  const RideCarpoolInfo({
-    required this.isCarpool,
-    required this.requestedSeats,
-    this.availableSeats,
-    this.otherPassengers = const [],
-  });
-
-  factory RideCarpoolInfo.fromJson(Map<String, dynamic> json) {
-    return RideCarpoolInfo(
-      isCarpool: json['isCarpool'] ?? false,
-      requestedSeats: json['requestedSeats'] ?? 1,
-      availableSeats: json['availableSeats'],
-      otherPassengers: List<String>.from(json['otherPassengers'] ?? []),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'isCarpool': isCarpool,
-      'requestedSeats': requestedSeats,
-      'availableSeats': availableSeats,
-      'otherPassengers': otherPassengers,
     };
   }
 }

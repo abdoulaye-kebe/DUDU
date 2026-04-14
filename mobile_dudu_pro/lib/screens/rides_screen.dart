@@ -71,7 +71,7 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
             acceptedAt: DateTime.now().subtract(const Duration(minutes: 5)),
           ),
           payment: const RidePayment(
-            method: 'orange_money',
+            method: 'wave',
             status: 'pending',
           ),
         ),
@@ -602,14 +602,12 @@ class _RidesScreenState extends State<RidesScreen> with TickerProviderStateMixin
 
   String _getPaymentMethodName(String method) {
     switch (method) {
-      case 'orange_money':
-        return 'Orange Money';
-      case 'wave':
-        return 'Wave';
-      case 'free_money':
-        return 'Free Money';
       case 'cash':
         return 'Espèces';
+      case 'wave':
+      case 'orange_money':
+      case 'free_money':
+        return 'Wave';
       default:
         return method;
     }

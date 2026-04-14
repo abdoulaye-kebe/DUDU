@@ -764,14 +764,12 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
 
   String _getPaymentMethodName(String method) {
     switch (method) {
-      case 'orange_money':
-        return 'Orange Money';
-      case 'wave':
-        return 'Wave';
-      case 'free_money':
-        return 'Free Money';
       case 'cash':
         return 'Espèces';
+      case 'wave':
+      case 'orange_money':
+      case 'free_money':
+        return 'Wave';
       default:
         return method;
     }

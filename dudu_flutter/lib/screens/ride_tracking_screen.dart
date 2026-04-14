@@ -296,20 +296,6 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF6600).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.phone_android, color: Color(0xFFFF6600)),
-              ),
-              title: const Text('Orange Money'),
-              subtitle: const Text('Paiement mobile Orange Money'),
-              onTap: () => Navigator.pop(context, 'orange_money'),
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
                   color: Colors.green.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -343,18 +329,11 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
       return;
     }
     
-    // Ouvrir Wave ou Orange Money
+    // Paiement mobile : Wave uniquement
     try {
-      String deepLinkUrl;
-      String appName;
-      
-      if (paymentMethod == 'wave') {
-        appName = 'Wave';
-        deepLinkUrl = 'wave://send?phone=$driverPhone&amount=$amount&note=Course DUDU ${widget.rideId}';
-      } else {
-        appName = 'Orange Money';
-        deepLinkUrl = 'orangemoney://send?phone=$driverPhone&amount=$amount&reason=Course DUDU ${widget.rideId}';
-      }
+      const appName = 'Wave';
+      final deepLinkUrl =
+          'wave://send?phone=$driverPhone&amount=$amount&note=Course DUDU ${widget.rideId}';
       
       final uri = Uri.parse(deepLinkUrl);
       bool launched = false;

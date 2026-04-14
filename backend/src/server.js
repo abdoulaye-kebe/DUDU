@@ -78,6 +78,14 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// Webhook Wave : le corps doit rester brut pour HMAC (Wave-Signature = t=…,v1=…)
+const mobilePaymentsRouter = require('./routes/mobile-payments');
+app.post(
+  '/api/v1/mobile-payments/wave/webhook',
+  express.raw({ type: 'application/json' }),
+  mobilePaymentsRouter.handleWaveWebhook
+);
+
 // Middleware pour parser le JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -101,13 +109,11 @@ app.use('/api/v1/users', require('./routes/users'));
 app.use('/api/v1/drivers', require('./routes/drivers'));
 app.use('/api/v1/rides', require('./routes/rides'));
 app.use('/api/v1/payments', require('./routes/payments'));
-app.use('/api/v1/mobile-payments', require('./routes/mobile-payments'));
+app.use('/api/v1/mobile-payments', mobilePaymentsRouter);
 app.use('/api/v1/subscriptions', require('./routes/subscriptions'));
 app.use('/api/v1/admin', require('./routes/admin'));
 app.use('/api/v1/notifications', require('./routes/notifications'));
 app.use('/api/v1/disputes', require('./routes/disputes'));
-app.use('/api/v1/carpool', require('./routes/carpool'));
-
 // Route de santé
 app.get('/api/v1/health', (req, res) => {
   res.json({
@@ -138,6 +144,8 @@ app.use((error, req, res, next) => {
 
 // Rendre io accessible dans les routes
 app.set('io', io);
+const { setIO } = require('./socket/socketIO');
+setIO(io);
 
 // Configuration Socket.io
 require('./socket/socketHandler')(io);

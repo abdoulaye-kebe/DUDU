@@ -188,11 +188,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     final paymentMethod = user?.budgetSettings?.preferredPaymentMethod;
                     final paymentLabel = paymentMethod == null
                         ? 'Non défini'
-                        : paymentMethod == 'orange_money'
-                            ? 'Orange Money'
-                            : paymentMethod == 'wave'
-                                ? 'Wave'
-                                : 'Espèces';
+                        : paymentMethod == 'cash'
+                            ? 'Espèces'
+                            : 'Wave';
                     return _buildSection(
                       'Préférences',
                       Icons.settings,
@@ -509,7 +507,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showPaymentMethods() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
-    final currentMethod = user?.budgetSettings?.preferredPaymentMethod ?? 'cash';
+    final currentMethod = user?.budgetSettings?.preferredPaymentMethod ?? 'wave';
     final userPhone = user?.phone ?? '';
 
     showDialog(
@@ -519,24 +517,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: Image.asset(
-                _paymentLogos['orange_money']!,
-                width: 28,
-                height: 28,
-                errorBuilder: (_, __, ___) => const Icon(
-                  Icons.account_balance_wallet,
-                  color: Colors.orange,
-                ),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Orange Money et Free Money : bientôt. Wave et espèces disponibles.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
               ),
-              title: const Text('Orange Money'),
-              subtitle: Text(userPhone.isNotEmpty ? userPhone : 'Non configuré'),
-              trailing: currentMethod == 'orange_money'
-                  ? const Icon(Icons.check_circle, color: Colors.green)
-                  : null,
-              onTap: () => _updatePaymentMethod('orange_money'),
             ),
-            const Divider(),
             ListTile(
               leading: Image.asset(
                 _paymentLogos['wave']!,
@@ -560,6 +547,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? const Icon(Icons.check_circle, color: Colors.green)
                   : null,
               onTap: () => _updatePaymentMethod('cash'),
+            ),
+            const Divider(),
+            Opacity(
+              opacity: 0.55,
+              child: ListTile(
+                enabled: false,
+                leading: Image.asset(
+                  _paymentLogos['orange_money']!,
+                  width: 28,
+                  height: 28,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.account_balance_wallet, color: Colors.grey),
+                ),
+                title: const Text('Orange Money'),
+                subtitle: const Text('Indisponible pour le moment'),
+                trailing: const Icon(Icons.lock_outline, color: Colors.grey),
+              ),
+            ),
+            Opacity(
+              opacity: 0.55,
+              child: ListTile(
+                enabled: false,
+                leading: Image.asset(
+                  _paymentLogos['free_money']!,
+                  width: 28,
+                  height: 28,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.account_balance_wallet, color: Colors.grey),
+                ),
+                title: const Text('Free Money'),
+                subtitle: const Text('Indisponible pour le moment'),
+                trailing: const Icon(Icons.lock_outline, color: Colors.grey),
+              ),
             ),
           ],
         ),
@@ -618,12 +636,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _getPaymentLabel(String method) {
     switch (method) {
-      case 'orange_money':
-        return 'Orange Money';
       case 'wave':
         return 'Wave';
       case 'cash':
         return 'Espèces';
+      case 'orange_money':
+        return 'Orange Money';
+      case 'free_money':
+        return 'Free Money';
       default:
         return 'Non défini';
     }

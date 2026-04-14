@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'subscription_payment_screen.dart';
-import 'subscription_payment_om_screen.dart';
 
 class SubscriptionPlansScreen extends StatefulWidget {
   const SubscriptionPlansScreen({Key? key}) : super(key: key);
@@ -357,79 +356,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
 
   void _confirmSubscription() {
     final selectedPlanData = _plans.firstWhere((p) => p['id'] == _selectedPlan);
-    
-    // Afficher le choix du mode de paiement
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Choisir le mode de paiement',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 24),
-            _buildPaymentMethodButton(
-              'Wave',
-              Icons.payment,
-              Colors.blue,
-              () {
-                Navigator.pop(context);
-                _navigateToWavePayment(selectedPlanData);
-              },
-            ),
-            const SizedBox(height: 12),
-            _buildPaymentMethodButton(
-              'Orange Money',
-              Icons.qr_code,
-              Colors.orange,
-              () {
-                Navigator.pop(context);
-                _navigateToOrangeMoneyPayment(selectedPlanData);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentMethodButton(String name, IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(color: color.withOpacity(0.3)),
-          borderRadius: BorderRadius.circular(12),
-          color: color.withOpacity(0.1),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(width: 16),
-            Text(
-              name,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            const Spacer(),
-            Icon(Icons.arrow_forward_ios, color: color),
-          ],
-        ),
-      ),
-    );
+    _navigateToWavePayment(selectedPlanData);
   }
 
   void _navigateToWavePayment(Map<String, dynamic> planData) {
@@ -464,36 +391,5 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
         );
       }
     });
-  }
-
-  void _navigateToOrangeMoneyPayment(Map<String, dynamic> planData) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SubscriptionPaymentOMScreen(
-          subscriptionId: planData['id'],
-          amount: planData['price'],
-          planName: planData['name'],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentOption(String name, IconData icon) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: primaryGreen),
-          const SizedBox(width: 12),
-          Text(name),
-        ],
-      ),
-    );
   }
 }

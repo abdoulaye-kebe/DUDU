@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import 'active_ride_screen.dart';
 /// Écran des demandes de courses en temps réel
@@ -529,22 +530,30 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
 
   Future<void> _acceptRide(String rideId) async {
     try {
-      // Trouver les données de la course
       final request = _pendingRequests.firstWhere((r) => r.id == rideId);
-      final rideData = SocketService().currentRideRequests.firstWhere(
+      final socketSnapshot = SocketService().currentRideRequests.firstWhere(
         (r) => (r['id']?.toString() ?? r['rideId']?.toString()) == rideId,
         orElse: () => <String, dynamic>{},
       );
-      
+
       await SocketService().acceptRide(rideId);
-      
+
+      Map<String, dynamic> rideData =
+          Map<String, dynamic>.from(socketSnapshot);
+      final details = await ApiService.getRideDetails(rideId);
+      final data = details?['data'];
+      final rideObj = data is Map ? data['ride'] : null;
+      if (rideObj is Map<String, dynamic>) {
+        rideData = ActiveRideScreen.ridePayloadFromApiRide(rideObj);
+      }
+
       setState(() {
         _pendingRequests.removeWhere((r) => r.id == rideId);
         SocketService().removeRideRequest(rideId);
       });
-      
+
       if (!mounted) return;
-      
+
       final route = MaterialPageRoute<void>(
         builder: (context) => ActiveRideScreen(
           rideId: rideId,

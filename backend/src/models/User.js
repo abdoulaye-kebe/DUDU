@@ -77,10 +77,6 @@ const userSchema = new mongoose.Schema({
       type: Boolean,
       default: true
     },
-    carpoolNotifications: {
-      type: Boolean,
-      default: true
-    },
     promoNotifications: {
       type: Boolean,
       default: true
@@ -163,8 +159,8 @@ const userSchema = new mongoose.Schema({
     maxPricePerKm: Number,
     preferredPaymentMethod: {
       type: String,
-      enum: ['orange_money', 'wave', 'free_money', 'cash'],
-      default: 'orange_money'
+      enum: ['wave', 'cash'],
+      default: 'wave'
     }
   }
 }, {

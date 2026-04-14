@@ -12,8 +12,5 @@ router.put('/preferences', auth, notificationController.updateNotificationPrefer
 // Promo push via topic
 router.post('/promo', auth, notificationController.sendPromoToTopic);
 
-// Webhook (appelé par le système)
-router.post('/webhook/carpool-change', notificationController.onCarpoolStatusChange);
-
 module.exports = router;
 

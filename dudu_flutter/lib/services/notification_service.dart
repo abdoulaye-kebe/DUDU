@@ -184,7 +184,7 @@ class NotificationService {
         AndroidNotificationDetails(
       'dudu_channel',
       'DUDU Notifications',
-      channelDescription: 'Notifications de courses et covoiturage',
+      channelDescription: 'Notifications de courses DUDU',
       importance: Importance.max,
       priority: Priority.high,
       showWhen: true,
@@ -208,30 +208,6 @@ class NotificationService {
       body,
       notificationDetails,
       payload: payload,
-    );
-  }
-
-  /// Notification covoiturage disponible
-  Future<void> showCarpoolAvailableNotification({
-    required int driversCount,
-    required int totalSeats,
-    required int savings,
-  }) async {
-    await showNotification(
-      title: '🤝 $driversCount chauffeurs en covoiturage !',
-      body: '$totalSeats places disponibles • Économisez $savings FCFA',
-      payload: 'carpool_available',
-    );
-  }
-
-  /// Notification prix réduit
-  Future<void> showPriceReductionNotification({
-    required int savings,
-  }) async {
-    await showNotification(
-      title: '💰 Prix réduit maintenant !',
-      body: 'Économisez $savings FCFA avec le covoiturage',
-      payload: 'price_reduction',
     );
   }
 
@@ -366,7 +342,6 @@ class NotificationService {
       return;
     }
     switch (payload) {
-      case 'carpool_available':
       case 'driver_found':
       case 'driver_approaching':
       case 'ride_started':
@@ -398,14 +373,5 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.cancel(id);
   }
 
-  /// Simuler notification covoiturage (pour tests)
-  Future<void> simulateCarpoolNotification() async {
-    await Future.delayed(const Duration(seconds: 2));
-    await showCarpoolAvailableNotification(
-      driversCount: 5,
-      totalSeats: 15,
-      savings: 600,
-    );
-  }
 }
 

@@ -1,33 +1,4 @@
 const notificationService = require('../services/notificationService');
-const Driver = require('../models/Driver');
-
-/**
- * Webhook appelé quand un chauffeur active/désactive le covoiturage
- */
-exports.onCarpoolStatusChange = async (req, res) => {
-  try {
-    const { driverId, carpoolMode, carpoolSeats } = req.body;
-
-    const driver = await Driver.findById(driverId);
-    if (!driver) {
-      return res.status(404).json({ message: 'Chauffeur non trouvé' });
-    }
-
-    // Analyser la disponibilité dans la zone
-    const carpoolData = await notificationService.analyzeCarpoolAvailability({
-      latitude: driver.currentLocation.latitude,
-      longitude: driver.currentLocation.longitude,
-    });
-
-    res.json({
-      success: true,
-      carpoolData,
-    });
-  } catch (error) {
-    console.error('Erreur webhook covoiturage:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-};
 
 /**
  * Enregistrer le token FCM d'un utilisateur
@@ -157,7 +128,6 @@ exports.updateNotificationPreferences = async (req, res) => {
     const User = require('../models/User');
     await User.findByIdAndUpdate(userId, {
       'preferences.pushNotifications': preferences.pushNotifications !== false,
-      'preferences.carpoolNotifications': preferences.carpoolNotifications !== false,
       'preferences.promoNotifications': preferences.promoNotifications !== false,
     });
 

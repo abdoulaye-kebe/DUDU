@@ -121,24 +121,64 @@ class WaveService {
   }
 
   /**
-   * Traite le JSON du webhook après vérification HMAC sur le corps brut (route HTTP).
-   * @param {Object} webhookData - Données parsées du webhook
+   * Normalise un événement Wave (format actuel : { id, type, data }) ou ancien corps plat.
+   * @param {Object} webhookData - JSON parsé du webhook
    */
   async handleWebhook(webhookData) {
     try {
+      const eventType = webhookData.type || webhookData.event;
+
+      if (eventType === 'test.test_event' || (typeof eventType === 'string' && eventType.startsWith('test.'))) {
+        return {
+          success: true,
+          skipProcessing: true,
+          sessionId: null,
+          orderId: null,
+          transactionId: null,
+          status: 'noop',
+          amount: null,
+          currency: null,
+          paidAt: null,
+          customerPhone: null,
+          event: eventType,
+        };
+      }
+
+      // Nouveau format : envelope avec data (checkout.session.*, etc.)
+      if (webhookData.data && typeof webhookData.data === 'object') {
+        const d = webhookData.data;
+        const status = this.mapWebhookEventStatus(eventType, d);
+        const paidAt = d.when_completed
+          ? new Date(d.when_completed)
+          : (d.when_created ? new Date(d.when_created) : null);
+
+        return {
+          success: true,
+          sessionId: d.id,
+          orderId: d.client_reference != null ? String(d.client_reference) : null,
+          transactionId: d.transaction_id != null ? String(d.transaction_id) : null,
+          status,
+          amount: d.amount != null ? parseFloat(String(d.amount), 10) : null,
+          currency: d.currency,
+          paidAt,
+          customerPhone: d.sender_mobile || d.customer_phone_number,
+          event: eventType,
+        };
+      }
+
+      // Ancien format plat (rétrocompatibilité)
       const status = this.mapStatus(webhookData.status);
-      
       return {
         success: true,
         sessionId: webhookData.id,
-        orderId: webhookData.client_reference,
-        transactionId: webhookData.transaction_id,
-        status: status,
-        amount: parseFloat(webhookData.amount),
+        orderId: webhookData.client_reference != null ? String(webhookData.client_reference) : null,
+        transactionId: webhookData.transaction_id != null ? String(webhookData.transaction_id) : null,
+        status,
+        amount: webhookData.amount != null ? parseFloat(String(webhookData.amount), 10) : null,
         currency: webhookData.currency,
         paidAt: webhookData.completed_at ? new Date(webhookData.completed_at) : null,
         customerPhone: webhookData.customer_phone_number,
-        event: webhookData.event,
+        event: eventType,
       };
     } catch (error) {
       console.error('Erreur lors du traitement du webhook Wave:', error.message);
@@ -147,27 +187,86 @@ class WaveService {
   }
 
   /**
-   * Vérifier la signature du webhook Wave
-   * Wave utilise HMAC SHA-256 avec le Signing Secret
+   * Statut métier à partir d’un événement checkout Wave.
    */
-  verifyWebhookSignature(payload, signature) {
+  mapWebhookEventStatus(eventType, data) {
+    const ps = (data.payment_status || '').toLowerCase();
+    const cs = (data.checkout_status || '').toLowerCase();
+
+    if (eventType === 'checkout.session.completed' && ps === 'succeeded' && cs === 'complete') {
+      return 'completed';
+    }
+    if (eventType === 'checkout.session.payment_failed' || ps === 'failed') {
+      return 'failed';
+    }
+    if (cs === 'expired' || ps === 'expired') {
+      return 'failed';
+    }
+    if (ps === 'cancelled' || cs === 'cancelled') {
+      return 'cancelled';
+    }
+    return 'processing';
+  }
+
+  /**
+   * Vérifie l’en-tête Wave-Signature (t=timestamp,v1=hex) sur le corps brut UTF-8.
+   * @see https://docs.wave.com/webhook
+   */
+  verifyWebhookSignature(rawBody, waveSignatureHeader) {
     try {
-      if (!signature || !this.config.webhookSecret) {
-        console.warn('⚠️ Signature ou secret webhook manquant');
+      const secret = this.config.webhookSecret;
+      if (!waveSignatureHeader || !secret) {
+        console.warn('⚠️ Wave-Signature ou WAVE_WEBHOOK_SECRET manquant');
         return false;
       }
 
-      // Générer la signature attendue avec HMAC SHA-256
-      const expectedSignature = crypto
-        .createHmac('sha256', this.config.webhookSecret)
-        .update(payload)
-        .digest('hex');
+      const raw =
+        typeof rawBody === 'string'
+          ? rawBody
+          : Buffer.isBuffer(rawBody)
+            ? rawBody.toString('utf8')
+            : String(rawBody);
 
-      // Comparer de manière sécurisée (timing-safe)
-      return crypto.timingSafeEqual(
-        Buffer.from(signature),
-        Buffer.from(expectedSignature)
-      );
+      const header = String(waveSignatureHeader).trim();
+
+      // Format officiel : t=1639081943,v1=abc...
+      if (header.includes('t=') && header.includes('v1=')) {
+        const parts = header.split(',').map((p) => p.trim());
+        const timestampPart = parts.find((p) => p.startsWith('t='));
+        const v1Parts = parts.filter((p) => p.startsWith('v1='));
+        if (!timestampPart || v1Parts.length === 0) return false;
+
+        const timestamp = timestampPart.split('=').slice(1).join('=');
+        const signatures = v1Parts.map((p) => p.split('=').slice(1).join('='));
+
+        const tsNum = parseInt(timestamp, 10);
+        if (!Number.isFinite(tsNum)) return false;
+        const maxSkew = parseInt(process.env.WAVE_WEBHOOK_MAX_SKEW_SEC || '600', 10);
+        const ageSec = Math.abs(Math.floor(Date.now() / 1000) - tsNum);
+        if (ageSec > maxSkew) {
+          console.warn('⚠️ Webhook Wave : timestamp hors fenêtre (replay ?)', ageSec, 's');
+          return false;
+        }
+
+        const payload = timestamp + raw;
+        const calculated = crypto
+          .createHmac('sha256', secret)
+          .update(payload, 'utf8')
+          .digest('hex');
+
+        return signatures.some((sig) => sig === calculated);
+      }
+
+      // Secours : ancien test avec signature = seul hex du corps (non documenté Wave)
+      const expected = crypto.createHmac('sha256', secret).update(raw, 'utf8').digest('hex');
+      if (header.length === expected.length) {
+        try {
+          return crypto.timingSafeEqual(Buffer.from(header, 'utf8'), Buffer.from(expected, 'utf8'));
+        } catch (_) {
+          return false;
+        }
+      }
+      return false;
     } catch (error) {
       console.error('❌ Erreur lors de la vérification de la signature webhook:', error.message);
       return false;

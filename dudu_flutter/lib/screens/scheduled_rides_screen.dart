@@ -84,8 +84,8 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     SocketService().onRideAccepted = (data) {
       if (!mounted) return;
       
-      final isScheduled = data['isScheduled'] == true;
       final scheduledFor = data['scheduledFor'];
+      final isScheduled = data['isScheduled'] == true || scheduledFor != null;
       
       if (isScheduled && scheduledFor != null) {
         _showScheduledRideAcceptedDialog(data);
@@ -1406,7 +1406,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     return result == true;
   }
 
-  /// Choisir Wave ou Orange Money ; le paiement réel se fait via l’API (`MobilePaymentScreen`) après création de la course.
+  /// Wave (paiement en ligne via API) ou espèces au chauffeur.
   Future<String?> _pickScheduledPaymentMethod() async {
     final amount = _price > 0 ? _price : 2500;
 
@@ -1414,7 +1414,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Paiement requis'),
+        title: const Text('Mode de paiement'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1427,7 +1427,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
               child: Column(
                 children: [
                   const Text(
-                    'Montant à payer',
+                    'Montant',
                     style: TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                   const SizedBox(height: 4),
@@ -1444,7 +1444,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
             ),
             const SizedBox(height: 16),
             const Text(
-              'Paiement sécurisé via notre serveur (Wave / Orange Money).',
+              'Le paiement mobile intégré est disponible via Wave.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14),
             ),
@@ -1459,21 +1459,21 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                 child: const Icon(Icons.payment, color: Color(0xFF00D9A5)),
               ),
               title: const Text('Wave'),
-              subtitle: const Text('Lien de paiement Wave (API)'),
+              subtitle: const Text('Paiement sécurisé (API Wave)'),
               onTap: () => Navigator.pop(context, 'wave'),
             ),
             ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF6600).withOpacity(0.1),
+                  color: Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.phone_android, color: Color(0xFFFF6600)),
+                child: const Icon(Icons.payments, color: Colors.black54),
               ),
-              title: const Text('Orange Money'),
-              subtitle: const Text('Paiement Orange Money (API)'),
-              onTap: () => Navigator.pop(context, 'orange_money'),
+              title: const Text('Espèces'),
+              subtitle: const Text('Payer le chauffeur en cash le jour J'),
+              onTap: () => Navigator.pop(context, 'cash'),
             ),
           ],
         ),
@@ -1541,13 +1541,12 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     final ride = response.data!;
     final rideId = ride.id;
 
-    if (paymentMethod == 'wave' || paymentMethod == 'orange_money') {
+    if (paymentMethod == 'wave') {
       final payResult = await Navigator.of(context).push<dynamic>(
         MaterialPageRoute(
           builder: (ctx) => MobilePaymentScreen(
             rideId: rideId,
             amount: payAmount,
-            method: paymentMethod,
           ),
         ),
       );

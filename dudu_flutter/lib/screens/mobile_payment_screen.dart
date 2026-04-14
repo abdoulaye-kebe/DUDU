@@ -3,17 +3,15 @@ import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/mobile_payment_service.dart';
 
-/// Écran de paiement mobile (Orange Money ou Wave)
+/// Écran de paiement mobile Wave
 class MobilePaymentScreen extends StatefulWidget {
   final String rideId;
   final int amount;
-  final String method; // 'orange_money' ou 'wave'
 
   const MobilePaymentScreen({
     Key? key,
     required this.rideId,
     required this.amount,
-    required this.method,
   }) : super(key: key);
 
   @override
@@ -21,8 +19,6 @@ class MobilePaymentScreen extends StatefulWidget {
 }
 
 class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
-  static const Color primaryGreen = Color(0xFF0d5d36);
-  
   final TextEditingController _phoneController = TextEditingController();
   bool _isLoading = false;
   String? _paymentId;
@@ -37,17 +33,11 @@ class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
     super.dispose();
   }
 
-  String get _methodName {
-    return widget.method == 'orange_money' ? 'Orange Money' : 'Wave';
-  }
+  String get _methodName => 'Wave';
 
-  Color get _methodColor {
-    return widget.method == 'orange_money' ? Colors.orange : Colors.blue;
-  }
+  Color get _methodColor => Colors.blue;
 
-  IconData get _methodIcon {
-    return widget.method == 'orange_money' ? Icons.phone_android : Icons.water_drop;
-  }
+  IconData get _methodIcon => Icons.water_drop;
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +56,7 @@ class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
   }
 
   Widget _buildPhoneInput() {
-    final fees = MobilePaymentService.calculateFees(widget.amount, widget.method);
+    final fees = MobilePaymentService.calculateFees(widget.amount);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -432,7 +422,7 @@ class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
         child: ElevatedButton(
           onPressed: () {
             Navigator.pop(context, {
-              'method': widget.method,
+              'method': 'wave',
               'status': 'completed',
               'paymentId': _paymentId,
             });
@@ -550,23 +540,12 @@ class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
 
     try {
       final normalizedPhone = MobilePaymentService.normalizePhoneNumber(phone);
-      Map<String, dynamic> result;
-
-      if (widget.method == 'orange_money') {
-        result = await MobilePaymentService.initiateOrangeMoneyPayment(
-          rideId: widget.rideId,
-          amount: widget.amount,
-          phone: normalizedPhone,
-        );
-        _paymentUrl = result['paymentUrl'];
-      } else {
-        result = await MobilePaymentService.initiateWavePayment(
-          rideId: widget.rideId,
-          amount: widget.amount,
-          phone: normalizedPhone,
-        );
-        _paymentUrl = result['checkoutUrl'];
-      }
+      final result = await MobilePaymentService.initiateWavePayment(
+        rideId: widget.rideId,
+        amount: widget.amount,
+        phone: normalizedPhone,
+      );
+      _paymentUrl = result['checkoutUrl'];
 
       setState(() {
         _paymentId = result['paymentId']?.toString();

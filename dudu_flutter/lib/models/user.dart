@@ -166,7 +166,7 @@ class BudgetSettings {
   factory BudgetSettings.fromJson(Map<String, dynamic> json) {
     return BudgetSettings(
       maxPricePerKm: json['maxPricePerKm']?.toDouble(),
-      preferredPaymentMethod: json['preferredPaymentMethod'] ?? 'orange_money',
+      preferredPaymentMethod: json['preferredPaymentMethod'] ?? 'wave',
     );
   }
 

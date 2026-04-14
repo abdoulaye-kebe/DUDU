@@ -30,27 +30,22 @@ class RideConfirmationScreen extends StatefulWidget {
 }
 
 class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
-  String _selectedPaymentMethod = 'cash';
+  String _selectedPaymentMethod = 'wave';
   int _customPrice = 0;
 
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color lightGreen = Color(0xFF10b981);
   static const Color accentBlack = Color(0xFF1A1A1A);
 
-  final Map<String, String> _paymentLogos = {
-    'cash': 'assets/images/payments/cash_logo.png',
-    'orange_money': 'assets/images/payments/orange_money_logo.png',
-    'wave': 'assets/images/payments/wave_logo.png',
-    'free_money': 'assets/images/payments/free_money_logo..png',
-  };
-
   @override
   void initState() {
     super.initState();
     _customPrice = widget.initialPrice;
-    _selectedPaymentMethod = widget.initialPaymentMethod.isNotEmpty
+    var m = widget.initialPaymentMethod.isNotEmpty
         ? widget.initialPaymentMethod
-        : 'cash';
+        : 'wave';
+    if (m == 'orange_money' || m == 'free_money') m = 'wave';
+    _selectedPaymentMethod = m;
   }
 
   @override
@@ -317,68 +312,77 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
           spacing: 12,
           runSpacing: 12,
           children: [
-            _buildPaymentOption('cash', 'Espèces'),
-            _buildPaymentOption('orange_money', 'Orange Money'),
-            _buildPaymentOption('wave', 'Wave'),
-            _buildPaymentOption('free_money', 'Free Money'),
+            _buildPaymentOption('cash', 'Espèces', enabled: true),
+            _buildPaymentOption('wave', 'Wave', enabled: true),
+            _buildPaymentOption('orange_money', 'Orange Money', enabled: false),
+            _buildPaymentOption('free_money', 'Free Money', enabled: false),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildPaymentOption(String method, String label) {
+  Widget _buildPaymentOption(String method, String label, {bool enabled = true}) {
     final isSelected = _selectedPaymentMethod == method;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedPaymentMethod = method;
-        });
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? primaryGreen.withOpacity(0.1) : Colors.grey[50],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? primaryGreen : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (method == 'cash')
-              Icon(
-                Icons.payments,
-                color: isSelected ? primaryGreen : Colors.grey[600],
-                size: 20,
-              )
-            else
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Icon(
-                  Icons.account_balance_wallet,
-                  size: 16,
-                  color: isSelected ? primaryGreen : Colors.grey[600],
-                ),
-              ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? primaryGreen : accentBlack,
-              ),
+    return Opacity(
+      opacity: enabled ? 1 : 0.55,
+      child: InkWell(
+        onTap: enabled
+            ? () {
+                setState(() {
+                  _selectedPaymentMethod = method;
+                });
+              }
+            : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected && enabled ? primaryGreen.withOpacity(0.1) : Colors.grey[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected && enabled ? primaryGreen : Colors.grey[300]!,
+              width: isSelected && enabled ? 2 : 1,
             ),
-          ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!enabled)
+                Icon(Icons.lock_outline, size: 18, color: Colors.grey.shade600)
+              else if (method == 'cash')
+                Icon(
+                  Icons.payments,
+                  color: isSelected ? primaryGreen : Colors.grey[600],
+                  size: 20,
+                )
+              else
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet,
+                    size: 16,
+                    color: isSelected ? primaryGreen : Colors.grey[600],
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected && enabled ? FontWeight.w600 : FontWeight.w500,
+                  color: !enabled
+                      ? Colors.grey.shade600
+                      : (isSelected ? primaryGreen : accentBlack),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
