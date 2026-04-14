@@ -43,20 +43,23 @@ class WaveService {
       // Normaliser le numéro de téléphone
       const normalizedPhone = this.normalizePhoneNumber(phone);
 
+      // URLs de redirection (Wave Checkout API exige https://…)
+      const baseUrl = process.env.PUBLIC_BASE_URL || 'https://www.dudugroup.sn';
+      const successUrl = process.env.WAVE_SUCCESS_URL || `${baseUrl}/payment/success?ref=${encodeURIComponent(orderId)}`;
+      const errorUrl = process.env.WAVE_ERROR_URL || `${baseUrl}/payment/error?ref=${encodeURIComponent(orderId)}`;
+
       // Préparer les données de paiement
       const paymentData = {
         amount: amount,
         currency: this.currency,
-        business_id: this.config.businessId,
         client_reference: orderId,
-        customer_phone_number: normalizedPhone,
         description: description || `Paiement DUDU - ${orderId}`,
-        callback_url: this.config.callbackUrl,
-        metadata: {
-          order_id: orderId,
-          platform: 'DUDU',
-          country: this.country,
-        },
+        // Checkout API fields (docs.wave.com/checkout)
+        success_url: successUrl,
+        error_url: errorUrl,
+        // Optionnel : si fourni, Wave affiche des instructions à ce numéro
+        // (ne bloque pas si absent / non supporté selon régions)
+        customer_phone_number: normalizedPhone,
       };
 
       // Créer la requête de paiement
