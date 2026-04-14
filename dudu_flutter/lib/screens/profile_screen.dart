@@ -19,11 +19,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   String? _error;
 
+  /// Même convention que `UnifiedRideScreen` / `RideConfirmationScreen`.
   static const Map<String, String> _paymentLogos = {
-    'orange_money': 'assets/images/payments/orange_money.png',
-    'wave': 'assets/images/payments/wave.png',
-    'free_money': 'assets/images/payments/free_money.png',
+    'orange_money': 'assets/images/payments/orange_money_logo.png',
+    'wave': 'assets/images/payments/wave_logo.png',
+    'free_money': 'assets/images/payments/free_money_logo.png',
   };
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      await auth.refreshProfile();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +168,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             children: [
                               _buildStatItem('Note', rating, Icons.star),
                               _buildStatItem('Courses', '$totalRides', Icons.directions_car),
-                              _buildStatItem('Membre', '2024', Icons.calendar_today),
+                              _buildStatItem(
+                                'Membre',
+                                user?.createdAt != null
+                                    ? '${user!.createdAt!.year}'
+                                    : '—',
+                                Icons.calendar_today,
+                              ),
                             ],
                           );
                         },

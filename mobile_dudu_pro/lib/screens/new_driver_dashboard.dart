@@ -1338,43 +1338,61 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         border: Border.all(color: Colors.grey[300]!),
       ),
       clipBehavior: Clip.antiAlias,
-      child: GoogleMap(
-        mapType: MapType.normal,
-        initialCameraPosition: CameraPosition(
-          target: _currentPosition != null
-              ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-              : SenegalMap.dakar,
-          zoom: _currentPosition != null ? 14.0 : SenegalMap.countryOverviewZoom,
-        ),
-        onMapCreated: (controller) {
-          _mapController = controller;
-          Future.microtask(() async {
-            if (!mounted || _mapController == null) return;
-            final c = _mapController!;
-            try {
-              if (_currentPosition != null) {
-                await c.animateCamera(
-                  CameraUpdate.newLatLngZoom(
-                    LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                    14.0,
-                  ),
-                );
-              } else {
-                await c.animateCamera(SenegalMap.fitCountry(20));
-              }
-            } catch (_) {
-              await c.animateCamera(
-                CameraUpdate.newLatLngZoom(
-                  SenegalMap.countryOverviewCenter,
-                  SenegalMap.countryOverviewZoom,
-                ),
-              );
-            }
-          });
-        },
-        myLocationEnabled: true,
-        myLocationButtonEnabled: true,
-        zoomControlsEnabled: false,
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          GoogleMap(
+            mapType: MapType.normal,
+            initialCameraPosition: CameraPosition(
+              target: _currentPosition != null
+                  ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+                  : SenegalMap.dakar,
+              zoom: _currentPosition != null ? 14.0 : SenegalMap.countryOverviewZoom,
+            ),
+            onMapCreated: (controller) {
+              _mapController = controller;
+              Future.microtask(() async {
+                if (!mounted || _mapController == null) return;
+                final c = _mapController!;
+                try {
+                  if (_currentPosition != null) {
+                    await c.animateCamera(
+                      CameraUpdate.newLatLngZoom(
+                        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                        14.0,
+                      ),
+                    );
+                  } else {
+                    await c.animateCamera(SenegalMap.fitCountry(20));
+                  }
+                } catch (_) {
+                  await c.animateCamera(
+                    CameraUpdate.newLatLngZoom(
+                      SenegalMap.countryOverviewCenter,
+                      SenegalMap.countryOverviewZoom,
+                    ),
+                  );
+                }
+              });
+            },
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Material(
+              color: Colors.white,
+              shape: const CircleBorder(),
+              elevation: 2,
+              child: IconButton(
+                tooltip: 'Recentrer sur ma position',
+                icon: const Icon(Icons.my_location, color: primaryGreen),
+                onPressed: () => _getCurrentLocation(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

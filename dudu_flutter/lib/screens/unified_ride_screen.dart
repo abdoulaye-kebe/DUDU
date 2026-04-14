@@ -19,7 +19,10 @@ import 'ride_confirmation_screen.dart';
 /// Écran unifié pour les 4 types de courses (Standard, Express, Covoiturage, Femmes)
 /// Avec sélection Point A, Point B et PRIX LIBRE
 class UnifiedRideScreen extends StatefulWidget {
-  const UnifiedRideScreen({Key? key}) : super(key: key);
+  /// `delivery` : ouvre directement le mode livraison (carte + prix + itinéraire).
+  const UnifiedRideScreen({Key? key, this.initialMode}) : super(key: key);
+
+  final String? initialMode;
 
   @override
   State<UnifiedRideScreen> createState() => _UnifiedRideScreenState();
@@ -70,7 +73,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   static const Map<String, String> _paymentLogos = {
     'orange_money': 'assets/images/payments/orange_money_logo.png',
     'wave': 'assets/images/payments/wave_logo.png',
-    'free_money': 'assets/images/payments/free_money_logo..png',
+    'free_money': 'assets/images/payments/free_money_logo.png',
   };
   
   // Types de courses disponibles
@@ -139,6 +142,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialMode == 'delivery') {
+      _selectedMode = 'delivery';
+    }
     _getCurrentLocation();
     _selectedPaymentMethod = 'wave';
   }
@@ -623,15 +629,15 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           // Points A et B
           _buildLocationInputs(),
           
-          // Carte (≈ moitié)
+          // Carte (un peu moins de hauteur pour laisser la place aux champs / prix)
           Expanded(
-            flex: 5,
+            flex: 4,
             child: _buildMap(),
           ),
 
           // Bas de page (scrollable pour éviter l'overflow et ne pas masquer les boutons)
           Expanded(
-            flex: 5,
+            flex: 6,
             child: SingleChildScrollView(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom + 16,
@@ -1572,6 +1578,16 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       setState(() {
         _isRouteLoading = false;
         _polylines.clear();
+        // Ligne d’attente (approximation) pour que l’itinéraire reste visible
+        _polylines.add(
+          Polyline(
+            polylineId: const PolylineId('route_fallback'),
+            points: [p0, p1],
+            color: Colors.deepOrange.shade600,
+            width: 4,
+            patterns: [PatternItem.dash(20), PatternItem.gap(12)],
+          ),
+        );
         _routeDurationSeconds = null;
         _estimatedDistance = haversineKm;
         if (_selectedMode != 'delivery' && _selectedRideType == 'moto') {
@@ -1581,16 +1597,18 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         }
       });
       final detail = DirectionsService.lastFailureDetail ?? 'erreur inconnue';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Itinéraire indisponible ($detail). "
-            "Dans Google Cloud : activer l'API Directions, facturation, et autoriser cette API sur la clé utilisée (restrictions).",
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Itinéraire détaillé indisponible ($detail). '
+              'Trajet approximatif affiché — vérifiez la clé Google (API Directions).',
+            ),
+            backgroundColor: Colors.deepOrange,
+            duration: const Duration(seconds: 5),
           ),
-          backgroundColor: Colors.deepOrange,
-          duration: const Duration(seconds: 6),
-        ),
-      );
+        );
+      }
       await _fitCameraToRoutePoints([p0, p1], padding: 72);
       return;
     }
@@ -2018,6 +2036,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
               controller: _priceController,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              textInputAction: TextInputAction.done,
               textAlign: TextAlign.right,
               style: const TextStyle(
                 fontSize: 24,
@@ -2046,7 +2065,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                   _customPrice = int.tryParse(value) ?? 0;
                 });
               },
+              onSubmitted: (_) => FocusScope.of(context).unfocus(),
             ),
+          ),
+          TextButton(
+            onPressed: () => FocusScope.of(context).unfocus(),
+            child: const Text('OK'),
           ),
         ],
       ),

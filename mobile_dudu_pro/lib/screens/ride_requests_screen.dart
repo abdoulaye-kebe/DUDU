@@ -713,7 +713,7 @@ class RideRequest {
     return RideRequest(
       id: requestId,
       passengerName: (data['passengerName']?.toString() ?? passenger['name']?.toString()) ?? 'Client DUDU',
-      passengerPhone: data['passengerPhone']?.toString(),
+      passengerPhone: data['passengerPhone']?.toString() ?? passenger['phone']?.toString(),
       pickup: pickupText.toString(),
       destination: destinationText.toString(),
       distance: toDoubleSafe(pricing['distance'] ?? data['distance']),

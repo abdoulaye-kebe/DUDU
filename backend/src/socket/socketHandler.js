@@ -6,6 +6,8 @@ const {
   ACTIVE_RIDE_STATUSES,
   driverCanAcceptNewDelivery,
 } = require('../utils/deliveryDriverRules');
+const { getDriverNotifyMaxDistanceM } = require('../config/driverMatch.config');
+const { buildNewRideRequestPayload } = require('../utils/buildNewRideRequestPayload');
 
 module.exports = (io) => {
   // Middleware d'authentification Socket.io
@@ -157,7 +159,7 @@ module.exports = (io) => {
                 type: 'Point',
                 coordinates: [pickup.coordinates.longitude, pickup.coordinates.latitude]
               },
-              $maxDistance: 2000 // 2km
+              $maxDistance: getDriverNotifyMaxDistanceM(),
             }
           }
         });
@@ -173,21 +175,7 @@ module.exports = (io) => {
           return;
         }
 
-        // Notifier les chauffeurs disponibles
-        const rideData = {
-          id: ride._id,
-          rideId: ride.rideId,
-          pickup,
-          destination,
-          pricing,
-          rideType,
-          passenger: {
-            id: socket.user._id,
-            name: `${socket.user.firstName} ${socket.user.lastName}`,
-            phone: socket.user.phone
-          },
-          requestedAt: ride.requestedAt
-        };
+        const rideData = buildNewRideRequestPayload(ride, socket.user);
 
         // Envoyer à chaque chauffeur disponible
         availableDrivers.forEach(driver => {

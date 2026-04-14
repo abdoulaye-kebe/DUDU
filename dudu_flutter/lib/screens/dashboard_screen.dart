@@ -10,7 +10,6 @@ import '../themes/app_theme.dart';
 import '../services/search_history_service.dart';
 import '../services/places_service.dart';
 import 'unified_ride_screen.dart';
-import 'delivery_request_screen.dart';
 import 'scheduled_rides_screen.dart';
 import 'rides_screen.dart';
 import 'profile_screen.dart';
@@ -773,10 +772,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const DeliveryRequestScreen(
-                      pickupAddress: '',
-                      destinationAddress: '',
-                    ),
+                    builder: (context) =>
+                        const UnifiedRideScreen(initialMode: 'delivery'),
                   ),
                 );
               },

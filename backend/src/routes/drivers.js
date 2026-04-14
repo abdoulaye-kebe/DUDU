@@ -884,8 +884,10 @@ router.get('/earnings', auth, requireDriver, async (req, res) => {
 // @access  Private (chauffeur en ligne)
 router.get('/nearby-rides', auth, requireDriver, requireActiveSubscription, requireLocation, requireOnline, async (req, res) => {
   try {
-    const { radius = 2, limit = 10 } = req.query; // rayon en km
-    
+    const rawRadius = parseFloat(req.query.radius, 10);
+    const radiusKm = Number.isFinite(rawRadius) ? Math.min(Math.max(rawRadius, 1), 100) : 15;
+    const limit = parseInt(req.query.limit, 10) || 10;
+
     const driver = await Driver.findById(req.driver._id);
     if (!driver || !driver.currentLocation) {
       return res.status(400).json({
@@ -894,21 +896,30 @@ router.get('/nearby-rides', auth, requireDriver, requireActiveSubscription, requ
       });
     }
 
-    // Trouver les courses à proximité
+    const coords = driver.currentLocation.coordinates;
+    if (!Array.isArray(coords) || coords.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Localisation chauffeur invalide'
+      });
+    }
+    const [driverLng, driverLat] = coords;
+
+    // Trouver les courses à proximité (index 2dsphere sur pickup.location)
     const nearbyRides = await Ride.find({
       status: { $in: ['requested', 'searching'] },
-      'pickup.coordinates': {
+      'pickup.location': {
         $near: {
           $geometry: {
             type: 'Point',
-            coordinates: [driver.currentLocation.longitude, driver.currentLocation.latitude]
+            coordinates: [driverLng, driverLat]
           },
-          $maxDistance: radius * 1000 // convertir en mètres
+          $maxDistance: radiusKm * 1000
         }
       }
     })
     .populate('passenger', 'firstName lastName phone')
-    .limit(parseInt(limit))
+    .limit(limit)
     .sort({ createdAt: -1 });
 
     res.json({

@@ -11,6 +11,11 @@ const {
   driverCanAcceptNewDelivery,
 } = require('../utils/deliveryDriverRules');
 const { notifyDriversNewRideRequest } = require('../services/notifyDriversNewRideRequest');
+const {
+  getDriverMatchInitialRadiusKm,
+  getDriverMatchExpandedRadiusKm,
+} = require('../config/driverMatch.config');
+const { buildNewRideRequestPayload } = require('../utils/buildNewRideRequestPayload');
 const router = express.Router();
 
 const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started'];
@@ -127,8 +132,8 @@ router.post('/request', [
 
     let allDrivers = await Driver.find(driverQuery);
     
-    // Filtrer les chauffeurs dans un rayon de 2km du point de départ
-    const INITIAL_RADIUS_KM = 2;
+    const INITIAL_RADIUS_KM = getDriverMatchInitialRadiusKm();
+    const EXPANDED_RADIUS_KM = getDriverMatchExpandedRadiusKm();
     let availableDrivers = allDrivers.filter(driver => {
       if (!driver.currentLocation || !driver.currentLocation.coordinates) {
         return false;
@@ -171,27 +176,24 @@ router.post('/request', [
     // Envoyer la demande via Socket.io aux chauffeurs dans le rayon
     const io = req.app.get('io');
     if (io && availableDrivers.length > 0) {
-      const rideData = {
-        rideId: ride._id,
-        pickup: ride.pickup,
-        destination: ride.destination,
-        distance: ride.distance,
-        pricing: ride.pricing,
-        rideType: ride.rideType,
-        passenger: {
-          name: req.user?.name || 'Client DUDU',
-          phone: req.user?.phone
-        },
-        passengerPhone: req.user?.phone
-      };
+      const rideData = buildNewRideRequestPayload(ride, req.user);
 
       // Émettre individuellement à chaque chauffeur dans le rayon
       for (const driver of availableDrivers) {
-        io.to(`driver_${driver._id}`).emit('new-ride-request', rideData);
+        const d = driver.calculateDistance
+          ? driver.calculateDistance(
+            pickup.coordinates.latitude,
+            pickup.coordinates.longitude
+          )
+          : 0;
+        io.to(`driver_${driver._id}`).emit('new-ride-request', {
+          ...rideData,
+          driverDistance: d,
+        });
       }
       console.log(`📡 Demande de course envoyée à ${availableDrivers.length} chauffeurs dans rayon de ${INITIAL_RADIUS_KM}km`);
       
-      // Programmer l'élargissement à 4km après 5 minutes si pas d'acceptation
+      // Programmer l'élargissement du rayon après 5 minutes si pas d'acceptation
       setTimeout(async () => {
         try {
           const updatedRide = await Ride.findById(ride._id);
@@ -199,11 +201,9 @@ router.post('/request', [
             console.log(`⏭️ Course ${ride._id} déjà acceptée ou annulée, pas d'élargissement`);
             return;
           }
-          
-          const EXPANDED_RADIUS_KM = 4;
+
           console.log(`🔄 Élargissement du rayon à ${EXPANDED_RADIUS_KM}km pour course ${ride._id}`);
-          
-          // Filtrer les chauffeurs dans le rayon élargi (4km)
+
           const expandedDrivers = allDrivers.filter(driver => {
             if (!driver.currentLocation || !driver.currentLocation.coordinates) {
               return false;
@@ -218,12 +218,20 @@ router.post('/request', [
             );
             return distance <= EXPANDED_RADIUS_KM && distance > INITIAL_RADIUS_KM;
           });
-          
+
           console.log(`📡 Envoi à ${expandedDrivers.length} chauffeurs supplémentaires dans rayon ${INITIAL_RADIUS_KM}-${EXPANDED_RADIUS_KM}km`);
-          
-          // Envoyer aux nouveaux chauffeurs
+
           for (const driver of expandedDrivers) {
-            io.to(`driver_${driver._id}`).emit('new-ride-request', rideData);
+            const d = driver.calculateDistance
+              ? driver.calculateDistance(
+                pickup.coordinates.latitude,
+                pickup.coordinates.longitude
+              )
+              : 0;
+            io.to(`driver_${driver._id}`).emit('new-ride-request', {
+              ...rideData,
+              driverDistance: d,
+            });
           }
           
           // Mettre à jour le rayon de recherche
@@ -1240,15 +1248,24 @@ router.post('/create', [
 
     // Filtrer par distance manuellement (car on n'a plus d'index géospatial)
     let availableDrivers = allDrivers.filter(driver => {
-      if (!driver.location || !driver.location.latitude || !driver.location.longitude) {
+      let dLat = driver.location?.latitude;
+      let dLng = driver.location?.longitude;
+      if (dLat == null || dLng == null) {
+        const c = driver.currentLocation?.coordinates;
+        if (Array.isArray(c) && c.length >= 2) {
+          dLng = c[0];
+          dLat = c[1];
+        }
+      }
+      if (dLat == null || dLng == null) {
         return false;
       }
-      
+
       const distance = calculateDistance(
         pickup.latitude,
         pickup.longitude,
-        driver.location.latitude,
-        driver.location.longitude
+        dLat,
+        dLng
       );
       
       const inRadius = distance <= (searchRadius / 1000);
@@ -1323,38 +1340,30 @@ router.post('/create', [
     // Notifier les chauffeurs via Socket.IO
     const io = req.app.get('io');
     if (io) {
-      const firstName = req.user && req.user.firstName ? req.user.firstName : 'Client';
-      const lastName = req.user && req.user.lastName ? req.user.lastName : 'DUDU';
-      const passengerName = `${firstName} ${lastName}`;
-      const passengerPhone = req.user && req.user.phone ? req.user.phone : null;
+      const extras =
+        rideType === 'delivery' ? { isUrgentDelivery: deliveryIsUrgent } : {};
+      const ridePayload = buildNewRideRequestPayload(ride, req.user, extras);
 
-      const rideNotification = {
-        rideId: ride._id,
-        pickup: pickup.address,
-        destination: destination.address,
-        distance: estimatedDistance,
-        rideType,
-        customPrice,
-        estimatedDuration: ride.estimatedDuration,
-        passengerName,
-        passengerPhone,
-        isUrgentDelivery: rideType === 'delivery' && deliveryIsUrgent,
+      const emitToDriver = (driver) => {
+        const d = driver.calculateDistance
+          ? driver.calculateDistance(pickup.latitude, pickup.longitude)
+          : 0;
+        io.to(`driver_${driver._id}`).emit('new-ride-request', {
+          ...ridePayload,
+          driverDistance: d,
+        });
       };
 
       if (rideType === 'comfort') {
         // Course CONFORT: notifier UNIQUEMENT les chauffeurs Confort
         console.log('🎯 Course CONFORT: notification aux chauffeurs Confort uniquement');
         const targets = comfortDrivers.length > 0 ? comfortDrivers : availableDrivers;
-        targets.forEach(driver => {
-          io.to(`driver_${driver._id}`).emit('new-ride-request', rideNotification);
-        });
+        targets.forEach(emitToDriver);
         console.log(`📣 ${targets.length} chauffeur(s) Confort notifié(s)`);
       } else {
         // Course STANDARD: notifier TOUS les chauffeurs (Standard + Express) en même temps
         console.log('📢 Course STANDARD: notification à tous les chauffeurs (Standard + Express)');
-        availableDrivers.forEach(driver => {
-          io.to(`driver_${driver._id}`).emit('new-ride-request', rideNotification);
-        });
+        availableDrivers.forEach(emitToDriver);
         console.log(`📣 ${availableDrivers.length} chauffeur(s) notifié(s)`);
       }
     }

@@ -669,7 +669,7 @@ class ApiService {
   }
 
   // Courses à proximité
-  static Future<List<Map<String, dynamic>>> getNearbyRides({int radius = 2, int limit = 10}) async {
+  static Future<List<Map<String, dynamic>>> getNearbyRides({int radius = 15, int limit = 10}) async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/drivers/nearby-rides?radius=$radius&limit=$limit'),

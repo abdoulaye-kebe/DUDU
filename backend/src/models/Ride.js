@@ -489,10 +489,27 @@ rideSchema.methods.getWaitTime = function() {
   return Math.round((startTime - this.acceptedAt) / (1000 * 60)); // en minutes
 };
 
-// Middleware pour générer l'ID de course
+// Middleware pour générer l'ID de course et les points GeoJSON (index 2dsphere sur pickup.location)
 rideSchema.pre('save', function(next) {
   if (!this.rideId) {
     this.rideId = this.constructor.generateRideId();
+  }
+  try {
+    ['pickup', 'destination'].forEach((key) => {
+      const loc = this[key];
+      const lat = loc?.coordinates?.latitude;
+      const lng = loc?.coordinates?.longitude;
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        if (!loc.location || !Array.isArray(loc.location.coordinates) || loc.location.coordinates.length < 2) {
+          loc.location = {
+            type: 'Point',
+            coordinates: [lng, lat],
+          };
+        }
+      }
+    });
+  } catch (e) {
+    return next(e);
   }
   next();
 });

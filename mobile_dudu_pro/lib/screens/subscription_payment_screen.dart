@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 
 /// Écran de paiement d'abonnement pour les chauffeurs
@@ -544,6 +545,23 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
         amount: _planPrice,
         phone: normalizedPhone,
       );
+
+      final checkoutUrl = result['checkoutUrl']?.toString();
+      if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
+        final uri = Uri.parse(checkoutUrl);
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!launched && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Impossible d\'ouvrir Wave. Copiez le lien depuis l\'admin ou réessayez.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
 
       setState(() {
         _paymentId = result['paymentId'];

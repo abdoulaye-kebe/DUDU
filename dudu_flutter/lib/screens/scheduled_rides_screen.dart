@@ -10,6 +10,7 @@ import '../models/ride.dart';
 import '../services/notification_service.dart';
 import '../services/secure_auth_service.dart';
 import '../services/socket_service.dart';
+import '../services/directions_service.dart';
 import 'package:intl/intl.dart';
 import 'mobile_payment_screen.dart';
 
@@ -31,6 +32,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
 
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
+  final Set<Polyline> _polylines = {};
 
   String _mode = 'ride';
   String _from = '';
@@ -427,6 +429,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
         _pickupLatLng = LatLng(finalPosition.latitude, finalPosition.longitude);
         _isInitializingLocation = false;
       });
+      _updateMarkersOnMap();
     } catch (e) {
       _useDakarAsDefault();
     }
@@ -677,6 +680,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       _pickupLatLng = const LatLng(14.6928, -17.4467);
       _isInitializingLocation = false;
     });
+    _updateMarkersOnMap();
   }
 
   Future<void> _loadScheduledRides() async {
@@ -749,15 +753,21 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            height: 180,
+            height: 130,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: GoogleMap(
                 initialCameraPosition: CameraPosition(
                   target: _pickupLatLng ??
+                      (_currentPosition != null
+                          ? LatLng(
+                              _currentPosition!.latitude,
+                              _currentPosition!.longitude,
+                            )
+                          : null) ??
                       _destinationLatLng ??
                       const LatLng(14.6928, -17.4467),
-                  zoom: 18.0,
+                  zoom: 14.0,
                 ),
                 onMapCreated: (controller) {
                   _mapController = controller;
@@ -771,6 +781,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                 rotateGesturesEnabled: false,
                 tiltGesturesEnabled: false,
                 markers: _markers,
+                polylines: _polylines,
               ),
             ),
           ),
@@ -939,6 +950,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
           const SizedBox(height: 12),
           TextField(
             keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.done,
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -965,6 +977,10 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
               filled: true,
               fillColor: primaryGreen.withOpacity(0.05),
               prefixIcon: const Icon(Icons.attach_money, color: primaryGreen),
+              suffixIcon: TextButton(
+                onPressed: () => FocusScope.of(context).unfocus(),
+                child: const Text('OK'),
+              ),
             ),
             onChanged: (v) {
               setState(() {
@@ -1278,6 +1294,20 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       );
     }
 
+    if (_currentPosition != null) {
+      _markers.add(
+        Marker(
+          markerId: const MarkerId('current_user'),
+          position: LatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          ),
+          infoWindow: const InfoWindow(title: 'Ma position'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        ),
+      );
+    }
+
     if (_mapController != null) {
       if (_pickupLatLng != null && _destinationLatLng != null) {
         final southWest = LatLng(
@@ -1327,6 +1357,43 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     }
 
     setState(() {});
+    _syncRoutePolyline();
+  }
+
+  Future<void> _syncRoutePolyline() async {
+    if (_pickupLatLng == null || _destinationLatLng == null) {
+      if (!mounted) return;
+      setState(() => _polylines.clear());
+      return;
+    }
+
+    final route = await DirectionsService.getDrivingRoute(
+      _pickupLatLng!,
+      _destinationLatLng!,
+    );
+    if (!mounted) return;
+
+    final pts = (route != null && route.points.length >= 2)
+        ? route.points
+        : <LatLng>[_pickupLatLng!, _destinationLatLng!];
+
+    setState(() {
+      _polylines
+        ..clear()
+        ..add(
+          Polyline(
+            polylineId: const PolylineId('scheduled_route'),
+            points: pts,
+            color: primaryGreen,
+            width: 5,
+          ),
+        );
+      if (route != null && route.distanceKm > 0) {
+        _estimatedDistanceKm = route.distanceKm;
+        _estimatedDurationMin =
+            (route.durationSeconds / 60).ceil().clamp(5, 180);
+      }
+    });
   }
 
   double _calculateDistance(

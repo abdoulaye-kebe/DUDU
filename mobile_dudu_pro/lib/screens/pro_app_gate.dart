@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api_service.dart';
+import '../services/socket_service.dart';
 import 'login_screen.dart';
 import 'new_driver_dashboard.dart';
 
@@ -34,6 +35,11 @@ class _ProAppGateState extends State<ProAppGate> with WidgetsBindingObserver {
 
     if (token != null && token.isNotEmpty) {
       ApiService.setAuthToken(token);
+      try {
+        SocketService().connect(token, forceReconnect: true);
+      } catch (e) {
+        // ignore: éviter de bloquer l'ouverture du dashboard
+      }
     }
 
     if (!mounted) return;

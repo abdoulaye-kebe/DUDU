@@ -15,6 +15,8 @@ class User {
   final double totalSpent;
   final double averageRating;
   final BudgetSettings? budgetSettings;
+  /// Date d'inscription (API `auth/me`, `users/profile`).
+  final DateTime? createdAt;
 
   User({
     required this.id,
@@ -33,6 +35,7 @@ class User {
     required this.totalSpent,
     required this.averageRating,
     this.budgetSettings,
+    this.createdAt,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -47,6 +50,16 @@ class User {
         rawBudget is Map<String, dynamic>
             ? BudgetSettings.fromJson(rawBudget)
             : null;
+
+    DateTime? created;
+    final rawCreated = json['createdAt'] ?? json['memberSince'];
+    if (rawCreated != null) {
+      if (rawCreated is String) {
+        created = DateTime.tryParse(rawCreated);
+      } else if (rawCreated is DateTime) {
+        created = rawCreated;
+      }
+    }
 
     return User(
       id: json['id'] ?? '',
@@ -65,6 +78,7 @@ class User {
       totalSpent: (json['totalSpent'] ?? 0).toDouble(),
       averageRating: (json['averageRating'] ?? 0).toDouble(),
       budgetSettings: budgetSettings,
+      createdAt: created,
     );
   }
 
@@ -86,6 +100,7 @@ class User {
       'totalSpent': totalSpent,
       'averageRating': averageRating,
       'budgetSettings': budgetSettings?.toJson(),
+      if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
     };
   }
 

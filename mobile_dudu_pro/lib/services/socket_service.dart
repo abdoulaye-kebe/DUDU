@@ -24,12 +24,18 @@ class SocketService {
   Stream<Map<String, dynamic>> get rideRequestsStream => _rideRequestController.stream;
   Stream<String> get rideClosedStream => _rideClosedController.stream;
 
-  /// Connecter au serveur Socket.io
-  void connect(String token) {
+  /// Connecter au serveur Socket.io.
+  /// [forceReconnect] : fermer une session existante puis rouvrir (nouveau token, retour session).
+  void connect(String token, {bool forceReconnect = false}) {
+    if (forceReconnect) {
+      disconnect();
+    }
     if (_isConnected) {
       print('⚠️ Socket déjà connecté');
       return;
     }
+    _socket?.dispose();
+    _socket = null;
 
     _socket = IO.io(
       AppConfig.socketUrl,

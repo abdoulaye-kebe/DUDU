@@ -1,9 +1,15 @@
 const Driver = require('../models/Driver');
+const { getDriverNotifyMaxDistanceM } = require('../config/driverMatch.config');
+const { buildNewRideRequestPayload } = require('../utils/buildNewRideRequestPayload');
 
 /**
  * Même recherche géo que socketHandler (request-ride) : chauffeurs en ligne à proximité du pickup.
  */
-async function findNearbyAvailableDrivers(pickupLng, pickupLat, maxDistanceMeters = 2000) {
+async function findNearbyAvailableDrivers(
+  pickupLng,
+  pickupLat,
+  maxDistanceMeters = getDriverNotifyMaxDistanceM()
+) {
   return Driver.find({
     status: 'online',
     isAvailable: true,
@@ -41,32 +47,12 @@ async function notifyDriversNewRideRequest(io, ride, passengerUser) {
     return { notified: 0, driverIds: [] };
   }
 
-  const availableDrivers = await findNearbyAvailableDrivers(lng, lat, 2000);
+  const availableDrivers = await findNearbyAvailableDrivers(lng, lat);
   if (!availableDrivers.length) {
     return { notified: 0, driverIds: [] };
   }
 
-  const firstName = passengerUser?.firstName || 'Client';
-  const lastName = passengerUser?.lastName || 'DUDU';
-
-  const rideData = {
-    id: ride._id,
-    rideId: ride.rideId,
-    pickup,
-    destination: dest,
-    pricing: ride.pricing,
-    rideType: ride.rideType || 'standard',
-    passenger: {
-      id: passengerUser?._id,
-      name: `${firstName} ${lastName}`.trim(),
-      phone: passengerUser?.phone,
-    },
-    requestedAt: ride.requestedAt,
-  };
-
-  if (ride.scheduledFor) {
-    rideData.scheduledFor = ride.scheduledFor;
-  }
+  const rideData = buildNewRideRequestPayload(ride, passengerUser);
 
   const driverIds = [];
   availableDrivers.forEach((driver) => {

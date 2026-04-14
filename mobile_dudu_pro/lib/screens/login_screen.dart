@@ -150,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             print('⚠️ Impossible de sauvegarder le token: $e');
           }
           try {
-            SocketService().connect(token);
+            SocketService().connect(token, forceReconnect: true);
           } catch (e) {
             print('⚠️ Impossible d\'initialiser le socket: $e');
           }

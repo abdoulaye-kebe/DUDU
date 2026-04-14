@@ -32,6 +32,14 @@ class RideConfirmationScreen extends StatefulWidget {
 class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
   String _selectedPaymentMethod = 'wave';
   int _customPrice = 0;
+  late final TextEditingController _priceController;
+  final FocusNode _priceFocus = FocusNode();
+
+  static const Map<String, String> _paymentLogos = {
+    'orange_money': 'assets/images/payments/orange_money_logo.png',
+    'wave': 'assets/images/payments/wave_logo.png',
+    'free_money': 'assets/images/payments/free_money_logo.png',
+  };
 
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color lightGreen = Color(0xFF10b981);
@@ -41,11 +49,21 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
   void initState() {
     super.initState();
     _customPrice = widget.initialPrice;
+    _priceController = TextEditingController(
+      text: widget.initialPrice > 0 ? '${widget.initialPrice}' : '',
+    );
     var m = widget.initialPaymentMethod.isNotEmpty
         ? widget.initialPaymentMethod
         : 'wave';
     if (m == 'orange_money' || m == 'free_money') m = 'wave';
     _selectedPaymentMethod = m;
+  }
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    _priceFocus.dispose();
+    super.dispose();
   }
 
   @override
@@ -251,31 +269,53 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: primaryGreen.withOpacity(0.3)),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Text(
-                    _customPrice.toString(),
-                    textAlign: TextAlign.left,
+                  child: TextField(
+                    controller: _priceController,
+                    focusNode: _priceFocus,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: primaryGreen,
                     ),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      isDense: true,
+                      hintText: 'Montant',
+                      suffixText: 'FCFA',
+                      suffixStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: primaryGreen,
+                      ),
+                    ),
+                    onChanged: (v) {
+                      setState(() {
+                        _customPrice = int.tryParse(v.replaceAll(' ', '')) ?? 0;
+                      });
+                    },
+                    onSubmitted: (_) => _applyPriceOk(),
                   ),
                 ),
-                const Text(
-                  'FCFA',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: primaryGreen,
+                TextButton(
+                  onPressed: _applyPriceOk,
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ],
@@ -356,19 +396,22 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
                   color: isSelected ? primaryGreen : Colors.grey[600],
                   size: 20,
                 )
-              else
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Icon(
+              else if (_paymentLogos[method] != null)
+                Image.asset(
+                  _paymentLogos[method]!,
+                  width: 22,
+                  height: 22,
+                  errorBuilder: (_, __, ___) => Icon(
                     Icons.account_balance_wallet,
-                    size: 16,
+                    size: 18,
                     color: isSelected ? primaryGreen : Colors.grey[600],
                   ),
+                )
+              else
+                Icon(
+                  Icons.account_balance_wallet,
+                  size: 18,
+                  color: isSelected ? primaryGreen : Colors.grey[600],
                 ),
               const SizedBox(width: 8),
               Text(
@@ -386,6 +429,20 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
         ),
       ),
     );
+  }
+
+  void _applyPriceOk() {
+    final parsed = int.tryParse(_priceController.text.replaceAll(' ', '')) ?? 0;
+    setState(() => _customPrice = parsed);
+    FocusScope.of(context).unfocus();
+    if (parsed <= 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Indiquez un montant supérieur à 0 FCFA'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
   }
 
   Widget _buildConfirmButton() {
@@ -409,7 +466,8 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
         elevation: isValid ? 4 : 0,
       ),
       child: Text(
-        'Confirmer la course',
+        isValid ? 'OK — Confirmer la course' : 'Indiquez le prix et le paiement',
+        textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
