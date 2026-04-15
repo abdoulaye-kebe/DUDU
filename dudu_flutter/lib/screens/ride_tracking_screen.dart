@@ -35,6 +35,33 @@ class RideTrackingScreen extends StatefulWidget {
   State<RideTrackingScreen> createState() => _RideTrackingScreenState();
 }
 
+Map<String, dynamic> _asStringKeyMap(dynamic v) {
+  if (v is Map) return Map<String, dynamic>.from(v as Map);
+  return {};
+}
+
+double? _readLocationLat(Map<String, dynamic> loc) {
+  final c = loc['coordinates'];
+  if (c is Map) {
+    final lat = (c as Map)['latitude'];
+    if (lat is num) return lat.toDouble();
+  }
+  final lat = loc['latitude'];
+  if (lat is num) return lat.toDouble();
+  return null;
+}
+
+double? _readLocationLng(Map<String, dynamic> loc) {
+  final c = loc['coordinates'];
+  if (c is Map) {
+    final lng = (c as Map)['longitude'];
+    if (lng is num) return lng.toDouble();
+  }
+  final lng = loc['longitude'];
+  if (lng is num) return lng.toDouble();
+  return null;
+}
+
 class _RideTrackingScreenState extends State<RideTrackingScreen> {
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
@@ -548,10 +575,11 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   }
 
   Future<void> _initializeTracking() async {
-    // Position de départ du véhicule (simulée)
-    final pickupLat = widget.pickupLocation['latitude'];
-    final pickupLng = widget.pickupLocation['longitude'];
-    
+    final pickupLat = _readLocationLat(widget.pickupLocation) ?? 14.6928;
+    final pickupLng = _readLocationLng(widget.pickupLocation) ?? -17.4467;
+    final destLat = _readLocationLat(widget.destinationLocation) ?? pickupLat;
+    final destLng = _readLocationLng(widget.destinationLocation) ?? pickupLng;
+
     setState(() {
       _vehiclePosition = LatLng(pickupLat - 0.01, pickupLng + 0.01); // 1km avant
       
@@ -568,10 +596,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
       _markers.add(
         Marker(
           markerId: const MarkerId('destination'),
-          position: LatLng(
-            widget.destinationLocation['latitude'],
-            widget.destinationLocation['longitude'],
-          ),
+          position: LatLng(destLat, destLng),
           icon: _destinationIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           infoWindow: const InfoWindow(title: '🎯 Destination'),
         ),
@@ -584,10 +609,10 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
 
   /// Simuler le déplacement du véhicule
   void _startMovementSimulation() {
-    final pickupLat = widget.pickupLocation['latitude'];
-    final pickupLng = widget.pickupLocation['longitude'];
-    final destLat = widget.destinationLocation['latitude'];
-    final destLng = widget.destinationLocation['longitude'];
+    final pickupLat = _readLocationLat(widget.pickupLocation) ?? 14.6928;
+    final pickupLng = _readLocationLng(widget.pickupLocation) ?? -17.4467;
+    final destLat = _readLocationLat(widget.destinationLocation) ?? pickupLat;
+    final destLng = _readLocationLng(widget.destinationLocation) ?? pickupLng;
     
     // Phase 1 : Aller au pickup
     _animateToLocation(
@@ -728,8 +753,8 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   }
 
   String _mapsLink(Map<String, dynamic> loc) {
-    final lat = loc['latitude'];
-    final lng = loc['longitude'];
+    final lat = _readLocationLat(loc) ?? 14.6928;
+    final lng = _readLocationLng(loc) ?? -17.4467;
     return 'https://www.google.com/maps?q=$lat,$lng';
   }
 
@@ -836,7 +861,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   Widget build(BuildContext context) {
     final driverName = widget.driverInfo['fullName'] ?? widget.driverInfo['name'] ?? 'Chauffeur';
     final driverPhone = widget.driverInfo['phone'] ?? '';
-    final vehicleInfo = widget.driverInfo['vehicle'] ?? {};
+    final vehicleInfo = _asStringKeyMap(widget.driverInfo['vehicle']);
     final vehicleBrand = vehicleInfo['brand'] ?? vehicleInfo['make'] ?? '';
     final vehicleModel = vehicleInfo['model'] ?? '';
     final vehicleColor = vehicleInfo['color'] ?? '';
@@ -865,10 +890,11 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
           // Carte Google Maps
           GoogleMap(
             initialCameraPosition: CameraPosition(
-              target: _vehiclePosition ?? LatLng(
-                widget.pickupLocation['latitude'],
-                widget.pickupLocation['longitude'],
-              ),
+              target: _vehiclePosition ??
+                  LatLng(
+                    _readLocationLat(widget.pickupLocation) ?? 14.6928,
+                    _readLocationLng(widget.pickupLocation) ?? -17.4467,
+                  ),
               zoom: 14,
             ),
             markers: _markers,

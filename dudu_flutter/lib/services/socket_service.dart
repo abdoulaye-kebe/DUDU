@@ -57,60 +57,80 @@ class SocketService {
     _setupEventListeners();
   }
 
+  /// Socket.io peut envoyer soit `{...}` soit `[{...}]` selon la version / le serveur.
+  /// Utiliser une [List] avec une clé [String] provoque : type 'String' is not a subtype of type 'int'.
+  static Map<String, dynamic>? _payloadAsMap(dynamic data) {
+    if (data == null) return null;
+    if (data is Map) {
+      return Map<String, dynamic>.from(data as Map);
+    }
+    if (data is List && data.isNotEmpty && data.first is Map) {
+      return Map<String, dynamic>.from(data.first as Map);
+    }
+    return null;
+  }
+
   /// Configurer les écouteurs d'événements
   void _setupEventListeners() {
     // Course acceptée par un chauffeur
     _socket!.on('ride-accepted', (data) {
       print('✅ Course acceptée par un chauffeur');
-      if (onRideAccepted != null && data is Map) {
-        onRideAccepted!(Map<String, dynamic>.from(data));
+      final map = _payloadAsMap(data);
+      if (onRideAccepted != null && map != null) {
+        onRideAccepted!(map);
       }
     });
 
     _socket!.on('ride-refused-by-driver', (data) {
       print('ℹ️ Refus chauffeur pour une demande: $data');
-      if (onRideRefusedByDriver != null && data is Map) {
-        onRideRefusedByDriver!(Map<String, dynamic>.from(data));
+      final map = _payloadAsMap(data);
+      if (onRideRefusedByDriver != null && map != null) {
+        onRideRefusedByDriver!(map);
       }
     });
 
     // Le chauffeur arrive
     _socket!.on('ride:driver_coming', (data) {
-      print('🚗 Chauffeur en route: ${data['driverName']}');
-      if (onDriverComing != null) {
-        onDriverComing!(Map<String, dynamic>.from(data));
+      final map = _payloadAsMap(data);
+      print('🚗 Chauffeur en route: ${map?['driverName']}');
+      if (onDriverComing != null && map != null) {
+        onDriverComing!(map);
       }
     });
 
     // Mise à jour position du chauffeur en temps réel
     _socket!.on('driver-location', (data) {
-      print('📍 Position chauffeur mise à jour: ${data['latitude']}, ${data['longitude']}');
-      if (onDriverLocationUpdate != null) {
-        onDriverLocationUpdate!(Map<String, dynamic>.from(data));
+      final map = _payloadAsMap(data);
+      print('📍 Position chauffeur mise à jour: ${map?['latitude']}, ${map?['longitude']}');
+      if (onDriverLocationUpdate != null && map != null) {
+        onDriverLocationUpdate!(map);
       }
     });
 
     // Chauffeur arrivé
     _socket!.on('ride:driver_arrived', (data) {
       print('✅ Chauffeur arrivé !');
-      if (onDriverArrived != null) {
-        onDriverArrived!(Map<String, dynamic>.from(data));
+      final map = _payloadAsMap(data);
+      if (onDriverArrived != null && map != null) {
+        onDriverArrived!(map);
       }
     });
 
     // Trajet démarré
     _socket!.on('ride:trip_started', (data) {
       print('🏁 Trajet démarré');
-      if (onTripStarted != null) {
-        onTripStarted!(Map<String, dynamic>.from(data));
+      final map = _payloadAsMap(data);
+      if (onTripStarted != null && map != null) {
+        onTripStarted!(map);
       }
     });
 
     // Course terminée
     _socket!.on('ride:completed', (data) {
       print('🎉 Course terminée !');
-      if (onRideCompleted != null) {
-        onRideCompleted!(Map<String, dynamic>.from(data));
+      final map = _payloadAsMap(data);
+      if (onRideCompleted != null && map != null) {
+        onRideCompleted!(map);
       }
     });
   }

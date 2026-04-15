@@ -2296,13 +2296,18 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
             _clearPassengerRideSocketListeners();
 
             try {
+              Map<String, dynamic> asMap(dynamic v) {
+                if (v is Map) return Map<String, dynamic>.from(v as Map);
+                return {};
+              }
+
               final rideId = data['rideId']?.toString();
               if (rideId == null || _pickupLatLng == null || _destinationLatLng == null) {
                 return;
               }
 
-              final driver = data['driver'] ?? {};
-              final vehicle = driver['vehicle'] ?? {};
+              final driver = asMap(data['driver']);
+              final vehicle = asMap(driver['vehicle']);
 
               if (_selectedMode == 'delivery') {
                 final confirmationCode = data['confirmationCode']?.toString() ?? '----';
