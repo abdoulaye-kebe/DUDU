@@ -1,4 +1,6 @@
 import 'dart:async';
+
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'notification_service.dart';
@@ -83,7 +85,7 @@ class SocketService {
           final passenger = passengerRaw is Map ? passengerRaw : <String, dynamic>{};
           final pricing = pricingRaw is Map ? pricingRaw : <String, dynamic>{};
 
-          final passengerName = passenger['name']?.toString() ?? 'Client DUDU';
+          final passengerName = passenger['name']?.toString() ?? 'Client DuDu';
 
           String pickupAddress;
           if (pickupRaw is Map) {
@@ -120,6 +122,17 @@ class SocketService {
             destinationAddress: destinationAddress,
             price: price,
           );
+          HapticFeedback.heavyImpact();
+          Future<void> haptics() async {
+            await Future<void>.delayed(const Duration(milliseconds: 110));
+            HapticFeedback.mediumImpact();
+            await Future<void>.delayed(const Duration(milliseconds: 120));
+            HapticFeedback.mediumImpact();
+            await Future<void>.delayed(const Duration(milliseconds: 130));
+            HapticFeedback.lightImpact();
+          }
+
+          haptics();
         } catch (e) {
           print('⚠️ Erreur lors de la préparation de la notification de demande: $e');
         }
@@ -142,6 +155,8 @@ class SocketService {
     _socket!.on('ride-no-longer-available', (data) {
       final rideId = data is Map ? data['rideId']?.toString() : null;
       if (rideId != null) {
+        _currentRideRequests.removeWhere((r) =>
+            r['id']?.toString() == rideId || r['rideId']?.toString() == rideId);
         _rideClosedController.add(rideId);
       }
     });

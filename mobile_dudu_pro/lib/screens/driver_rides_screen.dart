@@ -467,7 +467,7 @@ class _DriverRidesScreenState extends State<DriverRidesScreen>
     return {
       'status': apiRide['status']?.toString() ?? '',
       'date': formattedDate,
-      'passengerName': passenger['name']?.toString() ?? 'Client DUDU',
+      'passengerName': passenger['name']?.toString() ?? 'Client DuDu',
       'pickup': pickupText,
       'destination': destinationText,
       'distance': distanceKm.toStringAsFixed(1),

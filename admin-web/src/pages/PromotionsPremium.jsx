@@ -4,7 +4,6 @@ import { Bell, Send, KeyRound, AlertCircle, CheckCircle2 } from 'lucide-react';
 import api from '../services/api';
 
 function PromotionsPremium() {
-  const [token, setToken] = useState(localStorage.getItem('admin_token') || '');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [image, setImage] = useState('');
@@ -13,7 +12,6 @@ function PromotionsPremium() {
   "promoId": ""
 }`);
 
-  const [savingToken, setSavingToken] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -31,26 +29,6 @@ function PromotionsPremium() {
   }, [dataJson]);
 
   const canSend = Boolean(title.trim()) && Boolean(body.trim());
-
-  const handleSaveToken = async () => {
-    setError('');
-    setSuccess('');
-
-    if (!token.trim()) {
-      setError('Token admin requis.');
-      return;
-    }
-
-    setSavingToken(true);
-    try {
-      localStorage.setItem('admin_token', token.trim());
-      setSuccess('Token enregistré.');
-    } catch (e) {
-      setError('Impossible de sauvegarder le token.');
-    } finally {
-      setSavingToken(false);
-    }
-  };
 
   const handleSend = async () => {
     setError('');
@@ -73,11 +51,14 @@ function PromotionsPremium() {
       data: parsedData || undefined
     };
 
+    const session = localStorage.getItem('admin_token');
+    if (!session?.trim()) {
+      setError('Session expirée : reconnectez-vous à l’admin.');
+      return;
+    }
+
     setSending(true);
     try {
-      if (token.trim()) {
-        localStorage.setItem('admin_token', token.trim());
-      }
       const res = await api.post('/notifications/promo', payload);
       const messageId = res?.data?.result;
 
@@ -242,17 +223,6 @@ function PromotionsPremium() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
               <motion.button
-                className="btn btn-secondary"
-                onClick={handleSaveToken}
-                disabled={savingToken}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <KeyRound size={18} />
-                {savingToken ? 'Sauvegarde...' : 'Sauvegarder token'}
-              </motion.button>
-
-              <motion.button
                 className="btn btn-primary"
                 onClick={handleSend}
                 disabled={!canSend || sending}
@@ -270,38 +240,18 @@ function PromotionsPremium() {
           <div className="section-header" style={{ marginBottom: '16px' }}>
             <div className="section-title">
               <KeyRound />
-              Paramétrage
+              Accès
             </div>
           </div>
 
           <div style={{ display: 'grid', gap: 14 }}>
-            <div>
-              <div className="modal-label">Admin Token (Bearer)</div>
-              <input
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                placeholder="Colle ici le token admin"
-                style={{
-                  marginTop: 8,
-                  width: '100%',
-                  padding: '12px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--gray-200)',
-                  outline: 'none'
-                }}
-              />
-              <div style={{ marginTop: 8, fontSize: 13, color: 'var(--gray-500)' }}>
-                L’envoi utilise le token de session admin (intercepteur axios). Tu peux surcharger le token ici pour test.
-              </div>
-            </div>
-
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--gray-600)', lineHeight: 1.5 }}>
+              L’envoi utilise automatiquement votre session admin (token après connexion). Seuls les comptes administrateur peuvent appeler cette API.
+            </p>
             <div>
               <div className="modal-label">Endpoint</div>
               <div className="modal-value" style={{ marginTop: 8 }}>
                 POST /api/v1/notifications/promo
-              </div>
-              <div style={{ marginTop: 8, fontSize: 13, color: 'var(--gray-500)' }}>
-                Nécessite un token admin valide.
               </div>
             </div>
           </div>

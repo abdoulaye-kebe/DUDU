@@ -79,7 +79,7 @@ class DriverHelpScreen extends StatelessWidget {
           ),
           _buildFaqItem(
             'Comment sont calculés mes gains ?',
-            'Vos gains sont calculés en fonction du prix de la course moins la commission DUDU. Consultez votre historique pour plus de détails.',
+            'Vos gains sont calculés en fonction du prix de la course moins la commission DuDu. Consultez votre historique pour plus de détails.',
           ),
           _buildFaqItem(
             'Comment retirer mes gains ?',
@@ -284,7 +284,7 @@ class DriverHelpScreen extends StatelessWidget {
     final Uri emailUri = Uri(
       scheme: 'mailto',
       path: email,
-      query: 'subject=Support DUDU Pro',
+      query: 'subject=Support DuDu Pro',
     );
     if (await canLaunchUrl(emailUri)) {
       await launchUrl(emailUri);

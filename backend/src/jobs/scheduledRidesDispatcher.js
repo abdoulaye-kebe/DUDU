@@ -27,7 +27,16 @@ module.exports = function startScheduledRidesDispatcher(io) {
       for (const ride of rides) {
         try {
           const passengerUser = await User.findById(ride.passenger);
-          const { notified } = await notifyDriversNewRideRequest(io, ride, passengerUser);
+          const scheduledKm = parseFloat(
+            process.env.SCHEDULED_DRIVER_NOTIFY_RADIUS_KM || '20',
+            10
+          );
+          const radiusM = Number.isFinite(scheduledKm) && scheduledKm > 0
+            ? scheduledKm * 1000
+            : 20000;
+          const { notified } = await notifyDriversNewRideRequest(io, ride, passengerUser, {
+            maxDistanceMeters: radiusM,
+          });
 
           if (!notified) {
             console.log('⏰ Scheduler - aucun chauffeur à proximité pour', ride._id);

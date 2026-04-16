@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:async';
 import 'dart:math' as math;
+import '../services/map_style_service.dart';
 
 /// Écran de navigation intelligent pour le chauffeur
 /// Affiche la carte avec l'itinéraire optimal et les instructions de navigation
@@ -427,13 +428,16 @@ class _NavigationScreenState extends State<NavigationScreen> {
               target: _targetLocation ?? widget.pickupLocation,
               zoom: 14,
             ),
+            cameraTargetBounds: MapStyleService.senegalBounds,
+            minMaxZoomPreference: MapStyleService.zoomPreference,
             markers: _markers,
             polylines: _polylines,
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
-            onMapCreated: (controller) {
+            onMapCreated: (controller) async {
               _mapController = controller;
+              await MapStyleService.apply(controller);
               if (_currentPosition != null) {
                 _updateMapAndRoute();
               }

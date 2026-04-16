@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:url_launcher/url_launcher.dart';
 import '../services/socket_service.dart';
 import '../services/api_service.dart';
+import '../services/map_style_service.dart';
 import 'share_ride_screen.dart';
 import 'rating_screen.dart';
 
@@ -360,7 +361,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     try {
       const appName = 'Wave';
       final deepLinkUrl =
-          'wave://send?phone=$driverPhone&amount=$amount&note=Course DUDU ${widget.rideId}';
+          'wave://send?phone=$driverPhone&amount=$amount&note=Course DuDu ${widget.rideId}';
       
       final uri = Uri.parse(deepLinkUrl);
       bool launched = false;
@@ -466,7 +467,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
             Text(
               widget.vehicleType == 'moto'
                   ? 'Votre colis a été livré avec succès'
-                  : 'Merci d\'avoir utilisé DUDU',
+                  : 'Merci d\'avoir utilisé DuDu',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -899,8 +900,11 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
             ),
             markers: _markers,
             polylines: _polylines,
-            onMapCreated: (controller) {
+            cameraTargetBounds: MapStyleService.senegalBounds,
+            minMaxZoomPreference: MapStyleService.zoomPreference,
+            onMapCreated: (controller) async {
               _mapController = controller;
+              await MapStyleService.apply(controller);
             },
             myLocationEnabled: true,
             myLocationButtonEnabled: false,

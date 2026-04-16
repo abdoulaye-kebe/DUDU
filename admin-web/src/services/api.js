@@ -36,6 +36,12 @@ export const adminAPI = {
   getRide: (id) => api.get(`/admin/rides/${id}`),
   getCancelledRides: (params) => api.get('/admin/rides/cancelled', { params }),
   cancelRide: (id, reason) => api.put(`/admin/rides/${id}/cancel`, { reason }),
+
+  // Paiements
+  getPayments: (params) => api.get('/admin/payments', { params }),
+
+  // Chauffeur (mise à jour fiche)
+  updateDriver: (id, body) => api.put(`/admin/drivers/${id}`, body),
   
   // Real-time monitoring
   getActiveRides: () => api.get('/admin/rides/active'),

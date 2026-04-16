@@ -420,7 +420,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             const SizedBox(height: 12),
             const Text(
               'La réinitialisation automatique n’est pas encore disponible dans l’app. '
-              'Contactez le support DUDU : nous vous aiderons à retrouver l’accès à votre compte.',
+              'Contactez le support DuDu : nous vous aiderons à retrouver l’accès à votre compte.',
               style: TextStyle(height: 1.4),
             ),
             const SizedBox(height: 20),
@@ -441,7 +441,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 }
               },
               icon: const Icon(Icons.open_in_new, size: 20),
-              label: const Text('Page contact (site DUDU)'),
+              label: const Text('Page contact (site DuDu)'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 14),

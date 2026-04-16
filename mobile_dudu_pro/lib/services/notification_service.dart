@@ -1,8 +1,10 @@
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -121,7 +123,7 @@ class NotificationService {
     print('Message reçu au premier plan: ${message.notification?.title}');
 
     await showLocalNotification(
-      title: message.notification?.title ?? 'DUDU',
+      title: message.notification?.title ?? 'DuDu',
       body: message.notification?.body ?? '',
       payload: message.data.isNotEmpty ? message.data.toString() : null,
       id: message.messageId?.hashCode ?? 0,
@@ -147,8 +149,8 @@ class NotificationService {
   }) async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'dudu_channel',
-      'DUDU Notifications',
-      channelDescription: 'Notifications de la plateforme DUDU',
+      'DuDu Notifications',
+      channelDescription: 'Notifications de la plateforme DuDu',
       importance: Importance.high,
       priority: Priority.high,
       icon: '@mipmap/ic_launcher',
@@ -181,11 +183,39 @@ class NotificationService {
     required String destinationAddress,
     required double price,
   }) async {
-    await showLocalNotification(
-      title: 'NOUVELLE DEMANDE DE COURSE',
-      body: '$passengerName • $pickupAddress → $destinationAddress • ${price.toStringAsFixed(0)} FCFA',
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'dudu_ride_requests',
+      'Demandes de course',
+      channelDescription: 'Son fort et vibration pour les nouvelles demandes',
+      importance: Importance.max,
+      priority: Priority.max,
+      icon: '@mipmap/ic_launcher',
+      enableVibration: true,
+      playSound: true,
+      showWhen: true,
+      vibrationPattern: Int64List.fromList([
+        0, 450, 180, 450, 180, 450, 180, 800,
+      ]),
+      category: AndroidNotificationCategory.call,
+    );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    final NotificationDetails details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _localNotifications.show(
+      rideId.hashCode,
+      'NOUVELLE DEMANDE DE COURSE',
+      '$passengerName • $pickupAddress → $destinationAddress • ${price.toStringAsFixed(0)} FCFA',
+      details,
       payload: 'ride_request:$rideId',
-      id: rideId.hashCode,
     );
   }
 

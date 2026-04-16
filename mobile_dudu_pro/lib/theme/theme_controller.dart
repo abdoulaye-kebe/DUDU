@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Thème global DUDU Pro (clair / sombre / système), persisté localement.
+/// Thème global DuDu Pro (clair / sombre / système), persisté localement.
 class ThemeController extends ChangeNotifier {
   static const String _prefKey = 'pro_theme_mode';
 

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import '../services/map_style_service.dart';
 import 'rate_passenger_screen.dart';
 import 'navigation_screen.dart';
 
@@ -27,7 +29,7 @@ class ActiveRideScreen extends StatefulWidget {
     final pricing = ride['pricing'];
     return {
       'passenger': p is Map
-          ? p
+          ? Map<String, dynamic>.from(p)
           : {
               'name': p is Map && p['name'] != null ? p['name'] : 'Client',
             },
@@ -59,6 +61,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
 
   // Données de la course
   late String _passengerName;
+  String _passengerPhone = '';
   late String _pickupAddress;
   late String _destinationAddress;
   late int _price;
@@ -167,6 +170,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
         : <String, dynamic>{};
 
     _passengerName = passenger['name']?.toString() ?? 'Client';
+    _passengerPhone = passenger['phone']?.toString().trim() ?? '';
     _pickupAddress = pickup['address']?.toString() ?? 'Point de départ';
     _destinationAddress = destination['address']?.toString() ?? 'Destination';
 
@@ -414,6 +418,49 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
     });
   }
 
+  Future<void> _callPassengerByPhone() async {
+    final raw = _passengerPhone.trim();
+    if (raw.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Numéro du client indisponible. Rouvrez la course ou attendez le chargement des détails.',
+          ),
+        ),
+      );
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: raw);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible d’ouvrir l’application téléphone.')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur appel: $e')),
+      );
+    }
+  }
+
+  Future<void> _startVoipToPassenger() async {
+    if (!SocketService().isConnected) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connexion temps réel indisponible. Réessayez dans quelques secondes.'),
+        ),
+      );
+      return;
+    }
+    await SocketService().startVoipCall(widget.rideId);
+  }
+
   Future<void> _completeRide() async {
     setState(() => _isLoading = true);
     try {
@@ -502,13 +549,16 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
               target: _pickupLocation,
               zoom: 14,
             ),
+            cameraTargetBounds: MapStyleService.senegalBounds,
+            minMaxZoomPreference: MapStyleService.zoomPreference,
             markers: _markers,
             polylines: _polylines,
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
-            onMapCreated: (controller) {
+            onMapCreated: (controller) async {
               _mapController = controller;
+              await MapStyleService.apply(controller);
               _centerMap();
             },
           ),
@@ -655,6 +705,23 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _callPassengerByPhone,
+                          icon: const Icon(Icons.phone, size: 18),
+                          label: const Text('Téléphone'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _startVoipToPassenger,
+                          icon: const Icon(Icons.headset_mic, size: 18),
+                          label: const Text('Appel DuDu'),
                         ),
                       ],
                     ),

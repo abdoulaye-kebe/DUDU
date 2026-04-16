@@ -54,8 +54,9 @@ module.exports = {
     // Production
     production: {
       apiUrl: 'https://api.wave.com/v1',
-      apiKey: process.env.WAVE_API_KEY || 'wave_sn_prod_LHmeNrQE-TNw9iVm-M67APOgIsn-A9pfHClPSuOgyu3ojK8g-ABa83rBkAyVo6Hz_tEUfD45Vj5M4i7tAyI3tp3ycr5bIsanGQ',
-      webhookSecret: process.env.WAVE_WEBHOOK_SECRET || 'wave_sn_WHS_pxdrk8vqcvt6nvxgsc74d54vfp7dy1nbdbnhapsbkfbdzz1mgg3g',
+      // Ne jamais committer de clés : uniquement variables d’environnement (portail Wave).
+      apiKey: process.env.WAVE_API_KEY || '',
+      webhookSecret: process.env.WAVE_WEBHOOK_SECRET || '',
       callbackUrl: process.env.WAVE_CALLBACK_URL || 'https://www.dudugroup.sn/api/v1/mobile-payments/wave/webhook',
       businessPhone: process.env.WAVE_BUSINESS_PHONE || '+221771491330',
     },

@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'call_service.dart';
+import 'notification_service.dart';
 import '../config/app_config.dart';
 
 /// Service Socket.io côté client pour recevoir les mises à jour en temps réel
@@ -107,14 +110,43 @@ class SocketService {
       }
     });
 
-    // Chauffeur arrivé
-    _socket!.on('ride:driver_arrived', (data) {
+    // Chauffeur arrivé (le backend émet `driver-arrived` vers passenger_* ; tracking peut utiliser ride:driver_arrived)
+    void handleDriverArrived(dynamic data) {
       print('✅ Chauffeur arrivé !');
       final map = _payloadAsMap(data);
-      if (onDriverArrived != null && map != null) {
-        onDriverArrived!(map);
+      if (map == null) return;
+      map.putIfAbsent(
+        'message',
+        () => 'Votre chauffeur est arrivé au point de prise en charge',
+      );
+
+      if (!kIsWeb) {
+        final driverName = map['driverName']?.toString() ??
+            (map['driver'] is Map
+                ? (map['driver'] as Map)['name']?.toString()
+                : null) ??
+            'Votre chauffeur';
+        final msg = map['message']?.toString();
+        NotificationService().showDriverArrivedNotification(
+          driverName: driverName,
+          bodyText: msg,
+        );
+        HapticFeedback.heavyImpact();
+        Future<void> pulse() async {
+          await Future<void>.delayed(const Duration(milliseconds: 120));
+          HapticFeedback.mediumImpact();
+          await Future<void>.delayed(const Duration(milliseconds: 140));
+          HapticFeedback.mediumImpact();
+        }
+
+        pulse();
       }
-    });
+
+      onDriverArrived?.call(map);
+    }
+
+    _socket!.on('ride:driver_arrived', handleDriverArrived);
+    _socket!.on('driver-arrived', handleDriverArrived);
 
     // Trajet démarré
     _socket!.on('ride:trip_started', (data) {

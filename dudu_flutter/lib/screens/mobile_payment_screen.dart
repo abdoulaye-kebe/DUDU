@@ -557,8 +557,22 @@ class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
       _startStatusCheck();
 
       if (_paymentUrl != null && _paymentUrl!.isNotEmpty) {
-        final uri = Uri.parse(_paymentUrl!);
-        if (await canLaunchUrl(uri)) {
+        final uri = Uri.tryParse(_paymentUrl!);
+        final host = uri?.host.toLowerCase() ?? '';
+        if (uri == null ||
+            !uri.hasScheme ||
+            (host != 'pay.wave.com' && host != 'checkout.wave.com')) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Lien Wave invalide (attendu pay.wave.com). Contactez le support.\n$_paymentUrl',
+                ),
+                duration: const Duration(seconds: 10),
+              ),
+            );
+          }
+        } else if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

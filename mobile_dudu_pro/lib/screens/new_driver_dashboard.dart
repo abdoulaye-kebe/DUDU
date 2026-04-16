@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 import '../constants/senegal_map.dart';
+import '../services/map_style_service.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import '../models/driver_profile.dart';
@@ -30,7 +31,7 @@ class NewDriverDashboard extends StatefulWidget {
 }
 
 class _NewDriverDashboardState extends State<NewDriverDashboard> {
-  // Couleurs DUDU
+  // Couleurs DuDu
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color lightGreen = Color(0xFF10b981);
   static const Color accentBlack = Color(0xFF1A1A1A);
@@ -62,6 +63,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
   @override
   void initState() {
     super.initState();
+    _pendingRequests = SocketService().currentRideRequests.length;
     _loadDriverData();
     _subscribeToRideRequests();
   }
@@ -76,10 +78,15 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
   void _subscribeToRideRequests() {
     final socketService = SocketService();
 
-    _rideRequestSub = socketService.rideRequestsStream.listen((data) {
+    void syncPendingFromSocket() {
+      if (!mounted) return;
       setState(() {
-        _pendingRequests++;
+        _pendingRequests = SocketService().currentRideRequests.length;
       });
+    }
+
+    _rideRequestSub = socketService.rideRequestsStream.listen((data) {
+      syncPendingFromSocket();
 
       if (mounted) {
         showDialog(
@@ -101,7 +108,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
               'moto': 'Moto',
             };
             final rideTypeLabel = rideTypeLabels[normalizedRideType] ?? 'Standard';
-            final passengerName = passenger?['name']?.toString() ?? 'Client DUDU';
+            final passengerName = passenger?['name']?.toString() ?? 'Client DuDu';
             final passengerPhone = data['passengerPhone']?.toString();
             String pickupText;
             if (pickup is Map) {
@@ -288,13 +295,8 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
       }
     });
 
-    _rideClosedSub = socketService.rideClosedStream.listen((rideId) {
-      if (!mounted) return;
-      setState(() {
-        if (_pendingRequests > 0) {
-          _pendingRequests--;
-        }
-      });
+    _rideClosedSub = socketService.rideClosedStream.listen((_) {
+      syncPendingFromSocket();
     });
   }
 
@@ -684,7 +686,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
         toolbarHeight: 70,
         title: Row(
           children: [
-            // Logo DUDU avec badge Pro
+            // Logo DuDu avec badge Pro
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -692,7 +694,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(
-                'DUDU',
+                'DuDu',
                 style: TextStyle(
                   color: primaryGreen,
                   fontWeight: FontWeight.bold,
@@ -710,7 +712,7 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                   Text(
                     _driverProfile?.firstName != null && _driverProfile?.lastName != null
                         ? '${_driverProfile!.firstName} ${_driverProfile!.lastName}'
-                        : 'Chauffeur DUDU',
+                        : 'Chauffeur DuDu',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -1349,8 +1351,11 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                   : SenegalMap.dakar,
               zoom: _currentPosition != null ? 14.0 : SenegalMap.countryOverviewZoom,
             ),
-            onMapCreated: (controller) {
+            cameraTargetBounds: MapStyleService.senegalBounds,
+            minMaxZoomPreference: MapStyleService.zoomPreference,
+            onMapCreated: (controller) async {
               _mapController = controller;
+              await MapStyleService.apply(controller);
               Future.microtask(() async {
                 if (!mounted || _mapController == null) return;
                 final c = _mapController!;

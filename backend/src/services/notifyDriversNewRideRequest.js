@@ -33,7 +33,10 @@ async function findNearbyAvailableDrivers(
  *
  * @returns {Promise<{ notified: number, driverIds: string[] }>}
  */
-async function notifyDriversNewRideRequest(io, ride, passengerUser) {
+/**
+ * @param {{ maxDistanceMeters?: number }} [options] — ex. courses planifiées : 20 km (20000 m)
+ */
+async function notifyDriversNewRideRequest(io, ride, passengerUser, options = {}) {
   if (!io || !ride) {
     return { notified: 0, driverIds: [] };
   }
@@ -47,7 +50,12 @@ async function notifyDriversNewRideRequest(io, ride, passengerUser) {
     return { notified: 0, driverIds: [] };
   }
 
-  const availableDrivers = await findNearbyAvailableDrivers(lng, lat);
+  const maxM =
+    options.maxDistanceMeters != null && Number.isFinite(Number(options.maxDistanceMeters))
+      ? Number(options.maxDistanceMeters)
+      : getDriverNotifyMaxDistanceM();
+
+  const availableDrivers = await findNearbyAvailableDrivers(lng, lat, maxM);
   if (!availableDrivers.length) {
     return { notified: 0, driverIds: [] };
   }

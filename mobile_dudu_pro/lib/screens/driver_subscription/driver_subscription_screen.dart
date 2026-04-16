@@ -670,7 +670,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         const SizedBox(height: 4),
                         Text('📦 Abonnement: ${plan.name}'),
                         const SizedBox(height: 4),
-                        Text('📞 Numéro DUDU: $duduPaymentNumber'),
+                        Text('📞 Numéro DuDu: $duduPaymentNumber'),
                       ],
                     ),
                   ),

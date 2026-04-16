@@ -231,8 +231,20 @@ const requireDriverApproved = (req, res, next) => {
   next();
 };
 
+/** JWT admin (role === 'admin') uniquement */
+const requireAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Accès réservé aux administrateurs',
+    });
+  }
+  next();
+};
+
 module.exports = {
   auth,
+  requireAdmin,
   requireVerification,
   requireRole,
   requireDriver,
@@ -240,7 +252,7 @@ module.exports = {
   requireLocation,
   requireOnline,
   requireAvailable,
-  requireDriverApproved
+  requireDriverApproved,
 };
 
 

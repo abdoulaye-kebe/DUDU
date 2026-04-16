@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import '../constants/senegal_map.dart';
 import '../models/driver_profile.dart';
 import '../services/api_service.dart';
+import '../services/map_style_service.dart';
 import 'subscription_screen.dart';
 import 'statistics_screen.dart';
 import 'settings_screen.dart';
@@ -199,7 +200,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     if (_error != null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('DUDU Pro', style: TextStyle(color: Colors.white)),
+          title: const Text('DuDu Pro', style: TextStyle(color: Colors.white)),
           backgroundColor: const Color(0xFF00A651),
         ),
         body: Center(
@@ -233,7 +234,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'DUDU Pro - ${_driverProfile!.vehicleType.displayName}',
+          'DuDu Pro - ${_driverProfile!.vehicleType.displayName}',
           style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: const Color(0xFF00A651),
@@ -252,8 +253,11 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         children: [
           // Google Map - Sénégal
           GoogleMap(
-            onMapCreated: (controller) {
+            cameraTargetBounds: MapStyleService.senegalBounds,
+            minMaxZoomPreference: MapStyleService.zoomPreference,
+            onMapCreated: (controller) async {
               _mapController = controller;
+              await MapStyleService.apply(controller);
               if (_currentPosition != null) {
                 _mapController?.animateCamera(
                   CameraUpdate.newLatLngZoom(

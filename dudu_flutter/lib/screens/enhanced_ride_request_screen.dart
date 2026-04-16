@@ -3,6 +3,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/geocoding_service.dart';
 import '../services/places_service.dart' as places;
+import '../constants/senegal_map.dart';
+import '../services/map_style_service.dart';
 import '../widgets/address_autocomplete.dart';
 
 class EnhancedRideRequestScreen extends StatefulWidget {
@@ -31,8 +33,15 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
   bool _isRequesting = false;
   bool _showMap = true;
 
-  // Position par défaut : Centre du Sénégal
-  final LatLng _senegalCenter = const LatLng(14.4974, -14.4524);
+  // Position par défaut : Sénégal (fallback si pas de GPS)
+  final LatLng _senegalCenter = SenegalMap.countryOverviewCenter;
+
+  LatLng? _latLngOf(places.PlaceSuggestion? p) {
+    final lat = p?.localLat;
+    final lng = p?.localLng;
+    if (lat == null || lng == null) return null;
+    return LatLng(lat, lng);
+  }
 
   @override
   void initState() {
@@ -60,12 +69,13 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
 
       if (mounted) {
         setState(() {
-          _pickupPlace = PlaceSuggestion(
-            name: 'Ma position',
-            address: 'Position actuelle',
-            latitude: position.latitude,
-            longitude: position.longitude,
-            type: 'current',
+          _pickupPlace = places.PlaceSuggestion(
+            placeId: 'current_location',
+            description: 'Position actuelle',
+            mainText: 'Ma position',
+            secondaryText: 'Position actuelle',
+            localLat: position.latitude,
+            localLng: position.longitude,
           );
         });
 
@@ -198,17 +208,17 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
       // Créer la demande de course
       final rideRequest = {
         'pickup': {
-          'address': _pickupPlace!.address,
+          'address': _pickupPlace!.description,
           'coordinates': {
-            'latitude': _pickupPlace!.latitude,
-            'longitude': _pickupPlace!.longitude,
+            'latitude': _pickupPlace!.localLat,
+            'longitude': _pickupPlace!.localLng,
           },
         },
         'destination': {
-          'address': _destinationPlace!.address,
+          'address': _destinationPlace!.description,
           'coordinates': {
-            'latitude': _destinationPlace!.latitude,
-            'longitude': _destinationPlace!.longitude,
+            'latitude': _destinationPlace!.localLat,
+            'longitude': _destinationPlace!.localLng,
           },
         },
         'pricing': {
@@ -287,12 +297,15 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
         Expanded(
           flex: 3,
           child: GoogleMap(
-            onMapCreated: (GoogleMapController controller) {
+            cameraTargetBounds: MapStyleService.senegalBounds,
+            minMaxZoomPreference: MapStyleService.zoomPreference,
+            onMapCreated: (GoogleMapController controller) async {
               _mapController = controller;
+              await MapStyleService.apply(controller);
             },
             initialCameraPosition: CameraPosition(
               target: _pickupPlace != null 
-                  ? LatLng(_pickupPlace!.latitude, _pickupPlace!.longitude)
+                  ? (_latLngOf(_pickupPlace) ?? _senegalCenter)
                   : _senegalCenter,
               zoom: 15,
             ),
@@ -383,12 +396,15 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: GoogleMap(
-          onMapCreated: (GoogleMapController controller) {
+          cameraTargetBounds: MapStyleService.senegalBounds,
+          minMaxZoomPreference: MapStyleService.zoomPreference,
+          onMapCreated: (GoogleMapController controller) async {
             _mapController = controller;
+            await MapStyleService.apply(controller);
           },
           initialCameraPosition: CameraPosition(
             target: _pickupPlace != null 
-                ? LatLng(_pickupPlace!.latitude, _pickupPlace!.longitude)
+                ? (_latLngOf(_pickupPlace) ?? _senegalCenter)
                 : _senegalCenter,
             zoom: 15,
           ),
@@ -540,11 +556,11 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
       markers.add(
         Marker(
           markerId: const MarkerId('pickup'),
-          position: LatLng(_pickupPlace!.latitude, _pickupPlace!.longitude),
+          position: _latLngOf(_pickupPlace) ?? _senegalCenter,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
           infoWindow: InfoWindow(
             title: 'Départ',
-            snippet: _pickupPlace!.name,
+            snippet: _pickupPlace!.mainText,
           ),
         ),
       );
@@ -554,11 +570,11 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
       markers.add(
         Marker(
           markerId: const MarkerId('destination'),
-          position: LatLng(_destinationPlace!.latitude, _destinationPlace!.longitude),
+          position: _latLngOf(_destinationPlace) ?? _senegalCenter,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           infoWindow: InfoWindow(
             title: 'Destination',
-            snippet: _destinationPlace!.name,
+            snippet: _destinationPlace!.mainText,
           ),
         ),
       );
@@ -576,8 +592,8 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
       Polyline(
         polylineId: const PolylineId('route'),
         points: [
-          LatLng(_pickupPlace!.latitude, _pickupPlace!.longitude),
-          LatLng(_destinationPlace!.latitude, _destinationPlace!.longitude),
+          _latLngOf(_pickupPlace) ?? _senegalCenter,
+          _latLngOf(_destinationPlace) ?? _senegalCenter,
         ],
         color: Colors.blue,
         width: 4,

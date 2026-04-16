@@ -12,13 +12,16 @@ import {
   ChevronDown,
   LogOut,
   Menu,
-  X
+  X,
+  CreditCard,
 } from 'lucide-react';
 
 const navItems = [
+  { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { id: 'drivers', label: 'Chauffeurs', icon: UserCheck },
   { id: 'clients', label: 'Clients', icon: Users },
   { id: 'rides', label: 'Courses', icon: MapPin },
+  { id: 'payments', label: 'Paiements', icon: CreditCard },
   { id: 'promotions', label: 'Promotions', icon: Bell },
 ];
 

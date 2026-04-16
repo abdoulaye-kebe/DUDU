@@ -2,7 +2,19 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Phone, Mail, Car, Calendar, MapPin, Star, Clock } from 'lucide-react';
 
-function DetailModal({ isOpen, onClose, data, type }) {
+function canAdminCancelRide(status) {
+  if (!status) return false;
+  return !['completed', 'cancelled', 'no_driver', 'expired'].includes(status);
+}
+
+function DetailModal({
+  isOpen,
+  onClose,
+  data,
+  type,
+  onRideAdminCancel,
+  rideAdminCancelLoading = false,
+}) {
   if (!isOpen || !data) return null;
 
   const formatDate = (dateString) => {
@@ -322,16 +334,22 @@ function DetailModal({ isOpen, onClose, data, type }) {
               >
                 Fermer
               </motion.button>
-              {type !== 'driver' && (
-                <motion.button
-                  type="button"
-                  className="btn btn-primary"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Modifier
-                </motion.button>
-              )}
+              {type === 'ride' &&
+                onRideAdminCancel &&
+                data &&
+                canAdminCancelRide(data.status) && (
+                  <motion.button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ background: 'var(--accent-red)', borderColor: 'var(--accent-red)' }}
+                    disabled={rideAdminCancelLoading}
+                    onClick={() => onRideAdminCancel(data)}
+                    whileHover={{ scale: rideAdminCancelLoading ? 1 : 1.02 }}
+                    whileTap={{ scale: rideAdminCancelLoading ? 1 : 0.98 }}
+                  >
+                    {rideAdminCancelLoading ? 'Annulation…' : 'Annuler la course'}
+                  </motion.button>
+                )}
             </div>
           </motion.div>
         </>

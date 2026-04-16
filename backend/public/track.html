@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Suivi trajet — DuDu</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; padding: 16px; max-width: 560px; margin: 0 auto; line-height: 1.45; }
+    h1 { font-size: 1.25rem; }
+    .maplink {
+      display: inline-block; margin: 12px 0; padding: 12px 20px;
+      background: #0d5d36; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;
+    }
+    .muted { color: #666; font-size: 13px; }
+    #info p { margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <h1>Suivi trajet DuDu</h1>
+  <p id="status">Chargement…</p>
+  <div id="info"></div>
+  <a id="mapbtn" class="maplink" href="#" target="_blank" rel="noopener">Ouvrir sur Google Maps</a>
+  <p class="muted">Mise à jour automatique toutes les 3 minutes.</p>
+  <script>
+    (function () {
+      var parts = window.location.pathname.split("/").filter(Boolean);
+      var rideKey = parts[parts.length - 1] || "";
+      var api = "/api/v1/rides/public/tracking/" + encodeURIComponent(rideKey);
+      function load() {
+        fetch(api)
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            var el = document.getElementById("status");
+            var info = document.getElementById("info");
+            var btn = document.getElementById("mapbtn");
+            if (!j.success) {
+              el.textContent = j.message || "Course introuvable.";
+              info.innerHTML = "";
+              btn.style.display = "none";
+              return;
+            }
+            var d = j.data;
+            el.textContent = "Statut : " + (d.status || "—");
+            var html = "";
+            html += "<p><strong>Départ :</strong> " + (d.pickup && d.pickup.address ? d.pickup.address : "—") + "</p>";
+            html += "<p><strong>Arrivée :</strong> " + (d.destination && d.destination.address ? d.destination.address : "—") + "</p>";
+            if (d.location && d.location.latitude != null && d.location.longitude != null) {
+              var q = d.location.latitude + "," + d.location.longitude;
+              btn.href = "https://www.google.com/maps?q=" + encodeURIComponent(q);
+              btn.style.display = "inline-block";
+              html += "<p><strong>Dernière position :</strong> " + q + "</p>";
+              if (d.location.updatedAt) {
+                html += "<p class=\"muted\">MAJ : " + new Date(d.location.updatedAt).toLocaleString("fr-SN") + "</p>";
+              }
+            } else {
+              btn.style.display = "none";
+              html += "<p>Position en attente (dès que le chauffeur est en route).</p>";
+            }
+            info.innerHTML = html;
+          })
+          .catch(function () {
+            document.getElementById("status").textContent = "Erreur réseau.";
+            document.getElementById("mapbtn").style.display = "none";
+          });
+      }
+      load();
+      setInterval(load, 3 * 60 * 1000);
+    })();
+  </script>
+</body>
+</html>

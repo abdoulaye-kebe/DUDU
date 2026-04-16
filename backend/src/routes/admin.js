@@ -6,7 +6,7 @@ const Driver = require('../models/Driver');
 const Ride = require('../models/Ride');
 const Payment = require('../models/Payment');
 const Subscription = require('../models/Subscription');
-const { auth } = require('../middleware/auth');
+const { auth, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 
 const normalizePhoneNumber = (phone) => {
@@ -85,17 +85,6 @@ router.post('/login', [
     });
   }
 });
-
-// Middleware pour vérifier les droits d'administration
-const requireAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({
-      success: false,
-      message: 'Accès réservé aux administrateurs'
-    });
-  }
-  next();
-};
 
 // Toutes les routes admin sont protégées (sauf /login)
 router.use(auth, requireAdmin);
@@ -656,6 +645,92 @@ router.get('/rides/cancelled', auth, requireAdmin, async (req, res) => {
   }
 });
 
+// @route   PUT /api/v1/admin/rides/:id/cancel
+// @desc    Annuler une course (support) — enregistré comme annulation « système »
+// @access  Private (admin)
+router.put('/rides/:id/cancel', [
+  body('reason').optional().isString(),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Données invalides', errors: errors.array() });
+    }
+
+    const ride = await Ride.findById(req.params.id);
+    if (!ride) {
+      return res.status(404).json({ success: false, message: 'Course non trouvée' });
+    }
+
+    const terminal = ['completed', 'cancelled', 'no_driver', 'expired'];
+    if (terminal.includes(ride.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cette course ne peut plus être annulée (statut final)',
+      });
+    }
+
+    const reasonText = (req.body.reason && String(req.body.reason).trim()) || 'Annulation par l’administrateur';
+
+    ride.status = 'cancelled';
+    ride.cancelledAt = new Date();
+    ride.cancellation = {
+      reason: `admin_cancelled: ${reasonText}`,
+      cancelledBy: 'system',
+      refundAmount: ride.pricing?.totalPrice,
+    };
+    await ride.save();
+
+    const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started', 'in_progress'];
+    if (ride.driver) {
+      const driver = await Driver.findById(ride.driver);
+      if (driver) {
+        if (ride.rideType === 'delivery') {
+          const remainingActive = await Ride.countDocuments({
+            driver: driver._id,
+            rideType: 'delivery',
+            status: { $in: ACTIVE_RIDE_STATUSES },
+            _id: { $ne: ride._id },
+          });
+          driver.status = 'online';
+          driver.isAvailable = remainingActive < 2;
+        } else {
+          driver.status = 'online';
+          driver.isAvailable = true;
+        }
+        await driver.save();
+      }
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('ride-cancelled', {
+        rideId: ride._id,
+        cancelledBy: 'system',
+        reason: reasonText,
+      });
+      io.emit('ride-no-longer-available', { rideId: ride._id });
+    }
+
+    res.json({
+      success: true,
+      message: 'Course annulée',
+      data: {
+        ride: {
+          id: ride._id,
+          rideId: ride.rideId,
+          status: ride.status,
+          cancelledAt: ride.cancelledAt,
+          cancellation: ride.cancellation,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Erreur annulation admin course:', error);
+    res.status(500).json({ success: false, message: 'Erreur interne du serveur' });
+  }
+});
+
 // @route   GET /api/v1/admin/payments
 // @desc    Obtenir la liste des paiements
 // @access  Private (admin)
@@ -1005,9 +1080,15 @@ router.put('/drivers/:id', async (req, res) => {
       });
     }
 
-    // Mettre à jour les champs
-    Object.keys(req.body).forEach(key => {
-      driver[key] = req.body[key];
+    const allowed = [
+      'firstName', 'lastName', 'phone', 'email', 'gender', 'nationalId', 'dateOfBirth',
+      'address', 'serviceLevel', 'status', 'isAvailable', 'vehicle', 'driverLicense',
+      'rideTypes', 'preferences', 'verificationStatus', 'profilePhoto',
+    ];
+    allowed.forEach((key) => {
+      if (req.body[key] !== undefined) {
+        driver[key] = req.body[key];
+      }
     });
 
     // Sauvegarder (déclenche le middleware pre-save pour hasher le mot de passe)

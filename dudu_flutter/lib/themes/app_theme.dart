@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Couleurs principales - Design DUDU officiel (Vert foncé et Noir)
+  // Couleurs principales - Design DuDu officiel (Vert foncé et Noir)
   static const Color primaryColor = Color(0xFF1B5E20); // Vert foncé
   static const Color secondaryColor = Color(0xFF2E7D32); // Vert moyen
   static const Color accentColor = Color(0xFF66BB6A); // Vert clair accent

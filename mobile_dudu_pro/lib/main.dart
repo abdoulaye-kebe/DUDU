@@ -68,7 +68,7 @@ void main() async {
     debugPrint('📍 Stack: ${details.stack}');
   };
   
-  debugPrint('🚀 Démarrage DUDU Pro...');
+  debugPrint('🚀 Démarrage DuDu Pro...');
   final themeController = ThemeController();
   await themeController.loadFromPrefs();
   runApp(DUDUProApp(themeController: themeController));
@@ -107,7 +107,7 @@ class DUDUProApp extends StatelessWidget {
       child: Consumer<ThemeController>(
         builder: (context, tc, _) {
           return MaterialApp(
-            title: 'DUDU Pro - Chauffeur',
+            title: 'DuDu Pro - Chauffeur',
             debugShowCheckedModeBanner: false,
             themeMode: tc.mode,
             theme: _lightTheme,

@@ -11,6 +11,8 @@ import '../services/places_service.dart';
 import '../services/socket_service.dart';
 import '../services/search_history_service.dart';
 import '../constants/map_style.dart';
+import '../constants/senegal_map.dart';
+import '../services/map_style_service.dart';
 import '../services/directions_service.dart';
 import 'delivery_tracking_screen.dart';
 import 'ride_tracking_screen.dart';
@@ -38,7 +40,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   Timer? _searchDebounce;
   int _searchToken = 0;
   
-  // Couleurs DUDU
+  // Couleurs DuDu
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color lightGreen = Color(0xFF10b981);
   static const Color accentBlack = Color(0xFF1A1A1A);
@@ -931,11 +933,16 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           initialCameraPosition: CameraPosition(
             target: _currentPosition != null
                 ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-                : const LatLng(14.6928, -17.4467), // Dakar
+                : SenegalMap.dakar,
             zoom: 18.0,
           ),
           style: kDuDuMapStyle,
-          onMapCreated: (controller) => _mapController = controller,
+          cameraTargetBounds: MapStyleService.senegalBounds,
+          minMaxZoomPreference: MapStyleService.zoomPreference,
+          onMapCreated: (controller) async {
+            _mapController = controller;
+            await MapStyleService.apply(controller);
+          },
           markers: _markers,
           polylines: _polylines,
           myLocationEnabled: true,
@@ -2296,6 +2303,16 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
             _clearPassengerRideSocketListeners();
 
             try {
+              // Fermer le dialogue « Demande envoyée / attente chauffeur » s’il est encore ouvert
+              if (Navigator.canPop(context)) {
+                Navigator.of(context).pop();
+              }
+              if (mounted) {
+                setState(() {
+                  _isSearchingDriver = false;
+                });
+              }
+
               Map<String, dynamic> asMap(dynamic v) {
                 if (v is Map) return Map<String, dynamic>.from(v as Map);
                 return {};

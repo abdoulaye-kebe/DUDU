@@ -11,6 +11,8 @@ import '../services/notification_service.dart';
 import '../services/secure_auth_service.dart';
 import '../services/socket_service.dart';
 import '../services/directions_service.dart';
+import '../constants/senegal_map.dart';
+import '../services/map_style_service.dart';
 import 'package:intl/intl.dart';
 import 'mobile_payment_screen.dart';
 
@@ -221,7 +223,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                driver['name']?.toString() ?? 'Chauffeur DUDU',
+                                driver['name']?.toString() ?? 'Chauffeur DuDu',
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -766,11 +768,14 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                             )
                           : null) ??
                       _destinationLatLng ??
-                      const LatLng(14.6928, -17.4467),
+                      SenegalMap.dakar,
                   zoom: 14.0,
                 ),
-                onMapCreated: (controller) {
+                cameraTargetBounds: MapStyleService.senegalBounds,
+                minMaxZoomPreference: MapStyleService.zoomPreference,
+                onMapCreated: (controller) async {
                   _mapController = controller;
+                  await MapStyleService.apply(controller);
                   _updateMarkersOnMap();
                 },
                 myLocationEnabled: true,

@@ -18,8 +18,8 @@ npm install
 
 2. Configurer les variables d'environnement :
 ```bash
-cp env.example .env
-# Éditer le fichier .env avec vos configurations
+cp .env.example .env
+# Éditer .env (MongoDB, JWT, Wave, etc.)
 ```
 
 3. Démarrer le serveur :
@@ -148,20 +148,37 @@ src/
 - **SMS** : API de notification
 - **Géolocalisation** : MongoDB Geospatial
 
-## 🚀 Déploiement
+## 🚀 Déploiement (production, Git pull)
 
-### Variables d'environnement requises
+1. Sur le serveur, le dépôt doit pointer vers ce repo (ex. `~/DUDU` ou `~/dudu-backend`).
+2. **Une seule fois** : `cp .env.example .env` puis remplir `MONGODB_URI`, `JWT_SECRET`, `WAVE_*`, `ADMIN_*`, etc.
+3. **À chaque mise à jour** (monorepo : dépôt Git à la racine du projet) :
+   ```bash
+   cd /chemin/vers/DUDU
+   ./scripts/prod-update-backend.sh
+   ```
+   Cela fait `git pull`, puis `npm ci` dans `backend/`, puis **`pm2 reload`** du processus **`dudu-bac`** (`ecosystem.config.cjs`).
 
-```env
-NODE_ENV=production
-PORT=3000
-MONGODB_URI=mongodb://localhost:27017/dudu
-JWT_SECRET=your-secret-key
-GOOGLE_MAPS_API_KEY=your-api-key
-ORANGE_MONEY_API_KEY=your-api-key
-WAVE_API_KEY=your-api-key
-FREE_MONEY_API_KEY=your-api-key
+   Si le backend est un **clone séparé** (dossier `backend/` seul avec son `.git`) :
+   ```bash
+   cd /chemin/vers/backend
+   ./scripts/prod-update.sh
+   ```
+
+**Premier lancement PM2** (si le process n’existe pas encore) :
+```bash
+cd backend
+npm install --omit=dev
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup   # optionnel — redémarrage auto au boot
 ```
+
+**Fichiers versionnés utiles en prod** : `ecosystem.config.cjs`, `scripts/prod-update.sh`, `.env.example` (modèle uniquement — pas les secrets).
+
+### Variables d'environnement
+
+Voir **`/.env.example`** à la racine du dossier `backend` (liste à jour : Wave, courses planifiées, admin, etc.).
 
 ### Docker (optionnel)
 

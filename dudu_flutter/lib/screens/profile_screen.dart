@@ -730,11 +730,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('À propos de DUDU'),
+        title: const Text('À propos de DuDu'),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('DUDU - Votre compagnon de transport à Dakar'),
+            Text('DuDu - Votre compagnon de transport à Dakar'),
             SizedBox(height: 16),
             Text('Version: 1.0.0'),
             Text('Développé avec ❤️ au Sénégal'),

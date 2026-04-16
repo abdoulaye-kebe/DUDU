@@ -19,14 +19,36 @@ class CallService {
 
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
+  bool _renderersInitialized = false;
 
-  Future<void> _initRenderers() async {
+  Future<void> _ensureRenderers() async {
+    if (_renderersInitialized) return;
     await _localRenderer.initialize();
     await _remoteRenderer.initialize();
+    _renderersInitialized = true;
+  }
+
+  void _showCallError(String message) {
+    final ctx = appNavigatorKey.currentContext;
+    if (ctx == null) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Map<String, String>? _normalizeRemoteSdpMap(Map<String, dynamic> raw) {
+    final type = raw['type']?.toString();
+    final sdp = raw['sdp']?.toString();
+    if (type == null || sdp == null || sdp.isEmpty) return null;
+    return {'type': type, 'sdp': sdp};
   }
 
   void attachToSocket(dynamic socket) {
     _socket = socket;
+    socket.off('call-offer');
+    socket.off('call-answer');
+    socket.off('ice-candidate');
+    socket.off('call-end');
     socket.on('call-offer', _onCallOffer);
     socket.on('call-answer', _onCallAnswer);
     socket.on('ice-candidate', _onIceCandidate);
@@ -78,18 +100,26 @@ class CallService {
     _isCaller = true;
     _currentRideId = rideId;
 
-    await _initRenderers();
-    await _createPeerConnection();
+    try {
+      await _ensureRenderers();
+      await _createPeerConnection();
 
-    final offer = await _peerConnection!.createOffer();
-    await _peerConnection!.setLocalDescription(offer);
+      final offer = await _peerConnection!.createOffer();
+      await _peerConnection!.setLocalDescription(offer);
 
-    socket.emit('call-offer', {
-      'rideId': rideId,
-      'sdp': offer.toMap(),
-    });
+      socket.emit('call-offer', {
+        'rideId': rideId,
+        'sdp': offer.toMap(),
+      });
 
-    _showInCallDialog();
+      _showInCallDialog();
+    } catch (e, st) {
+      debugPrint('⚠️ startCall: $e\n$st');
+      _showCallError(
+        'Impossible de démarrer l’appel DuDu (microphone ou connexion).',
+      );
+      _disposeCall();
+    }
   }
 
   Future<void> answerCall(String rideId, Map<String, dynamic> offer, dynamic socket) async {
@@ -97,21 +127,36 @@ class CallService {
     _isCaller = false;
     _currentRideId = rideId;
 
-    await _initRenderers();
-    await _createPeerConnection();
+    final norm = _normalizeRemoteSdpMap(offer);
+    if (norm == null) {
+      _showCallError('Données d’appel invalides.');
+      _disposeCall();
+      return;
+    }
 
-    final remoteDesc = RTCSessionDescription(offer['sdp'], offer['type']);
-    await _peerConnection!.setRemoteDescription(remoteDesc);
+    try {
+      await _ensureRenderers();
+      await _createPeerConnection();
 
-    final answer = await _peerConnection!.createAnswer();
-    await _peerConnection!.setLocalDescription(answer);
+      final remoteDesc = RTCSessionDescription(norm['sdp']!, norm['type']!);
+      await _peerConnection!.setRemoteDescription(remoteDesc);
 
-    socket.emit('call-answer', {
-      'rideId': rideId,
-      'sdp': answer.toMap(),
-    });
+      final answer = await _peerConnection!.createAnswer();
+      await _peerConnection!.setLocalDescription(answer);
 
-    _showInCallDialog();
+      socket.emit('call-answer', {
+        'rideId': rideId,
+        'sdp': answer.toMap(),
+      });
+
+      _showInCallDialog();
+    } catch (e, st) {
+      debugPrint('⚠️ answerCall: $e\n$st');
+      _showCallError(
+        'Impossible d’accepter l’appel (microphone ou connexion).',
+      );
+      _disposeCall();
+    }
   }
 
   void endCall([String reason = 'ended_by_user']) {
@@ -262,10 +307,17 @@ class CallService {
     debugPrint('📞 call-answer reçu: $data');
     if (_peerConnection == null) return;
 
-    if (data is Map && data['sdp'] is Map) {
-      final sdp = Map<String, dynamic>.from(data['sdp'] as Map);
-      final desc = RTCSessionDescription(sdp['sdp'], sdp['type']);
-      await _peerConnection!.setRemoteDescription(desc);
+    try {
+      if (data is Map && data['sdp'] is Map) {
+        final sdp = Map<String, dynamic>.from(data['sdp'] as Map);
+        final norm = _normalizeRemoteSdpMap(sdp);
+        if (norm == null) return;
+        final desc = RTCSessionDescription(norm['sdp']!, norm['type']!);
+        await _peerConnection!.setRemoteDescription(desc);
+      }
+    } catch (e, st) {
+      debugPrint('⚠️ call-answer: $e\n$st');
+      _showCallError('Erreur lors de la connexion audio.');
     }
   }
 
@@ -276,10 +328,14 @@ class CallService {
     try {
       if (data is Map && data['candidate'] is Map) {
         final c = Map<String, dynamic>.from(data['candidate'] as Map);
+        final idxRaw = c['sdpMLineIndex'];
+        final lineIndex = idxRaw is int
+            ? idxRaw
+            : (idxRaw is num ? idxRaw.toInt() : null);
         final candidate = RTCIceCandidate(
           c['candidate'] as String?,
           c['sdpMid'] as String?,
-          c['sdpMLineIndex'] as int?,
+          lineIndex,
         );
         await _peerConnection!.addCandidate(candidate);
       }

@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import '../constants/senegal_map.dart';
 import '../models/ride.dart';
 import '../services/api_service.dart';
+import '../services/map_style_service.dart';
 
 class RideRequestScreen extends StatefulWidget {
   const RideRequestScreen({Key? key}) : super(key: key);
@@ -141,6 +142,12 @@ class _RideRequestScreenState extends State<RideRequestScreen> {
         case RideType.delivery:
           multiplier = 1.3;
           break;
+        case RideType.luxe:
+          multiplier = 2.0;
+          break;
+        case RideType.moto:
+          multiplier = 0.8;
+          break;
       }
 
       setState(() {
@@ -262,8 +269,11 @@ class _RideRequestScreenState extends State<RideRequestScreen> {
           Expanded(
             flex: 3,
             child: GoogleMap(
-              onMapCreated: (GoogleMapController controller) {
+              cameraTargetBounds: MapStyleService.senegalBounds,
+              minMaxZoomPreference: MapStyleService.zoomPreference,
+              onMapCreated: (GoogleMapController controller) async {
                 _mapController = controller;
+                await MapStyleService.apply(controller);
               },
               onTap: _onMapTap,
               initialCameraPosition: CameraPosition(

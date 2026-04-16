@@ -424,10 +424,10 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
                             elevation: 0,
                           ),
                           child: const Text(
-                            'REFUSER',
+                            'Refuser la course',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 15,
+                              fontSize: 14,
                             ),
                           ),
                         ),
@@ -446,12 +446,19 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
                             ),
                             elevation: 2,
                           ),
-                          child: const Text(
-                            'ACCEPTER',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_circle_outline, size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'Accepter la course',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -712,7 +719,7 @@ class RideRequest {
 
     return RideRequest(
       id: requestId,
-      passengerName: (data['passengerName']?.toString() ?? passenger['name']?.toString()) ?? 'Client DUDU',
+      passengerName: (data['passengerName']?.toString() ?? passenger['name']?.toString()) ?? 'Client DuDu',
       passengerPhone: data['passengerPhone']?.toString() ?? passenger['phone']?.toString(),
       pickup: pickupText.toString(),
       destination: destinationText.toString(),

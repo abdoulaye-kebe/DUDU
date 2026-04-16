@@ -627,16 +627,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('À propos de DUDU Pro'),
+        title: const Text('À propos de DuDu Pro'),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Version : 1.0.0'),
             SizedBox(height: 8),
-            Text('Application chauffeur DUDU — Sénégal.'),
+            Text('Application chauffeur DuDu — Sénégal.'),
             SizedBox(height: 8),
-            Text('© 2026 DUDU Group'),
+            Text('© 2026 DuDu Group'),
           ],
         ),
         actions: [

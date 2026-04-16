@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Mobile Dudu Pro</string>
+	<string>DuDu Pro</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -47,12 +47,14 @@
 	<true/>
 	<!-- Permissions pour la géolocalisation -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>DUDU Pro a besoin d'accéder à votre localisation pour recevoir des demandes de course et naviguer vers les clients.</string>
+	<string>DuDu Pro a besoin d'accéder à votre localisation pour recevoir des demandes de course et naviguer vers les clients.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>DUDU Pro a besoin d'accéder à votre localisation pour recevoir des demandes de course et naviguer vers les clients.</string>
+	<string>DuDu Pro a besoin d'accéder à votre localisation pour recevoir des demandes de course et naviguer vers les clients.</string>
 	<!-- ITMS-90683 : API caméra liée par des SDK (carte, vérif, etc.) -->
 	<key>NSCameraUsageDescription</key>
-	<string>DUDU Pro peut utiliser la caméra pour la vérification du compte, le profil ou une fonctionnalité qui l'exige.</string>
+	<string>DuDu Pro peut utiliser la caméra pour la vérification du compte, le profil ou une fonctionnalité qui l'exige.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>DuDu Pro utilise le microphone pour les appels audio avec le client pendant une course.</string>
 	<!-- Google Maps API Key -->
 	<key>GMSApiKey</key>
 	<string>AIzaSyBebPcA35Q6WKIiGxG1Xi4iW0ZErazWvZA</string>

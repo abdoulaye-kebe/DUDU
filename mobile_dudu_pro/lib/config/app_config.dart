@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// Configuration centralisée de l'application DUDU Pro (Chauffeur)
+/// Configuration centralisée de l'application DuDu Pro (Chauffeur)
 class AppConfig {
   // Empêcher l'instanciation
   AppConfig._();
 
   /// Nom de l'application
-  static const String appName = 'DUDU Pro';
+  static const String appName = 'DuDu Pro';
   
   /// Version de l'API
   static const String apiVersion = 'v1';
@@ -134,7 +134,7 @@ class AppConfig {
       final dotenvLine = dotenv.maybeGet('DUDU_API_ORIGIN');
       final override = _serverOriginOverride;
       print('╔══════════════════════════════════════════╗');
-      print('║         DUDU PRO (CHAUFFEUR) CONFIG      ║');
+      print('║         DuDu PRO (CHAUFFEUR) CONFIG      ║');
       print('╠══════════════════════════════════════════╣');
       print('║ Mode: ${kDebugMode ? "DEBUG" : "RELEASE"}');
       print('║ Platform: ${kIsWeb ? "WEB" : defaultTargetPlatform.toString()}');

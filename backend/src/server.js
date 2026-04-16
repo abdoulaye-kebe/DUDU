@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
+const path = require('path');
 
 const app = express();
 
@@ -82,7 +83,14 @@ app.use('/api/', limiter);
 const mobilePaymentsRouter = require('./routes/mobile-payments');
 app.post(
   '/api/v1/mobile-payments/wave/webhook',
-  express.raw({ type: 'application/json' }),
+  express.raw({
+    // Wave envoie souvent `application/json; charset=utf-8` — matcher large pour ne pas perdre le corps brut.
+    type: (req) => {
+      const ct = req.headers['content-type'] || '';
+      return /application\/json/i.test(ct);
+    },
+    limit: '1mb',
+  }),
   mobilePaymentsRouter.handleWaveWebhook
 );
 // Health checks Wave/portail : ping en GET/HEAD (pas de signature)
@@ -91,6 +99,11 @@ app.get('/api/v1/mobile-payments/wave/webhook', (req, res) => {
 });
 app.head('/api/v1/mobile-payments/wave/webhook', (req, res) => {
   res.sendStatus(200);
+});
+
+// Page publique « partage trajet » (lien dans l’app client) — avant express.static
+app.get('/track/:rideKey', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'track.html'));
 });
 
 // Middleware pour parser le JSON

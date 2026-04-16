@@ -57,7 +57,7 @@ class _ShareRideScreenState extends State<ShareRideScreen> {
         : '';
 
     return '''
-🛡️ DUDU — Partage trajet (sécurité)
+🛡️ DuDu — Partage trajet (sécurité)
 
 Je te partage mon itinéraire pour que tu saches où je suis.
 
@@ -126,7 +126,7 @@ En cas d’urgence (Sénégal) : Police 17, SAMU 15, Pompiers 18.
     try {
       await Share.share(
         _generateShareMessage(),
-        subject: 'Mon trajet DUDU - Suivi en temps réel',
+        subject: 'Mon trajet DuDu - Suivi en temps réel',
       );
     } catch (e) {
       if (mounted) {

@@ -271,7 +271,7 @@ class _SafetyScreenState extends State<SafetyScreen> with SingleTickerProviderSt
         ),
         _buildPreventionCard(
           icon: Icons.verified_user,
-          title: 'Sécurité DUDU',
+          title: 'Sécurité DuDu',
           tips: [
             'Tous les conducteurs sont vérifiés',
             'Contrôle automatique des courses inhabituelles',

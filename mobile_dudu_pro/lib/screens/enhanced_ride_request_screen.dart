@@ -5,6 +5,7 @@ import '../constants/senegal_map.dart';
 import '../models/ride.dart';
 import '../services/api_service.dart';
 import '../services/geocoding_service.dart';
+import '../services/map_style_service.dart';
 import '../widgets/address_autocomplete.dart';
 
 class EnhancedRideRequestScreen extends StatefulWidget {
@@ -144,6 +145,12 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
         case RideType.delivery:
           multiplier = 1.3;
           break;
+        case RideType.luxe:
+          multiplier = 2.0;
+          break;
+        case RideType.moto:
+          multiplier = 0.8;
+          break;
       }
 
       setState(() {
@@ -273,8 +280,11 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
         Expanded(
           flex: 3,
           child: GoogleMap(
-            onMapCreated: (GoogleMapController controller) {
+            cameraTargetBounds: MapStyleService.senegalBounds,
+            minMaxZoomPreference: MapStyleService.zoomPreference,
+            onMapCreated: (GoogleMapController controller) async {
               _mapController = controller;
+              await MapStyleService.apply(controller);
             },
             initialCameraPosition: CameraPosition(
               target: _pickupPlace != null
@@ -369,8 +379,11 @@ class _EnhancedRideRequestScreenState extends State<EnhancedRideRequestScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: GoogleMap(
-          onMapCreated: (GoogleMapController controller) {
+          cameraTargetBounds: MapStyleService.senegalBounds,
+          minMaxZoomPreference: MapStyleService.zoomPreference,
+          onMapCreated: (GoogleMapController controller) async {
             _mapController = controller;
+            await MapStyleService.apply(controller);
           },
           initialCameraPosition: CameraPosition(
             target: _pickupPlace != null

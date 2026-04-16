@@ -5,8 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../constants/senegal_map.dart';
 import '../providers/auth_provider.dart';
-import '../themes/app_theme.dart';
+import '../services/map_style_service.dart';
 import '../services/search_history_service.dart';
 import '../services/places_service.dart';
 import 'unified_ride_screen.dart';
@@ -35,7 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   final Set<Marker> _vehicleMarkers = {};
   List<SearchHistoryItem> _searchHistory = [];
 
-  // Couleurs DUDU
+  // Couleurs DuDu
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color darkGreen = Color(0xFF094d2a);
   static const Color lightGreen = Color(0xFF10b981);
@@ -440,14 +441,19 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   Widget _buildMapBackground() {
     final target = _currentPosition != null
         ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-        : const LatLng(14.6928, -17.4467);
+        : SenegalMap.dakar;
 
     return GoogleMap(
       initialCameraPosition: CameraPosition(
         target: target,
         zoom: 14.0,
       ),
-      onMapCreated: (controller) => _mapController = controller,
+      cameraTargetBounds: MapStyleService.senegalBounds,
+      minMaxZoomPreference: MapStyleService.zoomPreference,
+      onMapCreated: (controller) async {
+        _mapController = controller;
+        await MapStyleService.apply(controller);
+      },
       myLocationEnabled: true,
       myLocationButtonEnabled: true,
       zoomControlsEnabled: false,
@@ -636,20 +642,17 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   Row(
                     children: [
                       Container(
-                        width: 40,
-                        height: 40,
                         decoration: BoxDecoration(
                           color: primaryGreen,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Center(
-                          child: Text(
-                            'DUDU',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: const Text(
+                          'DuDu',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
                           ),
                         ),
                       ),
@@ -1022,7 +1025,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Devenir chauffeur DUDU',
+                          'Devenir chauffeur DuDu',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.white,

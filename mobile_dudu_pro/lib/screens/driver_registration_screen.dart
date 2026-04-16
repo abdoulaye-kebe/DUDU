@@ -244,7 +244,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
               ],
             ),
             content: const Text(
-              'Bienvenue sur DUDU Pro !\n\n'
+              'Bienvenue sur DuDu Pro !\n\n'
               'Votre compte a été créé avec succès.\n'
               'Notre équipe vérifiera vos documents prochainement.\n\n'
               'Vous pouvez déjà explorer l\'application, mais vous devrez attendre la validation pour recevoir des courses.',

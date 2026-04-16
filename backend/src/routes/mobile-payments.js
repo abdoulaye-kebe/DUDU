@@ -400,17 +400,18 @@ async function handleWaveWebhook(req, res) {
       });
     }
 
-    const rawBody = req.body.toString('utf8');
+    const rawBuf = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || '', 'utf8');
     const waveSignature =
       req.headers['wave-signature'] || req.headers['x-wave-signature'];
 
-    const isValid = waveService.verifyWebhookSignature(rawBody, waveSignature);
+    const isValid = waveService.verifyWebhookSignature(rawBuf, waveSignature);
 
     if (!isValid) {
       console.error('❌ Signature webhook Wave invalide');
       return res.status(401).json({ success: false, message: 'Signature invalide' });
     }
 
+    const rawBody = rawBuf.toString('utf8');
     let webhookData;
     try {
       webhookData = JSON.parse(rawBody);

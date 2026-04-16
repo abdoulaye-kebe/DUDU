@@ -548,18 +548,37 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
 
       final checkoutUrl = result['checkoutUrl']?.toString();
       if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
-        final uri = Uri.parse(checkoutUrl);
-        final launched = await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-        );
-        if (!launched && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Impossible d\'ouvrir Wave. Copiez le lien depuis l\'admin ou réessayez.'),
-              backgroundColor: Colors.orange,
-            ),
+        final uri = Uri.tryParse(checkoutUrl);
+        final host = uri?.host.toLowerCase() ?? '';
+        if (uri == null ||
+            !uri.hasScheme ||
+            (host != 'pay.wave.com' && host != 'checkout.wave.com')) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Lien Wave invalide (attendu pay.wave.com). Réessayez ou contactez le support.\n$checkoutUrl',
+                ),
+                duration: const Duration(seconds: 10),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        } else {
+          final launched = await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
           );
+          if (!launched && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Impossible d\'ouvrir Wave. Copiez le lien depuis l\'admin ou réessayez.',
+                ),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
         }
       }
 

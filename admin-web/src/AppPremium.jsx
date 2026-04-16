@@ -6,11 +6,12 @@ import DashboardPremium from './pages/DashboardPremium';
 import DriversPremium from './pages/DriversPremium';
 import ClientsPremium from './pages/ClientsPremium';
 import RidesPremium from './pages/RidesPremium';
+import PaymentsPremium from './pages/PaymentsPremium';
 import PromotionsPremium from './pages/PromotionsPremium';
 import './styles/admin-premium.css';
 
 function AppPremium() {
-  const [currentPage, setCurrentPage] = useState('drivers');
+  const [currentPage, setCurrentPage] = useState('dashboard');
   const [navbarSearch, setNavbarSearch] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return Boolean(localStorage.getItem('admin_token'));
@@ -21,21 +22,25 @@ function AppPremium() {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
     setIsAuthenticated(false);
-    setCurrentPage('drivers');
+    setCurrentPage('dashboard');
   };
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'dashboard':
+        return <DashboardPremium />;
       case 'drivers':
         return <DriversPremium navbarSearch={navbarSearch} />;
       case 'clients':
         return <ClientsPremium navbarSearch={navbarSearch} />;
       case 'rides':
         return <RidesPremium navbarSearch={navbarSearch} />;
+      case 'payments':
+        return <PaymentsPremium navbarSearch={navbarSearch} />;
       case 'promotions':
         return <PromotionsPremium />;
       default:
-        return <DriversPremium navbarSearch={navbarSearch} />;
+        return <DashboardPremium />;
     }
   };
 

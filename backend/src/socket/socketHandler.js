@@ -413,10 +413,18 @@ module.exports = (io) => {
         ride.arrivedAt = new Date();
         await ride.save();
 
+        const drv = socket.driver;
+        const driverName =
+          drv?.firstName && drv?.lastName
+            ? `${drv.firstName} ${drv.lastName}`.trim()
+            : drv?.firstName || drv?.lastName || undefined;
+
         // Notifier le passager
         io.to(`passenger_${ride.passenger}`).emit('driver-arrived', {
           rideId: ride._id,
-          arrivedAt: ride.arrivedAt
+          arrivedAt: ride.arrivedAt,
+          message: 'Votre chauffeur est arrivé au point de prise en charge',
+          ...(driverName ? { driverName } : {}),
         });
 
         socket.emit('arrival-confirmed', { rideId: ride._id });

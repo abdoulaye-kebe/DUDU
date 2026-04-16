@@ -28,9 +28,12 @@ function DataTable({
   pageSize = 10,
   onView,
   onEdit,
+  onPassword,
   onDelete,
   editLabel = "Modifier",
   editIcon: EditIcon = Edit,
+  passwordLabel = 'Mot de passe',
+  passwordIcon: PasswordIcon = Edit,
   emptyMessage = "Aucune donnée disponible"
 }) {
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -183,6 +186,18 @@ function DataTable({
                           title={editLabel}
                         >
                           <EditIcon size={16} />
+                        </motion.button>
+                      )}
+                      {onPassword && (
+                        <motion.button 
+                          type="button"
+                          className="btn btn-ghost btn-icon btn-sm"
+                          onClick={() => onPassword(row)}
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          title={passwordLabel}
+                        >
+                          <PasswordIcon size={16} />
                         </motion.button>
                       )}
                       {onDelete && (

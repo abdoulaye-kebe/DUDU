@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>DUDU</string>
+	<string>DuDu</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>DUDU</string>
+	<string>DuDu</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -55,10 +55,10 @@
 	<string>DuDu peut utiliser la caméra lorsque vous ajoutez une photo (profil, pièce jointe) ou utilisez une fonctionnalité qui le demande.</string>
 	<!-- Requis par Apple si l’app utilise Face ID / Touch ID (local_auth) -->
 	<key>NSFaceIDUsageDescription</key>
-	<string>DUDU utilise Face ID ou Touch ID pour déverrouiller l’application lorsque vous activez cette option.</string>
+	<string>DuDu utilise Face ID ou Touch ID pour déverrouiller l’application lorsque vous activez cette option.</string>
 	<!-- Peut être exigé si des SDK (ex. WebRTC) lient l’API microphone -->
 	<key>NSMicrophoneUsageDescription</key>
-	<string>DUDU peut accéder au microphone pour les appels ou communications intégrées à l’application, si vous les utilisez.</string>
+	<string>DuDu peut accéder au microphone pour les appels ou communications intégrées à l’application, si vous les utilisez.</string>
 	
 	<!-- Google Maps API Key -->
 	<key>GMSApiKey</key>

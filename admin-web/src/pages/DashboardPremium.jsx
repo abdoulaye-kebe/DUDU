@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import api from '../services/api';
 import StatCard from '../components/StatCard';
 import DataTable from '../components/DataTable';
 import { 
@@ -43,7 +42,7 @@ function DashboardPremium() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/admin/dashboard`);
+      const response = await api.get('/admin/dashboard');
       
       if (response.data.success) {
         const data = response.data.data;

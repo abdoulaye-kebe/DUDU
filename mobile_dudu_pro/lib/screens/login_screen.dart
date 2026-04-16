@@ -30,7 +30,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
 
-  // Couleurs DUDU
+  // Couleurs DuDu
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color darkGreen = Color(0xFF094d2a);
   static const Color accentBlack = Color(0xFF1A1A1A);
@@ -232,7 +232,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     return Column(
       children: [
         const Text(
-          'DUDU PRO',
+          'DuDu PRO',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -537,7 +537,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                   ),
                                   const SizedBox(width: 10),
                                   Text(
-                                    'DUDU CHAUFFEUR',
+                                    'DuDu CHAUFFEUR',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 12,

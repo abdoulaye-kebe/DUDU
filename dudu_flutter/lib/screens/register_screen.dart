@@ -139,7 +139,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         // Afficher un message de succès
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Inscription réussie ! Bienvenue sur DUDU'),
+            content: Text('✅ Inscription réussie ! Bienvenue sur DuDu'),
             backgroundColor: AppTheme.successColor,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -286,7 +286,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       ),
                       const SizedBox(height: 30),
                       const Text(
-                        'Rejoignez DUDU',
+                        'Rejoignez DuDu',
                         style: TextStyle(
                           color: AppTheme.textColor,
                           fontWeight: FontWeight.bold,

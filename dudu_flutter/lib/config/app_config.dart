@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, defaultTargetPlatform, TargetPlatform;
 
-/// Configuration centralisée de l'application DUDU Client
+/// Configuration centralisée de l'application DuDu
 class AppConfig {
   // Empêcher l'instanciation
   AppConfig._();
 
   /// Nom de l'application
-  static const String appName = 'DUDU';
+  static const String appName = 'DuDu';
   
   /// Version de l'API
   static const String apiVersion = 'v1';
@@ -107,7 +107,7 @@ class AppConfig {
   static void printConfig() {
     if (showDebugLogs) {
       print('╔══════════════════════════════════════════╗');
-      print('║         DUDU CLIENT CONFIG               ║');
+      print('║         DuDu CLIENT CONFIG               ║');
       print('╠══════════════════════════════════════════╣');
       print('║ Mode: ${kDebugMode ? "DEBUG" : "RELEASE"}');
       print('║ Platform: ${kIsWeb ? "WEB" : defaultTargetPlatform.toString()}');

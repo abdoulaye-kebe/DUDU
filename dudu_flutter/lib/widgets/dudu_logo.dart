@@ -62,7 +62,7 @@ class DuduLogo extends StatelessWidget {
               colors: [primary, secondary],
             ).createShader(bounds),
             child: Text(
-              'DUDU',
+              'DuDu',
               style: textStyle ?? TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,

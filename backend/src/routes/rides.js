@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
 const Ride = require('../models/Ride');
 const Driver = require('../models/Driver');
@@ -470,10 +471,15 @@ router.post('/:id/arrive', [
     // Notifier le passager via Socket.io
     const io = req.app.get('io');
     if (io) {
+      const driverName =
+        req.driver?.firstName && req.driver?.lastName
+          ? `${req.driver.firstName} ${req.driver.lastName}`.trim()
+          : req.driver?.firstName || req.driver?.lastName || undefined;
       io.to(`passenger_${ride.passenger}`).emit('driver-arrived', {
         rideId: ride._id,
         arrivedAt: ride.arrivedAt,
-        message: 'Votre chauffeur est arrivé au point de départ'
+        message: 'Votre chauffeur est arrivé au point de départ',
+        ...(driverName ? { driverName } : {}),
       });
       console.log(`📢 Notification arrivée envoyée au client ${ride.passenger}`);
     }
@@ -948,6 +954,84 @@ router.post('/:id/rate-passenger', [
       success: false,
       message: 'Erreur interne du serveur'
     });
+  }
+});
+
+// @route   GET /api/v1/rides/public/tracking/:rideKey
+// @desc    Suivi public (ami) — sans auth ; positions limitées aux courses actives
+// @access  Public (lien partagé)
+router.get('/public/tracking/:rideKey', async (req, res) => {
+  try {
+    const { rideKey } = req.params;
+    if (!rideKey || rideKey.length > 128) {
+      return res.status(400).json({ success: false, message: 'Référence invalide' });
+    }
+
+    let ride = null;
+    if (mongoose.Types.ObjectId.isValid(rideKey)) {
+      ride = await Ride.findById(rideKey);
+    }
+    if (!ride) {
+      ride = await Ride.findOne({ rideId: rideKey });
+    }
+    if (!ride) {
+      return res.status(404).json({ success: false, message: 'Course introuvable' });
+    }
+
+    const active = ACTIVE_RIDE_STATUSES.includes(ride.status);
+    let latitude = null;
+    let longitude = null;
+    let updatedAt = null;
+
+    if (ride.tracking && ride.tracking.length > 0) {
+      const last = ride.tracking[ride.tracking.length - 1];
+      latitude = last.latitude;
+      longitude = last.longitude;
+      updatedAt = last.timestamp || null;
+    }
+
+    if ((latitude == null || longitude == null) && ride.driver) {
+      const dr = await Driver.findById(ride.driver).select('currentLocation location');
+      if (dr?.currentLocation?.coordinates?.length === 2) {
+        longitude = dr.currentLocation.coordinates[0];
+        latitude = dr.currentLocation.coordinates[1];
+        updatedAt = dr.currentLocation.lastUpdated || new Date();
+      } else if (dr?.location?.latitude != null && dr?.location?.longitude != null) {
+        latitude = dr.location.latitude;
+        longitude = dr.location.longitude;
+        updatedAt = dr.location.lastUpdated || new Date();
+      }
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        rideId: ride.rideId,
+        status: ride.status,
+        active,
+        pickup: {
+          address: ride.pickup?.address,
+          latitude: ride.pickup?.coordinates?.latitude,
+          longitude: ride.pickup?.coordinates?.longitude,
+        },
+        destination: {
+          address: ride.destination?.address,
+          latitude: ride.destination?.coordinates?.latitude,
+          longitude: ride.destination?.coordinates?.longitude,
+        },
+        location:
+          latitude != null && longitude != null
+            ? {
+                latitude,
+                longitude,
+                updatedAt,
+              }
+            : null,
+      },
+    });
+  } catch (error) {
+    console.error('public/tracking:', error);
+    return res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });
 

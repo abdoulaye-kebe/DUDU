@@ -3,6 +3,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import '../config/app_config.dart';
+import '../constants/senegal_map.dart';
+import '../services/map_style_service.dart';
 
 class DeliveryTrackingScreen extends StatefulWidget {
   final String deliveryId;
@@ -27,7 +29,7 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
 
   Future<void> _shareDeliverySafety() async {
     final msg = '''
-🛡️ DUDU — Livraison (sécurité)
+🛡️ DuDu — Livraison (sécurité)
 
 Je te partage ma livraison pour que tu saches où j’en suis.
 
@@ -40,7 +42,7 @@ Je te partage ma livraison pour que tu saches où j’en suis.
 
 (Urgences Sénégal : 17 / 15 / 18)
 ''';
-    await Share.share(msg, subject: 'DUDU — Ma livraison');
+    await Share.share(msg, subject: 'DuDu — Ma livraison');
   }
   
   // Photos
@@ -68,10 +70,15 @@ Je te partage ma livraison pour que tu saches où j’en suis.
           Expanded(
             flex: 2,
             child: GoogleMap(
-              initialCameraPosition: const CameraPosition(
-                target: LatLng(14.6937, -17.4441),
+              initialCameraPosition: CameraPosition(
+                target: SenegalMap.dakar,
                 zoom: 14,
               ),
+              cameraTargetBounds: MapStyleService.senegalBounds,
+              minMaxZoomPreference: MapStyleService.zoomPreference,
+              onMapCreated: (controller) async {
+                await MapStyleService.apply(controller);
+              },
               myLocationEnabled: true,
               zoomControlsEnabled: false,
             ),

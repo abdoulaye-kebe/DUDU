@@ -80,7 +80,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
     bool ok = false;
     try {
       ok = await SecureAuthService()
-          .authenticateWithBiometrics(reason: 'Déverrouiller DUDU')
+          .authenticateWithBiometrics(reason: 'Déverrouiller DuDu')
           .timeout(const Duration(seconds: 15), onTimeout: () => false);
     } catch (_) {
       ok = false;
@@ -162,7 +162,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
             children: [
               const SizedBox(height: 40),
               const Text(
-                'DUDU',
+                'DuDu',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 34,

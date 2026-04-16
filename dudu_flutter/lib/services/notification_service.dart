@@ -1,9 +1,11 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:firebase_messaging/firebase_messaging.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -121,7 +123,7 @@ class NotificationService {
       await messaging.subscribeToTopic('promos');
 
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-        final title = message.notification?.title ?? 'DUDU';
+        final title = message.notification?.title ?? 'DuDu';
         final body = message.notification?.body ?? '';
         await showNotification(
           title: title,
@@ -183,8 +185,8 @@ class NotificationService {
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'dudu_channel',
-      'DUDU Notifications',
-      channelDescription: 'Notifications de courses DUDU',
+      'DuDu Notifications',
+      channelDescription: 'Notifications de courses DuDu',
       importance: Importance.max,
       priority: Priority.high,
       showWhen: true,
@@ -235,13 +237,46 @@ class NotificationService {
     );
   }
 
-  /// Notification chauffeur arrivé au point de prise en charge
+  /// Notification chauffeur arrivé au point de prise en charge (canal dédié : son + vibration)
   Future<void> showDriverArrivedNotification({
     required String driverName,
+    String? bodyText,
   }) async {
-    await showNotification(
-      title: '📍 Votre chauffeur est arrivé',
-      body: '$driverName vous attend au point de prise en charge',
+    if (kIsWeb) {
+      print('🔔 Chauffeur arrivé: $driverName');
+      return;
+    }
+
+    final body = (bodyText != null && bodyText.isNotEmpty)
+        ? '$driverName — $bodyText'
+        : '$driverName vous attend au point de prise en charge';
+
+    final AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+      'dudu_driver_arrived',
+      'Arrivée chauffeur',
+      channelDescription: 'Alerte lorsque le chauffeur est sur place',
+      importance: Importance.max,
+      priority: Priority.high,
+      showWhen: true,
+      icon: '@mipmap/ic_launcher',
+      enableVibration: true,
+      playSound: true,
+      vibrationPattern: Int64List.fromList([0, 400, 150, 400, 150, 550]),
+      category: AndroidNotificationCategory.status,
+    );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    await _flutterLocalNotificationsPlugin.show(
+      'driver_arrived'.hashCode,
+      '📍 Votre chauffeur est arrivé',
+      body,
+      NotificationDetails(android: androidDetails, iOS: iosDetails),
       payload: 'driver_arrived',
     );
   }
@@ -250,7 +285,7 @@ class NotificationService {
   Future<void> showRideStartedNotification() async {
     await showNotification(
       title: '🚕 Course démarrée',
-      body: 'Votre trajet DUDU est en cours.',
+      body: 'Votre trajet DuDu est en cours.',
       payload: 'ride_started',
     );
   }
@@ -259,7 +294,7 @@ class NotificationService {
   Future<void> showRideCompletedNotification() async {
     await showNotification(
       title: '✅ Course terminée',
-      body: 'Merci d’avoir voyagé avec DUDU. Donnez une note à votre chauffeur.',
+      body: 'Merci d’avoir voyagé avec DuDu. Donnez une note à votre chauffeur.',
       payload: 'ride_completed',
     );
   }
@@ -270,7 +305,7 @@ class NotificationService {
   }) async {
     await showNotification(
       title: '⏰ Votre course est dans 2 heures',
-      body: 'Tenez-vous prêt, votre trajet DUDU est prévu à ${scheduledAt.hour.toString().padLeft(2, '0')}:${scheduledAt.minute.toString().padLeft(2, '0')}.',
+      body: 'Tenez-vous prêt, votre trajet DuDu est prévu à ${scheduledAt.hour.toString().padLeft(2, '0')}:${scheduledAt.minute.toString().padLeft(2, '0')}.',
       payload: 'scheduled_reminder_2h',
     );
   }

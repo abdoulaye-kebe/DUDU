@@ -48,19 +48,22 @@ class WaveService {
       const successUrl = process.env.WAVE_SUCCESS_URL || `${baseUrl}/payment/success?ref=${encodeURIComponent(orderId)}`;
       const errorUrl = process.env.WAVE_ERROR_URL || `${baseUrl}/payment/error?ref=${encodeURIComponent(orderId)}`;
 
-      // Préparer les données de paiement
+      // Préparer les données de paiement (docs Wave : amount souvent envoyé en chaîne)
       const paymentData = {
-        amount: amount,
+        amount: String(amount),
         currency: this.currency,
         client_reference: orderId,
         description: description || `Paiement DUDU - ${orderId}`,
         // Checkout API fields (docs.wave.com/checkout)
         success_url: successUrl,
         error_url: errorUrl,
-        // Optionnel : si fourni, Wave affiche des instructions à ce numéro
-        // (ne bloque pas si absent / non supporté selon régions)
-        customer_phone_number: normalizedPhone,
       };
+      const restrict = String(process.env.WAVE_RESTRICT_PAYER_MOBILE || '')
+        .trim()
+        .toLowerCase();
+      if (restrict === '1' || restrict === 'true' || restrict === 'yes') {
+        paymentData.restrict_payer_mobile = normalizedPhone;
+      }
 
       // Créer la requête de paiement
       const response = await axios.post(
@@ -72,10 +75,27 @@ class WaveService {
         }
       );
 
+      const data = response.data || {};
+      let checkoutUrl = data.wave_launch_url;
+      if (
+        (!checkoutUrl || typeof checkoutUrl !== 'string') &&
+        typeof data.id === 'string' &&
+        data.id.startsWith('cos-')
+      ) {
+        checkoutUrl = `https://pay.wave.com/c/${data.id}`;
+      }
+      if (!checkoutUrl) {
+        console.error(
+          'Wave checkout: réponse sans wave_launch_url, clés:',
+          Object.keys(data).join(', ')
+        );
+        throw new Error('Réponse Wave invalide (pas d’URL de paiement)');
+      }
+
       return {
         success: true,
-        sessionId: response.data.id,
-        checkoutUrl: response.data.wave_launch_url,
+        sessionId: data.id,
+        checkoutUrl,
         orderId: orderId,
         amount: amount,
         currency: this.currency,
@@ -215,20 +235,35 @@ class WaveService {
    * Vérifie l’en-tête Wave-Signature (t=timestamp,v1=hex) sur le corps brut UTF-8.
    * @see https://docs.wave.com/webhook
    */
+  _normalizeWebhookSecret(secret) {
+    if (secret == null) return '';
+    let s = String(secret).trim();
+    if (
+      (s.startsWith('"') && s.endsWith('"')) ||
+      (s.startsWith("'") && s.endsWith("'"))
+    ) {
+      s = s.slice(1, -1).trim();
+    }
+    return s;
+  }
+
+  /**
+   * @param {string|Buffer} rawBody - Corps exact reçu (Buffer recommandé, identique aux octets signés par Wave).
+   */
   verifyWebhookSignature(rawBody, waveSignatureHeader) {
     try {
-      const secret = this.config.webhookSecret;
+      const secret = this._normalizeWebhookSecret(this.config.webhookSecret);
       if (!waveSignatureHeader || !secret) {
         console.warn('⚠️ Wave-Signature ou WAVE_WEBHOOK_SECRET manquant');
         return false;
       }
 
-      const raw =
-        typeof rawBody === 'string'
-          ? rawBody
-          : Buffer.isBuffer(rawBody)
-            ? rawBody.toString('utf8')
-            : String(rawBody);
+      const rawBuf = Buffer.isBuffer(rawBody)
+        ? rawBody
+        : Buffer.from(
+            typeof rawBody === 'string' ? rawBody : String(rawBody),
+            'utf8'
+          );
 
       const header = String(waveSignatureHeader).trim();
 
@@ -251,17 +286,35 @@ class WaveService {
           return false;
         }
 
-        const payload = timestamp + raw;
+        const tsBuf = Buffer.from(timestamp, 'utf8');
+        const payloadBuf = Buffer.concat([tsBuf, rawBuf]);
+        const keyBuf = Buffer.from(secret, 'utf8');
         const calculated = crypto
-          .createHmac('sha256', secret)
-          .update(payload, 'utf8')
+          .createHmac('sha256', keyBuf)
+          .update(payloadBuf)
           .digest('hex');
+        const calculatedLower = calculated.toLowerCase();
 
-        return signatures.some((sig) => sig === calculated);
+        const hexTimingSafeEqual = (a, b) => {
+          const ba = Buffer.from(String(a).toLowerCase(), 'utf8');
+          const bb = Buffer.from(String(b).toLowerCase(), 'utf8');
+          if (ba.length !== bb.length) return false;
+          try {
+            return crypto.timingSafeEqual(ba, bb);
+          } catch (_) {
+            return false;
+          }
+        };
+
+        return signatures.some((sig) => hexTimingSafeEqual(sig, calculatedLower));
       }
 
       // Secours : ancien test avec signature = seul hex du corps (non documenté Wave)
-      const expected = crypto.createHmac('sha256', secret).update(raw, 'utf8').digest('hex');
+      const rawStr = rawBuf.toString('utf8');
+      const expected = crypto
+        .createHmac('sha256', Buffer.from(secret, 'utf8'))
+        .update(rawBuf)
+        .digest('hex');
       if (header.length === expected.length) {
         try {
           return crypto.timingSafeEqual(Buffer.from(header, 'utf8'), Buffer.from(expected, 'utf8'));

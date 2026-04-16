@@ -6,6 +6,7 @@ import '../models/ride.dart';
 import '../services/api_service.dart';
 import '../services/tracking_service.dart';
 import '../services/notification_service.dart';
+import '../services/map_style_service.dart';
 import 'ride_tracking_screen.dart';
 
 class DriverRideManagementScreen extends StatefulWidget {
@@ -267,8 +268,11 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
           Expanded(
             flex: 2,
             child: GoogleMap(
-              onMapCreated: (GoogleMapController controller) {
+              cameraTargetBounds: MapStyleService.senegalBounds,
+              minMaxZoomPreference: MapStyleService.zoomPreference,
+              onMapCreated: (GoogleMapController controller) async {
                 _mapController = controller;
+                await MapStyleService.apply(controller);
               },
               initialCameraPosition: CameraPosition(
                 target: _currentPosition != null
@@ -586,6 +590,10 @@ class _DriverRideManagementScreenState extends State<DriverRideManagementScreen>
       case RideType.womenOnly:
         return Icons.female;
       case RideType.delivery:
+        return Icons.motorcycle;
+      case RideType.luxe:
+        return Icons.star;
+      case RideType.moto:
         return Icons.motorcycle;
     }
   }

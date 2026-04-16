@@ -58,7 +58,7 @@ Future<void> main() async {
     debugPrint('📍 Stack trace: ${details.stack}');
   };
 
-  debugPrint('🚀 Démarrage DUDU Client...');
+  debugPrint('🚀 Démarrage DuDu...');
   runApp(const MyApp());
 }
 
@@ -72,7 +72,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
       ],
       child: MaterialApp(
-        title: 'DUDU',
+        title: 'DuDu',
         theme: AppTheme.lightTheme,
         navigatorKey: appNavigatorKey,
         localizationsDelegates: const [

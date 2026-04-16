@@ -31,6 +31,7 @@ function RidesPremium({ navbarSearch = '' }) {
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedRide, setSelectedRide] = useState(null);
   const [rideModalOpen, setRideModalOpen] = useState(false);
+  const [rideCancelLoading, setRideCancelLoading] = useState(false);
   const [tabCounts, setTabCounts] = useState({ all: 0, in_progress: 0, completed: 0, cancelled: 0 });
 
   const loadStats = useCallback(async () => {
@@ -262,6 +263,28 @@ function RidesPremium({ navbarSearch = '' }) {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const handleAdminCancelRide = async (ride) => {
+    const id = ride?.id || ride?._id;
+    if (!id) return;
+    const reason = window.prompt('Motif d’annulation (visible en base) :', 'Décision support');
+    if (reason === null) return;
+    setRideCancelLoading(true);
+    try {
+      await api.put(`/admin/rides/${id}/cancel`, {
+        reason: reason.trim() || 'Annulation administrateur',
+      });
+      setRideModalOpen(false);
+      setSelectedRide(null);
+      await loadRides();
+      await loadStats();
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.message || 'Erreur';
+      alert(msg);
+    } finally {
+      setRideCancelLoading(false);
+    }
+  };
+
   if (loading && rides.length === 0) {
     return (
       <div className="loading-container">
@@ -413,6 +436,8 @@ function RidesPremium({ navbarSearch = '' }) {
         }}
         data={selectedRide}
         type="ride"
+        onRideAdminCancel={handleAdminCancelRide}
+        rideAdminCancelLoading={rideCancelLoading}
       />
     </div>
   );

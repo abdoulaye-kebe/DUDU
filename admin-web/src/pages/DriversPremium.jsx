@@ -5,6 +5,7 @@ import DataTable from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import AddDriverModal from '../components/AddDriverModal';
+import EditDriverModal from '../components/EditDriverModal';
 import { API_BASE_URL } from '../config';
 import { 
   UserCheck, 
@@ -17,7 +18,8 @@ import {
   Car,
   Phone,
   AlertCircle,
-  Key
+  Key,
+  Edit
 } from 'lucide-react';
 
 function DriversPremium({ navbarSearch = '' }) {
@@ -31,6 +33,8 @@ function DriversPremium({ navbarSearch = '' }) {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [driverForPasswordChange, setDriverForPasswordChange] = useState(null);
   const [addDriverOpen, setAddDriverOpen] = useState(false);
+  const [editDriverOpen, setEditDriverOpen] = useState(false);
+  const [driverToEdit, setDriverToEdit] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -531,11 +535,17 @@ function DriversPremium({ navbarSearch = '' }) {
                 setIsModalOpen(true);
               }}
               onEdit={(driver) => {
+                setDriverToEdit(driver);
+                setEditDriverOpen(true);
+              }}
+              editLabel="Modifier la fiche"
+              editIcon={Edit}
+              onPassword={(driver) => {
                 setDriverForPasswordChange(driver);
                 setIsPasswordModalOpen(true);
               }}
-              editLabel="Modifier mot de passe"
-              editIcon={Key}
+              passwordLabel="Mot de passe"
+              passwordIcon={Key}
               onDelete={(driver) => handleDeleteDriver(driver)}
             />
           </motion.div>
@@ -568,6 +578,16 @@ function DriversPremium({ navbarSearch = '' }) {
         isOpen={addDriverOpen}
         onClose={() => setAddDriverOpen(false)}
         onCreated={loadData}
+      />
+
+      <EditDriverModal
+        isOpen={editDriverOpen}
+        driver={driverToEdit}
+        onClose={() => {
+          setEditDriverOpen(false);
+          setDriverToEdit(null);
+        }}
+        onSaved={loadData}
       />
     </div>
   );

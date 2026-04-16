@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/places_service.dart';
+import '../services/map_style_service.dart';
 import '../themes/app_theme.dart';
 
 class MapRideScreen extends StatefulWidget {
@@ -40,7 +41,7 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
   
-  // Couleurs DUDU
+  // Couleurs DuDu
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color darkGreen = Color(0xFF094d2a);
   static const Color lightGreen = Color(0xFF10b981);
@@ -315,24 +316,18 @@ class _MapRideScreenState extends State<MapRideScreen> with TickerProviderStateM
         ),
         zoom: 15,
       ),
+      cameraTargetBounds: MapStyleService.senegalBounds,
+      minMaxZoomPreference: MapStyleService.zoomPreference,
       markers: _markers,
       polylines: _polylines,
       myLocationEnabled: true,
       myLocationButtonEnabled: false,
       zoomControlsEnabled: false,
       mapToolbarEnabled: false,
-      onMapCreated: (controller) {
+      onMapCreated: (controller) async {
         _mapController = controller;
+        await MapStyleService.apply(controller);
       },
-      style: '''
-        [
-          {
-            "featureType": "poi",
-            "elementType": "labels",
-            "stylers": [{"visibility": "off"}]
-          }
-        ]
-      ''',
     );
   }
 

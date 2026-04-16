@@ -3,6 +3,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/geocoding_service.dart';
 import '../services/places_service.dart' as places;
+import '../constants/senegal_map.dart';
+import '../services/map_style_service.dart';
 import '../widgets/address_autocomplete.dart';
 
 class YangoStyleMapScreen extends StatefulWidget {
@@ -26,7 +28,14 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
   double _estimatedDistance = 0.0;
   
   // Position par défaut : Dakar
-  final LatLng _dakarCenter = const LatLng(14.6928, -17.4467);
+  final LatLng _dakarCenter = SenegalMap.dakar;
+
+  LatLng _latLngOrFallback(places.PlaceSuggestion? p, LatLng fallback) {
+    final lat = p?.localLat;
+    final lng = p?.localLng;
+    if (lat == null || lng == null) return fallback;
+    return LatLng(lat, lng);
+  }
   
   // Types de course disponibles
   final List<Map<String, dynamic>> _rideTypes = [
@@ -92,12 +101,13 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
 
       if (mounted) {
         setState(() {
-          _pickupPlace = PlaceSuggestion(
-            name: 'Ma position',
-            address: 'Position actuelle',
-            latitude: position.latitude,
-            longitude: position.longitude,
-            type: 'current',
+          _pickupPlace = places.PlaceSuggestion(
+            placeId: 'current_location',
+            description: 'Position actuelle',
+            mainText: 'Ma position',
+            secondaryText: 'Position actuelle',
+            localLat: position.latitude,
+            localLng: position.longitude,
           );
         });
 
@@ -197,8 +207,11 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
         children: [
           // Carte Google Maps
           GoogleMap(
-            onMapCreated: (GoogleMapController controller) {
+            cameraTargetBounds: MapStyleService.senegalBounds,
+            minMaxZoomPreference: MapStyleService.zoomPreference,
+            onMapCreated: (GoogleMapController controller) async {
               _mapController = controller;
+              await MapStyleService.apply(controller);
             },
             initialCameraPosition: CameraPosition(
               target: _dakarCenter,
@@ -277,7 +290,7 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      _pickupPlace?.address ?? 'D\'où partez-vous ?',
+                      _pickupPlace?.description ?? 'D\'où partez-vous ?',
                       style: TextStyle(
                         fontSize: 16,
                         color: _pickupPlace != null ? Colors.black : Colors.grey[600],
@@ -326,7 +339,7 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      _destinationPlace?.address ?? 'Où allez-vous ?',
+                      _destinationPlace?.description ?? 'Où allez-vous ?',
                       style: TextStyle(
                         fontSize: 16,
                         color: _destinationPlace != null ? Colors.black : Colors.grey[600],
@@ -563,11 +576,11 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
       markers.add(
         Marker(
           markerId: const MarkerId('pickup'),
-          position: LatLng(_pickupPlace!.latitude, _pickupPlace!.longitude),
+          position: _latLngOrFallback(_pickupPlace, _dakarCenter),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
           infoWindow: InfoWindow(
             title: 'Départ',
-            snippet: _pickupPlace!.name,
+            snippet: _pickupPlace!.mainText,
           ),
         ),
       );
@@ -577,11 +590,11 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
       markers.add(
         Marker(
           markerId: const MarkerId('destination'),
-          position: LatLng(_destinationPlace!.latitude, _destinationPlace!.longitude),
+          position: _latLngOrFallback(_destinationPlace, _dakarCenter),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           infoWindow: InfoWindow(
             title: 'Destination',
-            snippet: _destinationPlace!.name,
+            snippet: _destinationPlace!.mainText,
           ),
         ),
       );
@@ -599,8 +612,8 @@ class _YangoStyleMapScreenState extends State<YangoStyleMapScreen> {
       Polyline(
         polylineId: const PolylineId('route'),
         points: [
-          LatLng(_pickupPlace!.latitude, _pickupPlace!.longitude),
-          LatLng(_destinationPlace!.latitude, _destinationPlace!.longitude),
+          _latLngOrFallback(_pickupPlace, _dakarCenter),
+          _latLngOrFallback(_destinationPlace, _dakarCenter),
         ],
         color: Colors.blue,
         width: 4,
