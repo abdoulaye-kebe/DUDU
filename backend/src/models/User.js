@@ -159,7 +159,7 @@ const userSchema = new mongoose.Schema({
     maxPricePerKm: Number,
     preferredPaymentMethod: {
       type: String,
-      enum: ['wave', 'cash'],
+      enum: ['wave', 'cash', 'orange_money', 'free_money'],
       default: 'wave'
     }
   }

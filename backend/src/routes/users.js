@@ -257,7 +257,7 @@ router.put('/address', [
 router.put('/budget-settings', [
   auth,
   body('maxPricePerKm').optional().isFloat({ min: 0 }),
-  body('preferredPaymentMethod').optional().isIn(['wave', 'cash'])
+  body('preferredPaymentMethod').optional().isIn(['wave', 'cash', 'orange_money', 'free_money'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
