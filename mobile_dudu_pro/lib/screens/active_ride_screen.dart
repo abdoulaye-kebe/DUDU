@@ -37,6 +37,9 @@ class ActiveRideScreen extends StatefulWidget {
       'destination': dest ?? {},
       'pricing': pricing ?? {},
       'rideType': ride['rideType'],
+      'scheduledFor': ride['scheduledFor'],
+      'scheduledPickupEnRouteAt': ride['scheduledPickupEnRouteAt'],
+      'scheduledPickupArrivedAt': ride['scheduledPickupArrivedAt'],
     };
   }
 
@@ -71,10 +74,33 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
 
+  DateTime? _scheduledFor;
+  bool _scheduledEnRouteSent = false;
+  bool _scheduledAtPickupSent = false;
+
   bool get _isDeliveryRide {
     final t = widget.rideData['rideType']?.toString() ??
         widget.rideData['ride_type']?.toString();
     return t == 'delivery';
+  }
+
+  bool get _isScheduledRide =>
+      _scheduledFor != null && !_isDeliveryRide;
+
+  void _parseScheduledMeta() {
+    final src = _ridePayload;
+    final raw = src['scheduledFor'];
+    DateTime? dt;
+    if (raw is String) {
+      dt = DateTime.tryParse(raw);
+    } else if (raw != null) {
+      dt = DateTime.tryParse(raw.toString());
+    }
+    final en = src['scheduledPickupEnRouteAt'];
+    final ap = src['scheduledPickupArrivedAt'];
+    _scheduledEnRouteSent = en != null;
+    _scheduledAtPickupSent = ap != null;
+    _scheduledFor = dt;
   }
 
   @override
@@ -84,6 +110,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
     if (_isDeliveryRide) {
       _stackedDeliveryScreens++;
     }
+    _parseScheduledMeta();
     _initRideData();
     _bootstrapRideData();
     _getCurrentLocation();
@@ -130,6 +157,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
     if (ride is Map<String, dynamic>) {
       setState(() {
         _ridePayload = _mapApiRideToUi(ride);
+        _parseScheduledMeta();
         _initRideData();
       });
     }
@@ -332,6 +360,32 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
     }
 
     _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+  }
+
+  void _notifyScheduledEnRoute() {
+    if (!_isScheduledRide) return;
+    SocketService().emitScheduledPickupEnRoute(widget.rideId);
+    setState(() => _scheduledEnRouteSent = true);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Le client a été notifié que vous êtes en route.'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _notifyScheduledAtPickup() {
+    if (!_isScheduledRide) return;
+    SocketService().emitScheduledPickupAtPickup(widget.rideId);
+    setState(() => _scheduledAtPickupSent = true);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Le client a été notifié que vous êtes sur place.'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   Future<void> _signalArrival() async {
@@ -725,6 +779,39 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
                         ),
                       ],
                     ),
+                    if (_isScheduledRide && _rideStatus == 'accepted') ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Trajet planifié',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading || _scheduledEnRouteSent
+                              ? null
+                              : _notifyScheduledEnRoute,
+                          icon: const Icon(Icons.navigation, size: 18),
+                          label: const Text('Je pars vous chercher'),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading || _scheduledAtPickupSent
+                              ? null
+                              : _notifyScheduledAtPickup,
+                          icon: const Icon(Icons.place, size: 18),
+                          label: const Text('Je suis sur place'),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

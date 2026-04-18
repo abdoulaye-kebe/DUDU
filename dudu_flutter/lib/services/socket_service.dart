@@ -92,6 +92,10 @@ class SocketService {
           .where((s) => s.trim().isNotEmpty)
           .join(' • ');
     }
+    final phone = dm['phone']?.toString().trim();
+    if (phone != null && phone.isNotEmpty) {
+      vehicleLine = vehicleLine.isEmpty ? phone : '$vehicleLine\n$phone';
+    }
     final etaRaw = map['estimatedArrivalMinutes'] ?? map['estimatedArrival'];
     int? etaM;
     if (etaRaw is num) etaM = etaRaw.round();
@@ -207,6 +211,57 @@ class SocketService {
       final map = _payloadAsMap(data);
       if (onRideCompleted != null && map != null) {
         onRideCompleted!(map);
+      }
+    });
+
+    _socket!.on('scheduled-ride-reminder', (data) {
+      final map = _payloadAsMap(data);
+      if (map == null || kIsWeb) return;
+      final tier = map['tier']?.toString() ?? '';
+      final minutesUntil = map['timeUntil'];
+      final m = minutesUntil is num ? minutesUntil.round() : 0;
+      final label = switch (tier) {
+        '120m' => 'dans environ 2 heures',
+        '60m' => 'dans environ 1 heure',
+        '30m' => 'dans environ 30 minutes',
+        _ => 'bientôt',
+      };
+      final payload = switch (tier) {
+        '120m' => 'scheduled_reminder_2h',
+        '60m' => 'scheduled_reminder_1h',
+        '30m' => 'scheduled_reminder_30m',
+        _ => 'scheduled_reminder_generic',
+      };
+      NotificationService().showNotification(
+        title: 'Rappel trajet planifié',
+        body:
+            'Votre course DuDu a lieu $label${m > 0 ? ' (~$m min).' : '.'}',
+        payload: payload,
+      );
+    });
+
+    _socket!.on('scheduled-pickup-update', (data) {
+      final map = _payloadAsMap(data);
+      if (map == null || kIsWeb) return;
+      final phase = map['phase']?.toString();
+      final driver = map['driver'];
+      String name = 'Votre chauffeur';
+      if (driver is Map) {
+        final dm = Map<String, dynamic>.from(driver);
+        name = (dm['fullName'] ?? dm['name'] ?? name).toString();
+      }
+      if (phase == 'en_route') {
+        NotificationService().showNotification(
+          title: '🚗 Chauffeur en route',
+          body: '$name a quitté pour venir vous chercher.',
+          payload: 'scheduled_driver_on_way',
+        );
+      } else if (phase == 'at_pickup') {
+        NotificationService().showNotification(
+          title: '📍 Chauffeur sur place',
+          body: '$name vous attend au point de rencontre.',
+          payload: 'scheduled_driver_arrived',
+        );
       }
     });
   }

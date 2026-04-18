@@ -3,14 +3,13 @@ const Ride = require('../models/Ride');
 const notificationService = require('../services/notificationService');
 
 /**
- * Rappels chauffeur + client : 2h, 1h, 30 min et 15 min avant la course planifiée.
+ * Rappels chauffeur + client : 2h, 1h et 30 min avant la course planifiée.
  * Fenêtres en minutes restantes (minutesUntil) pour tolérer un cron chaque minute.
  */
 const REMINDER_TIERS = [
   { key: '120m', label: '2 heures', minM: 118, maxM: 120 },
   { key: '60m', label: '1 heure', minM: 58, maxM: 60 },
   { key: '30m', label: '30 minutes', minM: 28, maxM: 30 },
-  { key: '15m', label: '15 minutes', minM: 13, maxM: 15 },
 ];
 
 module.exports = function startScheduledRidesReminder(io) {
@@ -49,12 +48,16 @@ module.exports = function startScheduledRidesReminder(io) {
           const minutes = scheduledTime.getMinutes().toString().padStart(2, '0');
           const timeString = `${hours}:${minutes}`;
 
-          const driverName = driver.user
-            ? `${driver.user.firstName} ${driver.user.lastName}`
-            : 'Votre chauffeur';
-          const vehicleInfo = driver.vehicle
-            ? `${driver.vehicle.brand} ${driver.vehicle.model} ${driver.vehicle.color}`
-            : 'Véhicule';
+          const nameFromDriver = `${driver.firstName || ''} ${driver.lastName || ''}`.trim();
+          const nameFromUser = driver.user
+            ? `${driver.user.firstName || ''} ${driver.user.lastName || ''}`.trim()
+            : '';
+          const driverName = nameFromDriver || nameFromUser || 'Votre chauffeur';
+          const v = driver.vehicle || {};
+          const vehicleInfo = [v.make, v.model, v.color, v.plateNumber]
+            .filter(Boolean)
+            .join(' ')
+            .trim() || 'Véhicule';
 
           // --- Chauffeur (push + socket) — sendPushNotification(userId, { title, body, data })
           if (driver.user && driver.user.fcmToken) {
@@ -104,7 +107,7 @@ module.exports = function startScheduledRidesReminder(io) {
                   rideId: ride._id.toString(),
                   scheduledFor: ride.scheduledFor.toISOString(),
                   driverName,
-                  driverPhone: String(driver.user?.phone ?? ''),
+                  driverPhone: String(driver.phone ?? driver.user?.phone ?? ''),
                   vehicleInfo,
                 },
               });
@@ -121,14 +124,15 @@ module.exports = function startScheduledRidesReminder(io) {
             driver: {
               id: driver._id,
               name: driverName,
-              phone: driver.user?.phone || '',
+              phone: driver.phone || driver.user?.phone || '',
               photo: driver.photo || null,
               rating: driver.stats?.averageRating || 0,
               vehicle: {
-                brand: driver.vehicle?.brand || '',
+                make: driver.vehicle?.make || '',
                 model: driver.vehicle?.model || '',
+                brand: driver.vehicle?.make || '',
                 color: driver.vehicle?.color || '',
-                plate: driver.vehicle?.licensePlate || '',
+                plateNumber: driver.vehicle?.plateNumber || '',
               },
             },
             pickup: ride.pickup,
@@ -149,5 +153,5 @@ module.exports = function startScheduledRidesReminder(io) {
     }
   });
 
-  console.log('🔔 Service de rappels planifiés (2h / 1h / 30m / 15m) démarré');
+  console.log('🔔 Service de rappels planifiés (2h / 1h / 30m) démarré');
 };

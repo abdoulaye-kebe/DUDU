@@ -22,6 +22,7 @@ const {
   estimateArrivalMinutesToPickup,
 } = require('../utils/passengerDriverNotify');
 const { buildDriverQueryForRideType } = require('../utils/driverRideTypeMatch');
+const { sendScheduledRideAcceptedPush } = require('../utils/scheduledRidePassengerNotify');
 const router = express.Router();
 
 const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started'];
@@ -589,7 +590,13 @@ router.post('/:id/accept', [
         destination: ride.destination,
         pricing: ride.pricing,
         rideType: ride.rideType,
+        isScheduled: !!ride.scheduledFor,
+        scheduledFor: ride.scheduledFor || null,
       });
+
+      if (ride.scheduledFor) {
+        void sendScheduledRideAcceptedPush(ride, driver);
+      }
 
       // Notifier TOUS les chauffeurs que cette course n'est plus disponible
       // Cela permet de retirer la course de leur liste
@@ -1304,6 +1311,9 @@ router.get('/:id', auth, async (req, res) => {
           rating: ride.rating,
           cancellation: ride.cancellation,
           counterOffer: ride.counterOffer || null,
+          scheduledFor: ride.scheduledFor || null,
+          scheduledPickupEnRouteAt: ride.scheduledPickupEnRouteAt || null,
+          scheduledPickupArrivedAt: ride.scheduledPickupArrivedAt || null,
         }
       }
     });

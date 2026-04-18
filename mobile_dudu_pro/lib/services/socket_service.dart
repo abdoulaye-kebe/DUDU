@@ -336,6 +336,20 @@ class SocketService {
     print('✅ Arrivée signalée: $rideId');
   }
 
+  /// Trajet planifié : notifier le client que le chauffeur part le chercher.
+  void emitScheduledPickupEnRoute(String rideId) {
+    if (!_isConnected || _socket == null) return;
+    _socket!.emit('scheduled-pickup-en-route', {'rideId': rideId});
+    print('📤 scheduled-pickup-en-route: $rideId');
+  }
+
+  /// Trajet planifié : notifier le client que le chauffeur est sur place.
+  void emitScheduledPickupAtPickup(String rideId) {
+    if (!_isConnected || _socket == null) return;
+    _socket!.emit('scheduled-pickup-at-pickup', {'rideId': rideId});
+    print('📤 scheduled-pickup-at-pickup: $rideId');
+  }
+
   /// Démarrer le trajet (après avoir récupéré le client/colis)
   void startTrip(String rideId) {
     if (!_isConnected) return;

@@ -352,6 +352,17 @@ class NotificationService {
     );
   }
 
+  /// Rappel 30 min avant pour une course planifiée
+  Future<void> showScheduledRideReminder30m({
+    required DateTime scheduledAt,
+  }) async {
+    await showNotification(
+      title: '⏰ Votre course est dans 30 minutes',
+      body: 'Préparez-vous : trajet prévu à ${scheduledAt.hour.toString().padLeft(2, '0')}:${scheduledAt.minute.toString().padLeft(2, '0')}.',
+      payload: 'scheduled_reminder_30m',
+    );
+  }
+
   /// Notification chauffeur en route pour une course planifiée
   Future<void> showScheduledDriverOnTheWayNotification({
     required String driverName,
@@ -417,6 +428,8 @@ class NotificationService {
         break;
       case 'scheduled_reminder_2h':
       case 'scheduled_reminder_1h':
+      case 'scheduled_reminder_30m':
+      case 'scheduled_reminder_generic':
       case 'scheduled_driver_on_way':
       case 'scheduled_driver_arrived':
         navigator.pushNamedAndRemoveUntil('/dashboard', (route) => false);

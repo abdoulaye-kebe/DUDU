@@ -15,6 +15,10 @@ const {
   estimateArrivalMinutesToPickup,
 } = require('../utils/passengerDriverNotify');
 const { buildDriverQueryForRideType } = require('../utils/driverRideTypeMatch');
+const {
+  sendScheduledRideAcceptedPush,
+  sendScheduledPickupPhasePush,
+} = require('../utils/scheduledRidePassengerNotify');
 
 module.exports = (io) => {
   // Middleware d'authentification Socket.io
@@ -332,6 +336,10 @@ module.exports = (io) => {
         };
 
         io.to(passengerRoom).emit('ride-accepted', notificationData);
+
+        if (ride.scheduledFor) {
+          void sendScheduledRideAcceptedPush(ride, driver);
+        }
         
         console.log('📢 Notification envoyée au client:', {
           passengerId: ride.passenger.toString(),
@@ -446,6 +454,86 @@ module.exports = (io) => {
       } catch (error) {
         console.error('Erreur signalisation arrivée:', error);
         socket.emit('error', { message: 'Erreur lors de la signalisation d\'arrivée' });
+      }
+    });
+
+    // Trajet planifié : le chauffeur signale qu’il part chercher le client (sans changer le statut course)
+    socket.on('scheduled-pickup-en-route', async (data) => {
+      try {
+        if (!socket.driver) {
+          return socket.emit('error', { message: 'Accès réservé aux chauffeurs' });
+        }
+        const { rideId } = data || {};
+        if (!rideId) {
+          return socket.emit('error', { message: 'rideId requis' });
+        }
+        const ride = await Ride.findById(rideId);
+        if (!ride || ride.driver.toString() !== socket.driverId.toString()) {
+          return socket.emit('error', { message: 'Course non trouvée ou non assignée' });
+        }
+        if (!ride.scheduledFor) {
+          return socket.emit('error', { message: 'Cette course n’est pas planifiée' });
+        }
+        if (ride.status !== 'accepted') {
+          return socket.emit('error', { message: 'Statut de course invalide pour ce signal' });
+        }
+        ride.scheduledPickupEnRouteAt = new Date();
+        await ride.save();
+
+        const driverDoc = await Driver.findById(socket.driverId);
+        const driverInfo = buildDriverPayloadForPassenger(driverDoc);
+        io.to(`passenger_${ride.passenger}`).emit('scheduled-pickup-update', {
+          rideId: ride._id,
+          phase: 'en_route',
+          scheduledFor: ride.scheduledFor,
+          scheduledPickupEnRouteAt: ride.scheduledPickupEnRouteAt,
+          driver: driverInfo,
+        });
+        void sendScheduledPickupPhasePush(ride, driverDoc, 'en_route');
+        socket.emit('scheduled-pickup-phase-ok', { rideId: ride._id, phase: 'en_route' });
+      } catch (error) {
+        console.error('scheduled-pickup-en-route:', error);
+        socket.emit('error', { message: 'Erreur lors de l’envoi du signal' });
+      }
+    });
+
+    // Trajet planifié : le chauffeur signale qu’il est sur place au point de rencontre
+    socket.on('scheduled-pickup-at-pickup', async (data) => {
+      try {
+        if (!socket.driver) {
+          return socket.emit('error', { message: 'Accès réservé aux chauffeurs' });
+        }
+        const { rideId } = data || {};
+        if (!rideId) {
+          return socket.emit('error', { message: 'rideId requis' });
+        }
+        const ride = await Ride.findById(rideId);
+        if (!ride || ride.driver.toString() !== socket.driverId.toString()) {
+          return socket.emit('error', { message: 'Course non trouvée ou non assignée' });
+        }
+        if (!ride.scheduledFor) {
+          return socket.emit('error', { message: 'Cette course n’est pas planifiée' });
+        }
+        if (ride.status !== 'accepted') {
+          return socket.emit('error', { message: 'Statut de course invalide pour ce signal' });
+        }
+        ride.scheduledPickupArrivedAt = new Date();
+        await ride.save();
+
+        const driverDoc = await Driver.findById(socket.driverId);
+        const driverInfo = buildDriverPayloadForPassenger(driverDoc);
+        io.to(`passenger_${ride.passenger}`).emit('scheduled-pickup-update', {
+          rideId: ride._id,
+          phase: 'at_pickup',
+          scheduledFor: ride.scheduledFor,
+          scheduledPickupArrivedAt: ride.scheduledPickupArrivedAt,
+          driver: driverInfo,
+        });
+        void sendScheduledPickupPhasePush(ride, driverDoc, 'at_pickup');
+        socket.emit('scheduled-pickup-phase-ok', { rideId: ride._id, phase: 'at_pickup' });
+      } catch (error) {
+        console.error('scheduled-pickup-at-pickup:', error);
+        socket.emit('error', { message: 'Erreur lors de l’envoi du signal' });
       }
     });
 

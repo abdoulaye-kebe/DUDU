@@ -262,20 +262,39 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '${vehicle['brand'] ?? ''} ${vehicle['model'] ?? ''}'.trim(),
+                                  '${vehicle['make'] ?? vehicle['brand'] ?? ''} ${vehicle['model'] ?? ''}'
+                                      .trim(),
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 Text(
-                                  '${vehicle['color'] ?? ''} • ${vehicle['plate'] ?? ''}',
+                                  '${vehicle['color'] ?? ''} • ${vehicle['plateNumber'] ?? vehicle['plate'] ?? ''}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[600],
                                   ),
                                 ),
                               ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if ((driver['phone']?.toString() ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone_in_talk, color: primaryGreen, size: 22),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              driver['phone'].toString(),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
@@ -773,7 +792,10 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            height: 130,
+            height: math.max(
+              210,
+              math.min(340, MediaQuery.sizeOf(context).height * 0.34),
+            ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: GoogleMap(
@@ -787,7 +809,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                           : null) ??
                       _destinationLatLng ??
                       SenegalMap.dakar,
-                  zoom: 14.0,
+                  zoom: 15.2,
                 ),
                 cameraTargetBounds: MapStyleService.senegalBounds,
                 minMaxZoomPreference: MapStyleService.zoomPreference,

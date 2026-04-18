@@ -225,11 +225,15 @@ const rideSchema = new mongoose.Schema({
   
   // Horaires
   scheduledFor: Date, // Pour les courses programmées
+  /** Chauffeur a signalé qu’il part chercher le client (trajet planifié) */
+  scheduledPickupEnRouteAt: Date,
+  /** Chauffeur a signalé qu’il est sur place au point de rencontre */
+  scheduledPickupArrivedAt: Date,
   reminderSent: {
     type: Boolean,
     default: false
   }, // Ancien flag rappel ~1h (conservé pour compatibilité)
-  /** Rappels multi-étapes : '120m' | '60m' | '30m' | '15m' */
+  /** Rappels multi-étapes : '120m' | '60m' | '30m' */
   scheduledRemindersSent: {
     type: [String],
     default: []
