@@ -425,16 +425,32 @@ async function handleWaveWebhook(req, res) {
       });
     }
 
-    const isValid = waveService.verifyWebhookSignature(rawBuf, waveSignature);
+    const vr = waveService.verifyWebhookSignatureDetailed(rawBuf, waveSignature);
 
-    if (!isValid) {
+    if (!vr.valid) {
+      if (vr.code === 'TIMESTAMP_SKEW') {
+        console.error(
+          '❌ Webhook Wave : horodatage rejeté —',
+          vr.detail,
+          '(relivraisons tardives : augmenter WAVE_WEBHOOK_MAX_SKEW_SEC, défaut 3600 s)'
+        );
+        return res.status(401).json({
+          success: false,
+          code: 'WAVE_TIMESTAMP_SKEW',
+          message:
+            'Horodatage du webhook hors fenêtre — ajuster WAVE_WEBHOOK_MAX_SKEW_SEC ou vérifier l’heure du serveur (NTP).',
+        });
+      }
       console.error(
-        '❌ Signature webhook Wave invalide — vérifier que WAVE_WEBHOOK_SECRET correspond au « Signing secret » de l’URL webhook sur le portail Wave (même environnement que WAVE_MODE).'
+        '❌ Signature webhook Wave invalide —',
+        vr.code || 'unknown',
+        '— vérifier WAVE_WEBHOOK_SECRET (et WAVE_WEBHOOK_SECRET_PREVIOUS si rotation), même env que le portail Wave.'
       );
       return res.status(401).json({
         success: false,
         code: 'WAVE_SIGNATURE_INVALID',
-        message: 'Signature invalide — signing secret ou corps de requête ne correspond pas',
+        message:
+          'Signature invalide — signing secret, corps brut (proxy) ou en-tête Wave-Signature',
       });
     }
 

@@ -253,18 +253,33 @@ class WaveService {
   }
 
   /**
-   * @param {string|Buffer} rawBody - Corps exact reçu (Buffer recommandé, identique aux octets signés par Wave).
+   * Secrets de signature (principal + rotation optionnelle, ex. après régénération sur le portail Wave).
    */
-  verifyWebhookSignature(rawBody, waveSignatureHeader) {
+  _webhookSigningSecrets() {
+    const primary = this._normalizeWebhookSecret(this.config.webhookSecret);
+    const prev = this._normalizeWebhookSecret(
+      process.env.WAVE_WEBHOOK_SECRET_PREVIOUS || ''
+    );
+    const list = [];
+    if (primary) list.push(primary);
+    if (prev && prev !== primary) list.push(prev);
+    return list;
+  }
+
+  /**
+   * @param {string|Buffer} rawBody - Corps exact reçu (Buffer recommandé, identique aux octets signés par Wave).
+   * @returns {{ valid: boolean, code?: string, detail?: string }}
+   */
+  verifyWebhookSignatureDetailed(rawBody, waveSignatureHeader) {
     try {
-      const secret = this._normalizeWebhookSecret(this.config.webhookSecret);
-      if (!secret) {
+      const secrets = this._webhookSigningSecrets();
+      if (secrets.length === 0) {
         console.warn('⚠️ WAVE_WEBHOOK_SECRET (signing secret) non configuré');
-        return false;
+        return { valid: false, code: 'NO_SECRET' };
       }
       if (!waveSignatureHeader) {
         console.warn('⚠️ En-tête Wave-Signature manquant');
-        return false;
+        return { valid: false, code: 'NO_HEADER' };
       }
 
       const rawBuf = Buffer.isBuffer(rawBody)
@@ -276,72 +291,101 @@ class WaveService {
 
       const header = String(waveSignatureHeader).trim();
 
+      const hexTimingSafeEqual = (a, b) => {
+        const ba = Buffer.from(String(a).toLowerCase(), 'utf8');
+        const bb = Buffer.from(String(b).toLowerCase(), 'utf8');
+        if (ba.length !== bb.length) return false;
+        try {
+          return crypto.timingSafeEqual(ba, bb);
+        } catch (_) {
+          return false;
+        }
+      };
+
       // Format officiel : t=1639081943,v1=abc...
       if (header.includes('t=') && header.includes('v1=')) {
         const parts = header.split(',').map((p) => p.trim());
         const timestampPart = parts.find((p) => p.startsWith('t='));
         const v1Parts = parts.filter((p) => p.startsWith('v1='));
-        if (!timestampPart || v1Parts.length === 0) return false;
+        if (!timestampPart || v1Parts.length === 0) {
+          return { valid: false, code: 'BAD_HEADER' };
+        }
 
         const timestamp = timestampPart.split('=').slice(1).join('=');
         const signatures = v1Parts.map((p) => p.split('=').slice(1).join('='));
 
         const tsNumRaw = parseInt(timestamp, 10);
-        if (!Number.isFinite(tsNumRaw)) return false;
-        // Wave envoie en général des secondes Unix ; certains flux peuvent envoyer des ms (> 1e12).
+        if (!Number.isFinite(tsNumRaw)) {
+          return { valid: false, code: 'BAD_TIMESTAMP' };
+        }
         let tsSecForAge = tsNumRaw;
         if (tsNumRaw > 9999999999) {
           tsSecForAge = Math.floor(tsNumRaw / 1000);
         }
-        const maxSkew = parseInt(process.env.WAVE_WEBHOOK_MAX_SKEW_SEC || '600', 10);
+        // Défaut 1 h : les relivraisons Wave peuvent dépasser 10 min (ancien défaut 600 s).
+        const maxSkew = parseInt(process.env.WAVE_WEBHOOK_MAX_SKEW_SEC || '3600', 10);
         const ageSec = Math.abs(Math.floor(Date.now() / 1000) - tsSecForAge);
         if (ageSec > maxSkew) {
-          console.warn('⚠️ Webhook Wave : timestamp hors fenêtre (replay ?)', ageSec, 's');
-          return false;
+          console.warn(
+            '⚠️ Webhook Wave : timestamp hors fenêtre',
+            ageSec,
+            's (max',
+            maxSkew,
+            's — augmenter WAVE_WEBHOOK_MAX_SKEW_SEC si besoin)'
+          );
+          return {
+            valid: false,
+            code: 'TIMESTAMP_SKEW',
+            detail: `${ageSec}s > ${maxSkew}s`,
+          };
         }
 
-        // Signature : octets exacts de la chaîne t=… (inchangée), comme spécifié par Wave
         const tsBuf = Buffer.from(timestamp, 'utf8');
         const payloadBuf = Buffer.concat([tsBuf, rawBuf]);
-        const keyBuf = Buffer.from(secret, 'utf8');
-        const calculated = crypto
-          .createHmac('sha256', keyBuf)
-          .update(payloadBuf)
-          .digest('hex');
-        const calculatedLower = calculated.toLowerCase();
 
-        const hexTimingSafeEqual = (a, b) => {
-          const ba = Buffer.from(String(a).toLowerCase(), 'utf8');
-          const bb = Buffer.from(String(b).toLowerCase(), 'utf8');
-          if (ba.length !== bb.length) return false;
-          try {
-            return crypto.timingSafeEqual(ba, bb);
-          } catch (_) {
-            return false;
+        for (const secret of secrets) {
+          const keyBuf = Buffer.from(secret, 'utf8');
+          const calculated = crypto
+            .createHmac('sha256', keyBuf)
+            .update(payloadBuf)
+            .digest('hex');
+          const calculatedLower = calculated.toLowerCase();
+          if (signatures.some((sig) => hexTimingSafeEqual(sig, calculatedLower))) {
+            return { valid: true };
           }
-        };
+        }
 
-        return signatures.some((sig) => hexTimingSafeEqual(sig, calculatedLower));
+        return { valid: false, code: 'HMAC_MISMATCH' };
       }
 
       // Secours : ancien test avec signature = seul hex du corps (non documenté Wave)
-      const rawStr = rawBuf.toString('utf8');
-      const expected = crypto
-        .createHmac('sha256', Buffer.from(secret, 'utf8'))
-        .update(rawBuf)
-        .digest('hex');
-      if (header.length === expected.length) {
-        try {
-          return crypto.timingSafeEqual(Buffer.from(header, 'utf8'), Buffer.from(expected, 'utf8'));
-        } catch (_) {
-          return false;
+      for (const secret of secrets) {
+        const expected = crypto
+          .createHmac('sha256', Buffer.from(secret, 'utf8'))
+          .update(rawBuf)
+          .digest('hex');
+        if (header.length === expected.length) {
+          try {
+            if (crypto.timingSafeEqual(Buffer.from(header, 'utf8'), Buffer.from(expected, 'utf8'))) {
+              return { valid: true };
+            }
+          } catch (_) {
+            /* continue */
+          }
         }
       }
-      return false;
+      return { valid: false, code: 'HMAC_MISMATCH' };
     } catch (error) {
       console.error('❌ Erreur lors de la vérification de la signature webhook:', error.message);
-      return false;
+      return { valid: false, code: 'ERROR', detail: error.message };
     }
+  }
+
+  /**
+   * @param {string|Buffer} rawBody - Corps exact reçu (Buffer recommandé, identique aux octets signés par Wave).
+   */
+  verifyWebhookSignature(rawBody, waveSignatureHeader) {
+    return this.verifyWebhookSignatureDetailed(rawBody, waveSignatureHeader).valid;
   }
 
   /**
