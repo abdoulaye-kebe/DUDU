@@ -850,9 +850,13 @@ router.post('/:id/complete', [
 
     // Mettre à jour les statistiques du passager
     const passenger = await User.findById(ride.passenger);
-    passenger.totalRides += 1;
-    passenger.totalSpent += ride.pricing.totalPrice;
-    await passenger.save();
+    if (passenger) {
+      passenger.totalRides += 1;
+      passenger.totalSpent += (ride.pricing && ride.pricing.totalPrice) ? ride.pricing.totalPrice : 0;
+      await passenger.save();
+    } else {
+      console.warn('⚠️ Finalisation course: passager introuvable', ride.passenger);
+    }
 
     // Notifier le passager via Socket.io
     const io = req.app.get('io');
