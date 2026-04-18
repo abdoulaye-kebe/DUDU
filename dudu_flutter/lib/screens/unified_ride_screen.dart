@@ -14,6 +14,7 @@ import '../constants/map_style.dart';
 import '../constants/senegal_map.dart';
 import '../services/map_style_service.dart';
 import '../services/directions_service.dart';
+import '../models/ride.dart';
 import 'ride_tracking_screen.dart';
 import 'ride_confirmation_screen.dart';
 
@@ -37,6 +38,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   bool _isSearchingDriver = false;
   String? _pendingRideMongoId;
   Timer? _searchDebounce;
+  /// Si true, navigation vers le suivi déjà faite (socket ou repli HTTP).
+  bool _acceptanceNavigationDone = false;
+  Timer? _acceptancePoll;
   int _searchToken = 0;
   
   // Couleurs DuDu
@@ -147,6 +151,124 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         return 'luxe';
       default:
         return 'car';
+    }
+  }
+
+  Map<String, dynamic> _acceptPayloadFromRide(Ride ride) {
+    final d = ride.driver;
+    return <String, dynamic>{
+      'rideId': ride.id,
+      if (d != null)
+        'driver': <String, dynamic>{
+          'id': d.id,
+          'firstName': d.firstName,
+          'lastName': d.lastName,
+          'fullName': d.fullName,
+          'name': d.fullName.trim().isNotEmpty ? d.fullName : d.phone,
+          'phone': d.phone,
+          'rating': d.averageRating,
+          'vehicle': d.vehicle ?? <String, dynamic>{},
+        },
+    };
+  }
+
+  void _cancelAcceptancePoll() {
+    _acceptancePoll?.cancel();
+    _acceptancePoll = null;
+  }
+
+  /// Quand le socket est indisponible (502, etc.), interroger l’API jusqu’à statut accepté.
+  void _startAcceptanceHttpFallback(String rideId) {
+    _cancelAcceptancePoll();
+    var ticks = 0;
+    _acceptancePoll = Timer.periodic(const Duration(seconds: 4), (t) async {
+      ticks++;
+      if (!mounted || ticks > 40) {
+        t.cancel();
+        return;
+      }
+      if (_acceptanceNavigationDone) {
+        t.cancel();
+        return;
+      }
+      final res = await ApiService.getRide(rideId);
+      if (!mounted || !res.success || res.data == null) return;
+      final ride = res.data!;
+      final st = ride.status;
+      if (st != RideStatus.accepted && st != RideStatus.arriving) {
+        return;
+      }
+
+      t.cancel();
+      if (_acceptanceNavigationDone || !mounted) return;
+      _acceptanceNavigationDone = true;
+      _clearPassengerRideSocketListeners();
+
+      try {
+        if (Navigator.canPop(context)) {
+          Navigator.of(context).pop();
+        }
+        if (mounted) {
+          setState(() {
+            _isSearchingDriver = false;
+          });
+        }
+        _openRideTrackingAfterAccept(_acceptPayloadFromRide(ride));
+      } catch (e) {
+        debugPrint('Repli HTTP confirmation course: $e');
+      }
+    });
+  }
+
+  void _openRideTrackingAfterAccept(Map<String, dynamic> data) {
+    if (!mounted) return;
+    final rideId = data['rideId']?.toString();
+    if (rideId == null || _pickupLatLng == null || _destinationLatLng == null) {
+      return;
+    }
+
+    if (_selectedMode == 'delivery') {
+      final confirmationCode = data['confirmationCode']?.toString() ?? '----';
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => RideTrackingScreen(
+            rideId: rideId,
+            vehicleType: 'delivery',
+            pickupLocation: {
+              'latitude': _pickupLatLng!.latitude,
+              'longitude': _pickupLatLng!.longitude,
+            },
+            destinationLocation: {
+              'latitude': _destinationLatLng!.latitude,
+              'longitude': _destinationLatLng!.longitude,
+            },
+            pickupAddressLabel: _pickupAddress,
+            destinationAddressLabel: _destinationAddress,
+            driverInfo: _driverInfoFromAcceptPayload(data),
+            confirmationCode: confirmationCode,
+          ),
+        ),
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => RideTrackingScreen(
+            rideId: rideId,
+            vehicleType: _vehicleTypeForTracking(),
+            pickupLocation: {
+              'latitude': _pickupLatLng!.latitude,
+              'longitude': _pickupLatLng!.longitude,
+            },
+            destinationLocation: {
+              'latitude': _destinationLatLng!.latitude,
+              'longitude': _destinationLatLng!.longitude,
+            },
+            pickupAddressLabel: _pickupAddress,
+            destinationAddressLabel: _destinationAddress,
+            driverInfo: _driverInfoFromAcceptPayload(data),
+          ),
+        ),
+      );
     }
   }
 
@@ -1442,6 +1564,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   }
 
   void _clearPassengerRideSocketListeners() {
+    _cancelAcceptancePoll();
     final s = SocketService();
     s.onRideAccepted = null;
     s.onRideRefusedByDriver = null;
@@ -2007,7 +2130,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     if (mounted) {
       setState(() {
         _isSearchingDriver = true;
+        _acceptanceNavigationDone = false;
       });
+      _cancelAcceptancePoll();
       _generateNearbyCarMarkers();
     }
 
@@ -2215,6 +2340,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           };
           socketService.onRideAccepted = (data) {
             if (!mounted) return;
+            if (_acceptanceNavigationDone) return;
+            _acceptanceNavigationDone = true;
+            _cancelAcceptancePoll();
             _clearPassengerRideSocketListeners();
 
             try {
@@ -2228,58 +2356,15 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                 });
               }
 
-              final rideId = data['rideId']?.toString();
-              if (rideId == null || _pickupLatLng == null || _destinationLatLng == null) {
-                return;
-              }
-
-              if (_selectedMode == 'delivery') {
-                final confirmationCode = data['confirmationCode']?.toString() ?? '----';
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => RideTrackingScreen(
-                      rideId: rideId,
-                      vehicleType: 'delivery',
-                      pickupLocation: {
-                        'latitude': _pickupLatLng!.latitude,
-                        'longitude': _pickupLatLng!.longitude,
-                      },
-                      destinationLocation: {
-                        'latitude': _destinationLatLng!.latitude,
-                        'longitude': _destinationLatLng!.longitude,
-                      },
-                      pickupAddressLabel: _pickupAddress,
-                      destinationAddressLabel: _destinationAddress,
-                      driverInfo: _driverInfoFromAcceptPayload(data),
-                      confirmationCode: confirmationCode,
-                    ),
-                  ),
-                );
-              } else {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => RideTrackingScreen(
-                      rideId: rideId,
-                      vehicleType: _vehicleTypeForTracking(),
-                      pickupLocation: {
-                        'latitude': _pickupLatLng!.latitude,
-                        'longitude': _pickupLatLng!.longitude,
-                      },
-                      destinationLocation: {
-                        'latitude': _destinationLatLng!.latitude,
-                        'longitude': _destinationLatLng!.longitude,
-                      },
-                      pickupAddressLabel: _pickupAddress,
-                      destinationAddressLabel: _destinationAddress,
-                      driverInfo: _driverInfoFromAcceptPayload(data),
-                    ),
-                  ),
-                );
-              }
+              final map = data is Map
+                  ? Map<String, dynamic>.from(data as Map)
+                  : <String, dynamic>{};
+              _openRideTrackingAfterAccept(map);
             } catch (e) {
-              print('Erreur lors de l\'ouverture du tracking: $e');
+              debugPrint('Erreur lors de l\'ouverture du tracking: $e');
             }
           };
+          _startAcceptanceHttpFallback(pendingId);
         }
 
         if (mounted) {
@@ -2430,6 +2515,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _cancelAcceptancePoll();
     _pickupController.dispose();
     _destinationController.dispose();
     _priceController.dispose();

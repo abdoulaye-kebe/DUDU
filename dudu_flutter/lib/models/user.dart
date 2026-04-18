@@ -17,6 +17,8 @@ class User {
   final BudgetSettings? budgetSettings;
   /// Date d'inscription (API `auth/me`, `users/profile`).
   final DateTime? createdAt;
+  /// Véhicule (ex. chauffeur sur `GET /rides/:id`).
+  final Map<String, dynamic>? vehicle;
 
   User({
     required this.id,
@@ -36,6 +38,7 @@ class User {
     required this.averageRating,
     this.budgetSettings,
     this.createdAt,
+    this.vehicle,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -61,10 +64,29 @@ class User {
       }
     }
 
+    String firstName = json['firstName']?.toString() ?? '';
+    String lastName = json['lastName']?.toString() ?? '';
+    if (firstName.isEmpty && lastName.isEmpty) {
+      final rawName = json['name']?.toString().trim();
+      if (rawName != null && rawName.isNotEmpty) {
+        final parts = rawName.split(RegExp(r'\s+'));
+        firstName = parts.first;
+        lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+      }
+    }
+
+    Map<String, dynamic>? vehicleMap;
+    final rawV = json['vehicle'];
+    if (rawV is Map<String, dynamic>) {
+      vehicleMap = Map<String, dynamic>.from(rawV);
+    } else if (rawV is Map) {
+      vehicleMap = Map<String, dynamic>.from(rawV);
+    }
+
     return User(
       id: json['id'] ?? '',
-      firstName: json['firstName'] ?? '',
-      lastName: json['lastName'] ?? '',
+      firstName: firstName,
+      lastName: lastName,
       phone: json['phone'] ?? '',
       email: json['email'],
       isVerified: json['isVerified'] ?? false,
@@ -79,6 +101,7 @@ class User {
       averageRating: (json['averageRating'] ?? 0).toDouble(),
       budgetSettings: budgetSettings,
       createdAt: created,
+      vehicle: vehicleMap,
     );
   }
 

@@ -485,7 +485,16 @@ class ApiService {
         headers: await _getHeaders(),
       ).timeout(timeout);
 
-      return _handleResponse(response, (data) => Ride.fromJson(data));
+      return _handleResponse(response, (data) {
+        final raw = data is Map<String, dynamic> ? data['ride'] : null;
+        if (raw is Map<String, dynamic>) {
+          return Ride.fromJson(raw);
+        }
+        if (data is Map<String, dynamic>) {
+          return Ride.fromJson(data);
+        }
+        throw Exception('Réponse course invalide');
+      });
     } catch (e) {
       return ApiResponse<Ride>(
         success: false,

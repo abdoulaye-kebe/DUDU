@@ -43,6 +43,27 @@ class AppConfig {
     return productionServerUrl;
   }
 
+  /// Évite `…:0/socket.io` : socket_io_client utilise [Uri.port] tel quel ; sur iOS le
+  /// port implicite peut rester à 0. On force une chaîne `hôte:port` explicite.
+  static String normalizeOriginForSocket(String origin) {
+    final o = origin.trim();
+    if (o.isEmpty) return o;
+    final u = Uri.tryParse(o);
+    if (u == null || u.host.isEmpty) return o;
+    var port = u.port;
+    if (port == 0) {
+      if (u.scheme == 'https' || u.scheme == 'wss') {
+        port = 443;
+      } else if (u.scheme == 'http' || u.scheme == 'ws') {
+        port = 80;
+      } else {
+        return o;
+      }
+    }
+    final host = u.host.contains(':') ? '[${u.host}]' : u.host;
+    return '${u.scheme}://$host:$port';
+  }
+
   /// Obtenir l'URL de base selon la plateforme et le mode
   static String get baseUrl {
     return '$_serverOrigin/api/$apiVersion';
@@ -50,7 +71,7 @@ class AppConfig {
 
   /// Obtenir l'URL du serveur Socket.io
   static String get socketUrl {
-    return _serverOrigin;
+    return normalizeOriginForSocket(_serverOrigin);
   }
 
   /// URL de l'API pour les appels HTTP
