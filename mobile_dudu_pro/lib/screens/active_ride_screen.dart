@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
+import 'dart:math' as math;
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import '../services/map_style_service.dart';
@@ -40,6 +41,7 @@ class ActiveRideScreen extends StatefulWidget {
       'scheduledFor': ride['scheduledFor'],
       'scheduledPickupEnRouteAt': ride['scheduledPickupEnRouteAt'],
       'scheduledPickupArrivedAt': ride['scheduledPickupArrivedAt'],
+      'status': ride['status'],
     };
   }
 
@@ -54,6 +56,8 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
   GoogleMapController? _mapController;
   Position? _currentPosition;
   Timer? _locationTimer;
+  /// Identifiant MongoDB pour les appels API (le socket peut envoyer un autre format au départ).
+  late String _effectiveRideId;
   String _rideStatus = 'accepted'; // accepted, arrived, in_progress, completed
   bool _isLoading = false;
   bool _autoNavigationLaunched = false;
@@ -106,12 +110,14 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
   @override
   void initState() {
     super.initState();
+    _effectiveRideId = widget.rideId;
     _ridePayload = Map<String, dynamic>.from(widget.rideData);
     if (_isDeliveryRide) {
       _stackedDeliveryScreens++;
     }
     _parseScheduledMeta();
     _initRideData();
+    _syncRideStatusFromPayload();
     _bootstrapRideData();
     _getCurrentLocation();
     _startLocationUpdates();
@@ -123,7 +129,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
     if (!_isDeliveryRide) return;
     _extraDeliverySub = SocketService().rideRequestsStream.listen((data) {
       final id = data['id']?.toString() ?? data['rideId']?.toString();
-      if (id == null || id == widget.rideId) return;
+      if (id == null || id == _effectiveRideId) return;
       if (data['rideType']?.toString() != 'delivery') return;
       if (_hintedExtraDeliveryIds.contains(id)) return;
       _hintedExtraDeliveryIds.add(id);
@@ -150,16 +156,22 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
       return;
     }
 
-    final res = await ApiService.getRideDetails(widget.rideId);
+    final res = await ApiService.getRideDetails(_effectiveRideId);
     if (!mounted) return;
     final data = res?['data'];
     final ride = data is Map ? data['ride'] : null;
     if (ride is Map<String, dynamic>) {
       setState(() {
         _ridePayload = _mapApiRideToUi(ride);
+        final id = ride['_id'] ?? ride['id'];
+        if (id != null && id.toString().isNotEmpty) {
+          _effectiveRideId = id.toString();
+        }
         _parseScheduledMeta();
         _initRideData();
+        _syncRideStatusFromPayload();
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fitMapToRoute());
     }
   }
 
@@ -191,8 +203,9 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
     final passenger = _ridePayload['passenger'] is Map
         ? Map<String, dynamic>.from(_ridePayload['passenger'] as Map)
         : <String, dynamic>{};
-    final pickup = _normalizePlace(_ridePayload['pickup']);
-    final destination = _normalizePlace(_ridePayload['destination']);
+    final pickup = Map<String, dynamic>.from(_normalizePlace(_ridePayload['pickup']));
+    final destination =
+        Map<String, dynamic>.from(_normalizePlace(_ridePayload['destination']));
     final pricing = _ridePayload['pricing'] is Map
         ? Map<String, dynamic>.from(_ridePayload['pricing'] as Map)
         : <String, dynamic>{};
@@ -213,10 +226,59 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
       _price = 0;
     }
 
-    _pickupLocation = _coordsToLatLng(pickup['coordinates'], 14.6928, -17.4467);
-    _destinationLocation = _coordsToLatLng(destination['coordinates'], 14.7392, -17.4978);
+    _pickupLocation = _placeToLatLng(pickup, 14.6928, -17.4467);
+    _destinationLocation = _placeToLatLng(destination, 14.7392, -17.4978);
 
     _updateMarkers();
+  }
+
+  /// Préfère `coordinates` { lat, lng } ; sinon GeoJSON `location.coordinates` [lng, lat].
+  LatLng _placeToLatLng(Map<String, dynamic> place, double defLat, double defLng) {
+    final coords = place['coordinates'];
+    if (coords != null) {
+      return _coordsToLatLng(coords, defLat, defLng);
+    }
+    final loc = place['location'];
+    if (loc is Map && loc['coordinates'] is List) {
+      return _coordsToLatLng(loc['coordinates'], defLat, defLng);
+    }
+    return LatLng(defLat, defLng);
+  }
+
+  /// Distance km (haversine).
+  double _distanceKm(LatLng a, LatLng b) {
+    const earth = 6371.0;
+    double rad(double d) => d * math.pi / 180.0;
+    final dLat = rad(b.latitude - a.latitude);
+    final dLon = rad(b.longitude - a.longitude);
+    final la1 = rad(a.latitude);
+    final la2 = rad(b.latitude);
+    final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(la1) * math.cos(la2) * math.sin(dLon / 2) * math.sin(dLon / 2);
+    return 2 * earth * math.asin(math.min(1.0, math.sqrt(h)));
+  }
+
+  /// Alignement UI avec le statut Mongo (`started` → course en cours).
+  void _syncRideStatusFromPayload() {
+    final raw = _ridePayload['status']?.toString();
+    if (raw == null || raw.isEmpty) return;
+    switch (raw) {
+      case 'started':
+        _rideStatus = 'in_progress';
+        break;
+      case 'arrived':
+        _rideStatus = 'arrived';
+        break;
+      case 'arriving':
+      case 'accepted':
+        _rideStatus = 'accepted';
+        break;
+      case 'completed':
+        _rideStatus = 'completed';
+        break;
+      default:
+        break;
+    }
   }
 
   LatLng _coordsToLatLng(dynamic coords, double defaultLat, double defaultLng) {
@@ -278,7 +340,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
         _currentPosition = position;
       });
       _updateMarkers();
-      _centerMap();
+      _fitMapToRoute();
     } catch (e) {
       print('Erreur localisation: $e');
     }
@@ -296,12 +358,13 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
         });
         
         _updateMarkers();
-        
+        _fitMapToRoute();
+
         // Envoyer la position au backend via Socket.io dès l'acceptation
         // Le client peut ainsi voir le véhicule se déplacer en temps réel
         if (_rideStatus == 'accepted' || _rideStatus == 'arrived' || _rideStatus == 'in_progress') {
           SocketService().updateDriverLocation(
-            rideId: widget.rideId,
+            rideId: _effectiveRideId,
             latitude: position.latitude,
             longitude: position.longitude,
             heading: position.heading, // Direction pour rotation du marqueur
@@ -313,58 +376,63 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
     });
   }
 
-  void _centerMap() {
-    if (_mapController == null || _currentPosition == null) return;
+  /// Cadre la carte sur le trajet (Dakar / route) sans inclure un GPS simulateur éloigné
+  /// (sinon zoom minimal → toute l’Afrique de l’Ouest).
+  void _fitMapToRoute() {
+    if (_mapController == null) return;
 
-    LatLngBounds bounds;
-    if (_rideStatus == 'accepted' || _rideStatus == 'arrived') {
-      // Centrer sur chauffeur et pickup
-      bounds = LatLngBounds(
-        southwest: LatLng(
-          _currentPosition!.latitude < _pickupLocation.latitude
-              ? _currentPosition!.latitude
-              : _pickupLocation.latitude,
-          _currentPosition!.longitude < _pickupLocation.longitude
-              ? _currentPosition!.longitude
-              : _pickupLocation.longitude,
-        ),
-        northeast: LatLng(
-          _currentPosition!.latitude > _pickupLocation.latitude
-              ? _currentPosition!.latitude
-              : _pickupLocation.latitude,
-          _currentPosition!.longitude > _pickupLocation.longitude
-              ? _currentPosition!.longitude
-              : _pickupLocation.longitude,
-        ),
+    final points = <LatLng>[_pickupLocation, _destinationLocation];
+
+    if (_currentPosition != null) {
+      final driver = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
+      final mid = LatLng(
+        (_pickupLocation.latitude + _destinationLocation.latitude) / 2,
+        (_pickupLocation.longitude + _destinationLocation.longitude) / 2,
       );
-    } else {
-      // Centrer sur chauffeur et destination
-      bounds = LatLngBounds(
-        southwest: LatLng(
-          _currentPosition!.latitude < _destinationLocation.latitude
-              ? _currentPosition!.latitude
-              : _destinationLocation.latitude,
-          _currentPosition!.longitude < _destinationLocation.longitude
-              ? _currentPosition!.longitude
-              : _destinationLocation.longitude,
-        ),
-        northeast: LatLng(
-          _currentPosition!.latitude > _destinationLocation.latitude
-              ? _currentPosition!.latitude
-              : _destinationLocation.latitude,
-          _currentPosition!.longitude > _destinationLocation.longitude
-              ? _currentPosition!.longitude
-              : _destinationLocation.longitude,
+      if (_distanceKm(driver, mid) <= 120) {
+        points.add(driver);
+      }
+    }
+
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+    for (final p in points) {
+      minLat = math.min(minLat, p.latitude);
+      maxLat = math.max(maxLat, p.latitude);
+      minLng = math.min(minLng, p.longitude);
+      maxLng = math.max(maxLng, p.longitude);
+    }
+    if ((maxLat - minLat).abs() < 0.002 && (maxLng - minLng).abs() < 0.002) {
+      minLat -= 0.008;
+      maxLat += 0.008;
+      minLng -= 0.008;
+      maxLng += 0.008;
+    }
+
+    final bounds = LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    );
+
+    try {
+      _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 64));
+    } catch (_) {
+      _mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng((minLat + maxLat) / 2, (minLng + maxLng) / 2),
+            zoom: 12.5,
+          ),
         ),
       );
     }
-
-    _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
   }
 
   void _notifyScheduledEnRoute() {
     if (!_isScheduledRide) return;
-    SocketService().emitScheduledPickupEnRoute(widget.rideId);
+    SocketService().emitScheduledPickupEnRoute(_effectiveRideId);
     setState(() => _scheduledEnRouteSent = true);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -377,7 +445,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
 
   void _notifyScheduledAtPickup() {
     if (!_isScheduledRide) return;
-    SocketService().emitScheduledPickupAtPickup(widget.rideId);
+    SocketService().emitScheduledPickupAtPickup(_effectiveRideId);
     setState(() => _scheduledAtPickupSent = true);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -391,8 +459,8 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
   Future<void> _signalArrival() async {
     setState(() => _isLoading = true);
     try {
-      await ApiService.arriveAtPickup(widget.rideId);
-      SocketService().arrivedAtPickup(widget.rideId);
+      await ApiService.arriveAtPickup(_effectiveRideId);
+      SocketService().arrivedAtPickup(_effectiveRideId);
       
       setState(() {
         _rideStatus = 'arrived';
@@ -418,8 +486,8 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
   Future<void> _startRide() async {
     setState(() => _isLoading = true);
     try {
-      await ApiService.startRide(widget.rideId);
-      SocketService().startTrip(widget.rideId);
+      await ApiService.startRide(_effectiveRideId);
+      SocketService().startTrip(_effectiveRideId);
       
       setState(() {
         _rideStatus = 'in_progress';
@@ -455,7 +523,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
           barrierDismissible: false,
           pageBuilder: (context, animation, secondaryAnimation) {
             return NavigationScreen(
-              rideId: widget.rideId,
+              rideId: _effectiveRideId,
               pickupLocation: _pickupLocation,
               destinationLocation: _destinationLocation,
               pickupAddress: _pickupAddress,
@@ -512,13 +580,13 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
       );
       return;
     }
-    await SocketService().startVoipCall(widget.rideId);
+    await SocketService().startVoipCall(_effectiveRideId);
   }
 
   Future<void> _completeRide() async {
     setState(() => _isLoading = true);
     try {
-      await ApiService.completeRide(widget.rideId);
+      await ApiService.completeRide(_effectiveRideId);
       
       setState(() {
         _rideStatus = 'completed';
@@ -566,7 +634,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => RatePassengerScreen(
-                      rideId: widget.rideId,
+                      rideId: _effectiveRideId,
                       passengerName: _passengerName,
                     ),
                   ),
@@ -613,7 +681,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
             onMapCreated: (controller) async {
               _mapController = controller;
               await MapStyleService.apply(controller);
-              _centerMap();
+              _fitMapToRoute();
             },
           ),
 
@@ -829,7 +897,7 @@ class _ActiveRideScreenState extends State<ActiveRideScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => NavigationScreen(
-                        rideId: widget.rideId,
+                        rideId: _effectiveRideId,
                         pickupLocation: _pickupLocation,
                         destinationLocation: _destinationLocation,
                         pickupAddress: _pickupAddress,

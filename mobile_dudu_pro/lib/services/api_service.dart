@@ -817,11 +817,21 @@ class ApiService {
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Erreur de finalisation de course');
       }
+      String msg = 'Erreur de finalisation de course (${response.statusCode})';
+      try {
+        final err = jsonDecode(response.body);
+        if (err is Map && err['message'] != null) {
+          msg = err['message'].toString();
+        }
+      } catch (_) {
+        if (response.body.isNotEmpty) {
+          msg = '${response.statusCode}: ${response.body.length > 200 ? response.body.substring(0, 200) : response.body}';
+        }
+      }
+      throw Exception(msg);
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Erreur finalisation course: $e');
     }
   }
