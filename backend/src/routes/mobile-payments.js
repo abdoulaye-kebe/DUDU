@@ -538,7 +538,7 @@ router.post('/subscription/orange-money/initiate', auth, requireDriver, async (r
       });
     }
 
-    const amount = plan.price;
+    const amount = Subscription.resolvePlanPrice(plan, vehicleType);
     const subscriptionMetaId = `sub_${planType}_${driver._id}_${Date.now()}`;
 
     const payment = new Payment({

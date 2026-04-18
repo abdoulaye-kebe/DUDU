@@ -6,19 +6,27 @@ class HereMapsService {
   static const String _apiKey = 'IFjCUWioIBg0_WXOGFPRRc6650azL7J8O2pdn9RN-2U';
   static final Dio _dio = Dio();
 
-  /// Autocomplétion des adresses avec HERE Maps
-  static Future<List<HerePlaceSuggestion>> getPlaceSuggestions(String query) async {
+  /// Autocomplétion des adresses avec HERE Maps (Sénégal uniquement — ISO SEN).
+  static Future<List<HerePlaceSuggestion>> getPlaceSuggestions(
+    String query, {
+    double? userLat,
+    double? userLng,
+  }) async {
     if (query.isEmpty) return [];
 
     try {
       print('🔍 HERE Maps Search: "$query"');
 
-      // API Autosuggest de HERE Maps
+      final lat = userLat ?? 14.6928;
+      final lng = userLng ?? -17.4467;
+
+      // API Autosuggest : `in=countryCode:SEN` + `at` (requis avec restriction pays)
       final response = await _dio.get(
         'https://autosuggest.search.hereapi.com/v1/autosuggest',
         queryParameters: {
           'q': query,
-          'at': '14.6928,-17.4467', // Centre de Dakar
+          'at': '$lat,$lng',
+          'in': 'countryCode:SEN',
           'limit': 10,
           'lang': 'fr',
           'apiKey': _apiKey,

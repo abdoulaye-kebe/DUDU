@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/driver_profile.dart';
@@ -584,6 +586,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       return;
     }
 
+    if (paymentMethod == 'orange_money') {
+      await _openOrangeMoneyPayment(plan);
+      return;
+    }
+
     try {
       await ApiService.purchaseSubscription(
         planType: plan.type,
@@ -607,6 +614,162 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       if (mounted) {
         _showErrorDialog('Erreur d\'achat', e.toString());
       }
+    }
+  }
+
+  Future<void> _openOrangeMoneyPayment(SubscriptionPlan plan) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final phone = widget.driverProfile.phone.trim().isNotEmpty
+          ? widget.driverProfile.phone.trim()
+          : null;
+
+      final result = await ApiService.initiateSubscriptionOrangeMoney(
+        planType: plan.type,
+        phone: phone,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      final data = result['data'];
+      if (data is! Map) {
+        _showErrorDialog(
+          'Paiement Orange Money',
+          result['message']?.toString() ?? 'Réponse invalide du serveur',
+        );
+        return;
+      }
+
+      final paymentMongoId = data['paymentMongoId']?.toString();
+      final deeplinks = data['deeplinks'];
+      Map<String, dynamic>? dlMap;
+      if (deeplinks is Map) {
+        dlMap = Map<String, dynamic>.from(
+          deeplinks.map((k, v) => MapEntry('$k', v)),
+        );
+      }
+
+      Future<void> launchDeeplink(String? url) async {
+        if (url == null || url.isEmpty) return;
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      }
+
+      Future<void> checkStatusOnce() async {
+        if (paymentMongoId == null || paymentMongoId.isEmpty) return;
+        final st = await ApiService.getPaymentStatus(paymentMongoId);
+        if (!mounted) return;
+        if (st == 'completed') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Paiement confirmé. Abonnement en cours d\'activation…'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          _loadData();
+        } else if (st != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Statut : $st'),
+            ),
+          );
+        }
+      }
+
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Orange Money / Max It'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '${data['planName'] ?? plan.name} — ${data['amount'] ?? plan.price.toInt()} FCFA',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 12),
+                _buildOmQrPreview(data['qrCode']),
+                const SizedBox(height: 12),
+                if (dlMap != null) ...[
+                  if (dlMap['maxIt'] != null &&
+                      '${dlMap['maxIt']}'.isNotEmpty)
+                    ElevatedButton.icon(
+                      onPressed: () => launchDeeplink(dlMap!['maxIt']?.toString()),
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('Ouvrir Max It'),
+                    ),
+                  if (dlMap['orangeMoney'] != null &&
+                      '${dlMap['orangeMoney']}'.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            launchDeeplink(dlMap!['orangeMoney']?.toString()),
+                        icon: const Icon(Icons.phone_android),
+                        label: const Text('Orange Money'),
+                      ),
+                    ),
+                ],
+                const SizedBox(height: 12),
+                const Text(
+                  'Après paiement dans l’application, touchez « Vérifier le paiement ».',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Fermer'),
+            ),
+            TextButton(
+              onPressed: () async {
+                await checkStatusOnce();
+              },
+              child: const Text('Vérifier le paiement'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        _showErrorDialog('Orange Money', e.toString());
+      }
+    }
+  }
+
+  Widget _buildOmQrPreview(dynamic qrRaw) {
+    if (qrRaw is! String || qrRaw.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    try {
+      String b64 = qrRaw;
+      if (b64.contains(',')) {
+        b64 = b64.split(',').last;
+      }
+      final bytes = base64Decode(b64);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.memory(
+          bytes,
+          height: 180,
+          fit: BoxFit.contain,
+        ),
+      );
+    } catch (_) {
+      return const Text('QR indisponible (scannez depuis Max It)');
     }
   }
 
@@ -881,13 +1044,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             const Padding(
               padding: EdgeInsets.only(bottom: 8),
               child: Text(
-                'Orange Money et Free Money : bientôt. Wave et espèces disponibles.',
+                'Free Money : bientôt. Orange Money (QR / Max It), Wave et espèces disponibles.',
                 style: TextStyle(fontSize: 13, color: Colors.grey),
               ),
             ),
             _buildPaymentOption('wave', 'Wave', enabled: true),
+            _buildPaymentOption('orange_money', 'Orange Money', enabled: true),
             _buildPaymentOption('cash', 'Espèces', enabled: true),
-            _buildPaymentOption('orange_money', 'Orange Money', enabled: false),
             _buildPaymentOption('free_money', 'Free Money', enabled: false),
           ],
         ),

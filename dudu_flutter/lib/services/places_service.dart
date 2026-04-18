@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+import '../constants/senegal_map.dart';
 import 'here_maps_service.dart';
 
 class PlacesService {
@@ -9,40 +11,110 @@ class PlacesService {
   static String get mapsApiKey => _apiKey;
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
 
-  /// Autocomplete des adresses avec HERE Maps (prioritaire) et fallback local
+  static bool _coordsLikelyInSenegal(double? lat, double? lng) {
+    if (lat == null || lng == null) return true;
+    return SenegalMap.countryBounds.contains(LatLng(lat, lng));
+  }
+
+  static bool _hereAddressLooksSenegal(String address) {
+    final a = address.toLowerCase();
+    return a.contains('sénégal') ||
+        a.contains('senegal') ||
+        a.contains(', sn') ||
+        a.contains(' dakar') ||
+        a.contains(' thiès') ||
+        a.contains(' thies');
+  }
+
+  /// Autocomplete des adresses avec HERE Maps (prioritaire), Google SN, puis liste locale.
   static Future<List<PlaceSuggestion>> getPlaceSuggestions(String input, {double? userLat, double? userLng}) async {
     if (input.isEmpty) return [];
 
     print('🔍 Recherche adresse: "$input"');
 
-    // 1. Essayer d'abord avec HERE Maps (ultra-rapide, gratuit sans carte bancaire)
+    final biasLat = userLat ?? 14.6928;
+    final biasLng = userLng ?? -17.4467;
+
+    // 1. HERE Maps — restriction pays SEN + biais position
     try {
-      final hereResults = await HereMapsService.getPlaceSuggestions(input);
-      
-      if (hereResults.isNotEmpty) {
-        print('✅ HERE Maps: ${hereResults.length} résultats');
-        
-        // Convertir les résultats HERE Maps en PlaceSuggestion
-        final suggestions = hereResults.map((place) {
-          return PlaceSuggestion(
-            placeId: place.id,
-            description: place.address,
-            mainText: place.title,
-            secondaryText: place.address.replaceFirst('${place.title}, ', ''),
-            localLat: place.latitude,
-            localLng: place.longitude,
-          );
-        }).toList();
-        
-        return suggestions;
+      final hereResults = await HereMapsService.getPlaceSuggestions(
+        input,
+        userLat: biasLat,
+        userLng: biasLng,
+      );
+
+      final filteredHere = hereResults.where((place) {
+        if (place.latitude != null &&
+            place.longitude != null &&
+            !_coordsLikelyInSenegal(place.latitude, place.longitude)) {
+          return false;
+        }
+        if (place.latitude == null || place.longitude == null) {
+          return _hereAddressLooksSenegal(place.address);
+        }
+        return true;
+      }).toList();
+
+      if (filteredHere.isNotEmpty) {
+        print('✅ HERE Maps: ${filteredHere.length} résultats');
+        return filteredHere
+            .map(
+              (place) => PlaceSuggestion(
+                placeId: place.id,
+                description: place.address,
+                mainText: place.title,
+                secondaryText: place.address.replaceFirst('${place.title}, ', ''),
+                localLat: place.latitude,
+                localLng: place.longitude,
+              ),
+            )
+            .toList();
       }
     } catch (e) {
       print('⚠️ HERE Maps non disponible: $e');
     }
 
-    // 2. Fallback : suggestions locales (base de données enrichie)
+    // 2. Google Places Autocomplete — uniquement Sénégal (components=country:sn)
+    try {
+      final googleList = await _getGoogleAutocompleteSuggestions(input, biasLat, biasLng);
+      if (googleList.isNotEmpty) {
+        print('✅ Google Places (SN): ${googleList.length} résultats');
+        return googleList;
+      }
+    } catch (e) {
+      print('⚠️ Google Autocomplete: $e');
+    }
+
+    // 3. Fallback : suggestions locales (Sénégal)
     print('📍 Utilisation des suggestions locales');
     return _getLocalSuggestions(input);
+  }
+
+  static Future<List<PlaceSuggestion>> _getGoogleAutocompleteSuggestions(
+    String input,
+    double lat,
+    double lng,
+  ) async {
+    final url = Uri.parse(
+      '$_baseUrl/autocomplete/json?input=${Uri.encodeComponent(input)}'
+      '&key=$_apiKey&language=fr&components=country:sn'
+      '&location=$lat,$lng&radius=250000',
+    );
+
+    final response = await http.get(url);
+    if (response.statusCode != 200) return [];
+
+    final data = json.decode(response.body) as Map<String, dynamic>;
+    if (data['status'] != 'OK' && data['status'] != 'ZERO_RESULTS') {
+      return [];
+    }
+
+    final preds = data['predictions'];
+    if (preds is! List) return [];
+
+    return preds
+        .map((p) => PlaceSuggestion.fromJson(Map<String, dynamic>.from(p as Map)))
+        .toList();
   }
   
   /// Suggestions locales pour les quartiers de Dakar (fallback)
