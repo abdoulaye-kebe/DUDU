@@ -56,7 +56,11 @@ module.exports = {
       apiUrl: 'https://api.wave.com/v1',
       // Ne jamais committer de clés : uniquement variables d’environnement (portail Wave).
       apiKey: process.env.WAVE_API_KEY || '',
-      webhookSecret: process.env.WAVE_WEBHOOK_SECRET || '',
+      // Signing secret du webhook (≠ clé API). Fallback sandbox si une seule valeur est posée.
+      webhookSecret:
+        process.env.WAVE_WEBHOOK_SECRET ||
+        process.env.WAVE_SANDBOX_WEBHOOK_SECRET ||
+        '',
       callbackUrl: process.env.WAVE_CALLBACK_URL || 'https://www.dudugroup.sn/api/v1/mobile-payments/wave/webhook',
       businessPhone: process.env.WAVE_BUSINESS_PHONE || '+221771491330',
     },

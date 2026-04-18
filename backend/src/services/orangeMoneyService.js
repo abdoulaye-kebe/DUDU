@@ -3,6 +3,39 @@ const crypto = require('crypto');
 const paymentConfig = require('../../config/payment.config');
 
 /**
+ * Message lisible à partir d'une erreur axios / API Orange (formats variables).
+ */
+function formatOrangeApiError(error, fallback) {
+  if (error.response?.data != null) {
+    const d = error.response.data;
+    if (typeof d === 'string' && d.trim()) return d.trim().slice(0, 500);
+    if (typeof d === 'object') {
+      if (d.message) return String(d.message).slice(0, 500);
+      if (d.error_description) return String(d.error_description).slice(0, 500);
+      if (d.detail) return String(d.detail).slice(0, 500);
+      if (d.title && d.detail) return `${d.title}: ${d.detail}`.slice(0, 500);
+      if (d.title) return String(d.title).slice(0, 500);
+      if (d.error && typeof d.error === 'string') return d.error.slice(0, 500);
+      if (Array.isArray(d.errors) && d.errors.length) {
+        const parts = d.errors.map((e) =>
+          e && typeof e === 'object' ? e.message || e.code || JSON.stringify(e) : String(e)
+        );
+        return parts.join('; ').slice(0, 500);
+      }
+      try {
+        const s = JSON.stringify(d);
+        if (s && s !== '{}') return s.slice(0, 500);
+      } catch (_) {}
+    }
+  }
+  if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+    return 'Délai dépassé vers l’API Orange Money — réessayez.';
+  }
+  if (error.message) return error.message.slice(0, 500);
+  return fallback;
+}
+
+/**
  * Service d'intégration Orange Money API (Orange Sonatel)
  * Documentation: https://developers.orange-sonatel.com
  * API Version: v1.0.0
@@ -17,11 +50,25 @@ class OrangeMoneyService {
     this.tokenExpiry = null;
   }
 
+  assertConfig() {
+    if (!this.config.merchantKey || !this.config.merchantSecret) {
+      throw new Error(
+        'Configuration Orange Money : ORANGE_SONATEL_CLIENT_ID et ORANGE_SONATEL_CLIENT_SECRET sont requis sur le serveur.'
+      );
+    }
+    if (!this.config.merchantCode) {
+      throw new Error(
+        'Configuration Orange Money : ORANGE_SONATEL_MERCODE (code marchand QR) est requis sur le serveur.'
+      );
+    }
+  }
+
   /**
    * Obtenir un token d'accès OAuth 2.0
    */
   async getAccessToken() {
     try {
+      this.assertConfig();
       // Vérifier si le token existe et n'est pas expiré
       if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
         return this.accessToken;
@@ -51,7 +98,11 @@ class OrangeMoneyService {
       return this.accessToken;
     } catch (error) {
       console.error('❌ Erreur lors de l\'obtention du token Orange Money:', error.response?.data || error.message);
-      throw new Error('Impossible d\'obtenir le token d\'accès Orange Money');
+      const msg = formatOrangeApiError(
+        error,
+        'Impossible d\'obtenir le token d\'accès Orange Money'
+      );
+      throw new Error(msg);
     }
   }
 
@@ -64,6 +115,7 @@ class OrangeMoneyService {
    */
   async initiatePayment({ orderId, amount, description }) {
     try {
+      this.assertConfig();
       // Validation
       if (amount < paymentConfig.general.minAmount || amount > paymentConfig.general.maxAmount) {
         throw new Error(`Le montant doit être entre ${paymentConfig.general.minAmount} et ${paymentConfig.general.maxAmount} FCFA`);
@@ -132,7 +184,11 @@ class OrangeMoneyService {
       };
     } catch (error) {
       console.error('Erreur lors de l\'initiation du paiement Orange Money:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || 'Erreur lors de l\'initiation du paiement Orange Money');
+      const msg = formatOrangeApiError(
+        error,
+        'Erreur lors de l\'initiation du paiement Orange Money'
+      );
+      throw new Error(msg);
     }
   }
 

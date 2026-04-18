@@ -69,13 +69,17 @@ app.use(cors({
   credentials: true
 }));
 
-// Limitation du taux de requêtes
+// Limitation du taux de requêtes (ne pas limiter le webhook Wave : IPs Wave + retries du portail)
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
   message: {
     error: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.'
-  }
+  },
+  skip: (req) => {
+    const u = req.originalUrl || req.url || '';
+    return req.method === 'POST' && u.includes('/mobile-payments/wave/webhook');
+  },
 });
 app.use('/api/', limiter);
 

@@ -247,14 +247,23 @@ class WaveService {
     return s;
   }
 
+  /** Signing secret présent (variable d’environnement alignée sur le portail Wave pour ce webhook). */
+  isWebhookSecretConfigured() {
+    return this._normalizeWebhookSecret(this.config.webhookSecret).length > 0;
+  }
+
   /**
    * @param {string|Buffer} rawBody - Corps exact reçu (Buffer recommandé, identique aux octets signés par Wave).
    */
   verifyWebhookSignature(rawBody, waveSignatureHeader) {
     try {
       const secret = this._normalizeWebhookSecret(this.config.webhookSecret);
-      if (!waveSignatureHeader || !secret) {
-        console.warn('⚠️ Wave-Signature ou WAVE_WEBHOOK_SECRET manquant');
+      if (!secret) {
+        console.warn('⚠️ WAVE_WEBHOOK_SECRET (signing secret) non configuré');
+        return false;
+      }
+      if (!waveSignatureHeader) {
+        console.warn('⚠️ En-tête Wave-Signature manquant');
         return false;
       }
 

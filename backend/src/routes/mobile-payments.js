@@ -404,11 +404,38 @@ async function handleWaveWebhook(req, res) {
     const waveSignature =
       req.headers['wave-signature'] || req.headers['x-wave-signature'];
 
+    if (!waveService.isWebhookSecretConfigured()) {
+      console.error(
+        '❌ Webhook Wave : définir WAVE_WEBHOOK_SECRET (= signing secret du portail Wave pour cette URL, pas la clé API)'
+      );
+      return res.status(503).json({
+        success: false,
+        code: 'WEBHOOK_SECRET_MISSING',
+        message:
+          'Signing secret non configuré sur le serveur (WAVE_WEBHOOK_SECRET). Voir portail Wave → Webhook.',
+      });
+    }
+
+    if (!waveSignature) {
+      console.error('❌ Webhook Wave : en-tête Wave-Signature absent');
+      return res.status(401).json({
+        success: false,
+        code: 'WAVE_SIGNATURE_MISSING',
+        message: 'En-tête Wave-Signature manquant',
+      });
+    }
+
     const isValid = waveService.verifyWebhookSignature(rawBuf, waveSignature);
 
     if (!isValid) {
-      console.error('❌ Signature webhook Wave invalide');
-      return res.status(401).json({ success: false, message: 'Signature invalide' });
+      console.error(
+        '❌ Signature webhook Wave invalide — vérifier que WAVE_WEBHOOK_SECRET correspond au « Signing secret » de l’URL webhook sur le portail Wave (même environnement que WAVE_MODE).'
+      );
+      return res.status(401).json({
+        success: false,
+        code: 'WAVE_SIGNATURE_INVALID',
+        message: 'Signature invalide — signing secret ou corps de requête ne correspond pas',
+      });
     }
 
     const rawBody = rawBuf.toString('utf8');
@@ -594,10 +621,11 @@ router.post('/subscription/orange-money/initiate', auth, requireDriver, async (r
     });
   } catch (error) {
     console.error('Erreur lors de l\'initiation du paiement d\'abonnement OM:', error);
+    const detail = error.message || 'Erreur lors de l\'initiation du paiement';
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de l\'initiation du paiement',
-      error: error.message,
+      message: detail,
+      error: detail,
     });
   }
 });

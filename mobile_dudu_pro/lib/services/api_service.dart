@@ -489,10 +489,18 @@ class ApiService {
           return decoded;
         }
       }
-      final msg = decoded is Map && decoded['message'] != null
-          ? decoded['message'].toString()
-          : 'Erreur initiation paiement Orange';
-      throw Exception(msg);
+      String? detail;
+      if (decoded is Map) {
+        final m = decoded['message']?.toString();
+        final e = decoded['error']?.toString();
+        if (m != null && m.isNotEmpty) detail = m;
+        if ((detail == null || detail == 'Erreur lors de l\'initiation du paiement') &&
+            e != null &&
+            e.isNotEmpty) {
+          detail = e;
+        }
+      }
+      throw Exception(detail ?? 'Erreur initiation paiement Orange');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Erreur réseau: $e');
@@ -989,39 +997,43 @@ extension SubscriptionPaymentExtension on ApiService {
   }
 
   /// Initier un paiement d'abonnement via Orange Money
+  /// Le backend attend `planType` (daily | weekly | monthly) ; le montant vient du serveur.
   Future<Map<String, dynamic>> initiateSubscriptionPaymentOM({
     required String subscriptionId,
     required int amount,
     required String phone,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('${ApiService.baseUrl}/mobile-payments/subscription/orange-money/initiate'),
-        headers: ApiService._headers,
-        body: jsonEncode({
-          'subscriptionId': subscriptionId,
-          'amount': amount,
-          'phone': phone,
-        }),
+      final planType =
+          subscriptionId == 'daily' || subscriptionId == 'weekly' || subscriptionId == 'monthly'
+              ? subscriptionId
+              : 'daily';
+      final raw = await ApiService.initiateSubscriptionOrangeMoney(
+        planType: planType,
+        phone: phone.isNotEmpty ? phone : null,
       );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && data['success'] == true) {
-        return {
-          'success': true,
-          'data': data['data'],
-        };
-      } else {
+      final d = raw['data'];
+      if (d is! Map) {
         return {
           'success': false,
-          'message': data['message'] ?? 'Erreur lors de l\'initiation du paiement',
+          'message': raw['message']?.toString() ?? 'Réponse serveur invalide',
         };
       }
+      final dm = Map<String, dynamic>.from(
+        d.map((k, v) => MapEntry(k.toString(), v)),
+      );
+      return {
+        'success': true,
+        'data': {
+          'paymentId': dm['paymentMongoId'] ?? dm['paymentReference'],
+          'qrCode': dm['qrCode'],
+          'deeplinks': dm['deeplinks'],
+        },
+      };
     } catch (e) {
       return {
         'success': false,
-        'message': 'Erreur de connexion au serveur: $e',
+        'message': e is Exception ? e.toString().replaceFirst('Exception: ', '') : '$e',
       };
     }
   }

@@ -557,6 +557,13 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
     _searchDebounce?.cancel();
     _searchToken++;
+
+    // Réinjecte GPS / Dakar + marqueurs : en livraison la carte ne doit pas rester sans départ valide.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _getCurrentLocation();
+      }
+    });
   }
 
   Widget _buildModeChip({
@@ -942,10 +949,15 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     } else if (_estimatedDistance > 0) {
       etaMinutes = (_estimatedDistance / 30 * 60).ceil();
     }
+    // Évite affichage absurde (ex. bug API / coords) — max 72 h affichées
+    if (etaMinutes != null) {
+      etaMinutes = etaMinutes.clamp(1, 72 * 60);
+    }
 
     return Stack(
       children: [
         GoogleMap(
+          key: ValueKey<String>('unified_map_$_selectedMode'),
           initialCameraPosition: CameraPosition(
             target: _currentPosition != null
                 ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
@@ -953,7 +965,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
             zoom: 18.0,
           ),
           style: kDuDuMapStyle,
-          cameraTargetBounds: MapStyleService.senegalBounds,
+          // Bornes Sénégal seules peuvent provoquer carte « vide » si la caméra est contrainte avec l’itinéraire
+          cameraTargetBounds: CameraTargetBounds.unbounded,
           minMaxZoomPreference: MapStyleService.zoomPreference,
           onMapCreated: (controller) async {
             _mapController = controller;
@@ -1505,10 +1518,20 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     double padding = 72,
   }) async {
     if (_mapController == null || points.length < 2) return;
-    final bounds = _boundsFromLatLngs(points);
-    await _mapController!.animateCamera(
-      CameraUpdate.newLatLngBounds(bounds, padding),
-    );
+    try {
+      final bounds = _boundsFromLatLngs(points);
+      await _mapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(bounds, padding),
+      );
+    } catch (_) {
+      final midLat =
+          (points.first.latitude + points.last.latitude) / 2;
+      final midLng =
+          (points.first.longitude + points.last.longitude) / 2;
+      await _mapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(midLat, midLng), 12),
+      );
+    }
   }
 
   void _generateNearbyCarMarkers() {
@@ -1595,6 +1618,20 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       }
     });
 
+    if (haversineKm > 2500) {
+      if (!mounted) return;
+      setState(() => _isRouteLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Distance incohérente : vérifiez le départ et la destination sur la carte.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final route = await DirectionsService.getDrivingRoute(p0, p1);
 
     if (!mounted) return;
@@ -1620,6 +1657,14 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                   (haversineKm <= 0 ? 0 : haversineKm))
               .round();
         }
+        if (_selectedMode == 'delivery' &&
+            _customPrice <= 0 &&
+            haversineKm > 0) {
+          final suggested =
+              (_motoPricePerKm * haversineKm).round().clamp(500, 500000);
+          _customPrice = suggested;
+          _priceController.text = suggested.toString();
+        }
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1638,7 +1683,11 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
 
     final linePoints = route.points;
     final distanceKm = route.distanceKm;
-    final durationSec = route.durationSeconds;
+    var durationSec = route.durationSeconds;
+    const maxReasonableSec = 48 * 3600;
+    if (durationSec > maxReasonableSec) {
+      durationSec = maxReasonableSec;
+    }
 
     setState(() {
       _isRouteLoading = false;
@@ -1649,6 +1698,16 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         _customPrice = (_motoPricePerKm *
                 (_estimatedDistance <= 0 ? 0 : _estimatedDistance))
             .round();
+      }
+
+      // Livraison moto : proposer un prix si l’utilisateur n’en a pas saisi (sinon « Continuer » reste grisé)
+      if (_selectedMode == 'delivery' &&
+          _customPrice <= 0 &&
+          distanceKm > 0) {
+        final suggested =
+            (_motoPricePerKm * distanceKm).round().clamp(500, 500000);
+        _customPrice = suggested;
+        _priceController.text = suggested.toString();
       }
 
       _polylines.clear();
