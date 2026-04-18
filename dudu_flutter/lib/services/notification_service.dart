@@ -213,6 +213,37 @@ class NotificationService {
     );
   }
 
+  /// Un chauffeur a refusé la demande (recherche continue).
+  Future<void> showRideRefusedByDriverNotification({
+    required String body,
+  }) async {
+    await showNotification(
+      title: 'Mise à jour de votre demande',
+      body: body,
+      payload: 'ride_refused_by_driver',
+    );
+  }
+
+  /// Course acceptée : infos chauffeur + véhicule.
+  Future<void> showDriverAcceptedNotification({
+    required String driverLine,
+    String? vehicleLine,
+    int? estimatedMinutes,
+  }) async {
+    final buffer = StringBuffer(driverLine);
+    if (vehicleLine != null && vehicleLine.trim().isNotEmpty) {
+      buffer.write('\n$vehicleLine');
+    }
+    if (estimatedMinutes != null && estimatedMinutes > 0) {
+      buffer.write('\nArrivée estimée : ~$estimatedMinutes min');
+    }
+    await showNotification(
+      title: 'Chauffeur assigné',
+      body: buffer.toString(),
+      payload: 'ride_accepted',
+    );
+  }
+
   /// Notification chauffeur trouvé
   Future<void> showDriverFoundNotification({
     required String driverName,

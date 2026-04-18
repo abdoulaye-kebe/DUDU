@@ -3,7 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import '../models/ride.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
-import 'delivery_tracking_screen.dart';
+import 'ride_tracking_screen.dart';
 
 class DeliveryRequestScreen extends StatefulWidget {
   final Position? pickupLocation;
@@ -604,8 +604,20 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => DeliveryTrackingScreen(
-                        deliveryId: rideId,
+                      builder: (context) => RideTrackingScreen(
+                        rideId: rideId,
+                        vehicleType: 'delivery',
+                        pickupLocation: {
+                          'latitude': widget.pickupLocation!.latitude,
+                          'longitude': widget.pickupLocation!.longitude,
+                        },
+                        destinationLocation: {
+                          'latitude': widget.destinationLocation!.latitude,
+                          'longitude': widget.destinationLocation!.longitude,
+                        },
+                        pickupAddressLabel: widget.pickupAddress,
+                        destinationAddressLabel: widget.destinationAddress,
+                        driverInfo: const <String, dynamic>{},
                         confirmationCode: confirmationCode,
                       ),
                     ),

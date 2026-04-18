@@ -17,6 +17,10 @@ const {
   getDriverMatchExpandedRadiusKm,
 } = require('../config/driverMatch.config');
 const { buildNewRideRequestPayload } = require('../utils/buildNewRideRequestPayload');
+const {
+  buildDriverPayloadForPassenger,
+  estimateArrivalMinutesToPickup,
+} = require('../utils/passengerDriverNotify');
 const router = express.Router();
 
 const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started'];
@@ -580,16 +584,25 @@ router.post('/:id/accept', [
     const io = req.app.get('io');
     if (io) {
       // Notifier le passager que sa course a été acceptée
+      const driverPayload = buildDriverPayloadForPassenger(driver);
+      if (driverPayload) {
+        driverPayload.totalRides = driver.stats?.completedRides || 0;
+      }
+      const estimatedArrival = estimateArrivalMinutesToPickup(
+        driver,
+        ride.pickup.coordinates.latitude,
+        ride.pickup.coordinates.longitude
+      );
+
       io.to(`passenger_${ride.passenger}`).emit('ride-accepted', {
         rideId: ride._id,
-        driver: {
-          id: driver._id,
-          firstName: driver.firstName,
-          lastName: driver.lastName,
-          phone: driver.phone,
-          vehicle: driver.vehicle,
-          rating: driver.rating
-        }
+        driver: driverPayload,
+        estimatedArrival,
+        estimatedArrivalMinutes: estimatedArrival,
+        pickup: ride.pickup,
+        destination: ride.destination,
+        pricing: ride.pricing,
+        rideType: ride.rideType,
       });
 
       // Notifier TOUS les chauffeurs que cette course n'est plus disponible

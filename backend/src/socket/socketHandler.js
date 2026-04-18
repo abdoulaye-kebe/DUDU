@@ -8,6 +8,12 @@ const {
 } = require('../utils/deliveryDriverRules');
 const { getDriverNotifyMaxDistanceM } = require('../config/driverMatch.config');
 const { buildNewRideRequestPayload } = require('../utils/buildNewRideRequestPayload');
+const {
+  distanceKm,
+  etaMinutesFromDistance,
+  buildDriverPayloadForPassenger,
+  estimateArrivalMinutesToPickup,
+} = require('../utils/passengerDriverNotify');
 
 module.exports = (io) => {
   // Middleware d'authentification Socket.io
@@ -295,30 +301,22 @@ module.exports = (io) => {
 
         const passenger = await User.findById(ride.passenger);
 
-        // Préparer les informations du chauffeur
-        const driverInfo = {
-          id: driver._id,
-          name: `${socket.user.firstName} ${socket.user.lastName}`,
-          phone: socket.user.phone,
-          photo: driver.photo || null,
-          rating: driver.stats?.averageRating || 0,
-          totalRides: driver.stats?.completedRides || 0,
-          vehicle: {
-            type: driver.vehicle?.type || 'car',
-            brand: driver.vehicle?.brand || '',
-            model: driver.vehicle?.model || '',
-            color: driver.vehicle?.color || '',
-            plate: driver.vehicle?.licensePlate || '',
-            year: driver.vehicle?.year || null
-          }
-        };
+        const driverInfo = buildDriverPayloadForPassenger(driver);
+        driverInfo.totalRides = driver.stats?.completedRides || 0;
+
+        const estimatedArrival = estimateArrivalMinutesToPickup(
+          driver,
+          ride.pickup.coordinates.latitude,
+          ride.pickup.coordinates.longitude
+        );
 
         // Notifier le passager
         const passengerRoom = `passenger_${ride.passenger.toString()}`;
         const notificationData = {
           rideId: ride._id,
           driver: driverInfo,
-          estimatedArrival: 5, // minutes
+          estimatedArrival,
+          estimatedArrivalMinutes: estimatedArrival,
           isScheduled: !!ride.scheduledFor,
           scheduledFor: ride.scheduledFor || null,
           pickup: ride.pickup,
@@ -371,7 +369,7 @@ module.exports = (io) => {
           return socket.emit('error', { message: 'Course non trouvée' });
         }
 
-        if (ride.status !== 'requested') {
+        if (ride.status !== 'requested' && ride.status !== 'searching') {
           return socket.emit('error', { message: 'Cette course ne peut plus être refusée' });
         }
 
@@ -389,10 +387,13 @@ module.exports = (io) => {
           await ride.save();
         }
 
+        const drv = socket.driver || (await Driver.findById(socket.driverId));
+        const driverFirstName = drv?.firstName || 'Un chauffeur';
         const passengerRoom = `passenger_${ride.passenger.toString()}`;
         io.to(passengerRoom).emit('ride-refused-by-driver', {
           rideId: ride._id,
-          message: 'Un chauffeur a refusé cette demande. Nous continuons à chercher un autre chauffeur.'
+          message: `${driverFirstName} a décliné. Nous continuons à chercher un autre chauffeur.`,
+          driverFirstName,
         });
 
         socket.emit('ride-refused-ok', { rideId: ride._id });
@@ -694,25 +695,49 @@ module.exports = (io) => {
           return;
         }
 
-        // Diffuser la position au client en temps réel
-        io.to(`passenger_${ride.passenger}`).emit('driver-location', {
+        const lat = Number(latitude);
+        const lng = Number(longitude);
+        const speedKmh = Number(speed) || 0;
+
+        let etaMinutes = null;
+        let distanceToTargetKm = null;
+        let targetPhase = null;
+
+        if (['accepted', 'arriving'].includes(ride.status)) {
+          targetPhase = 'pickup';
+          const plat = ride.pickup.coordinates.latitude;
+          const plng = ride.pickup.coordinates.longitude;
+          distanceToTargetKm = distanceKm(lat, lng, plat, plng);
+          etaMinutes = etaMinutesFromDistance(distanceToTargetKm, speedKmh);
+        } else if (ride.status === 'started') {
+          targetPhase = 'destination';
+          const dlat = ride.destination.coordinates.latitude;
+          const dlng = ride.destination.coordinates.longitude;
+          distanceToTargetKm = distanceKm(lat, lng, dlat, dlng);
+          etaMinutes = etaMinutesFromDistance(distanceToTargetKm, speedKmh);
+        }
+
+        const locationPayload = {
           rideId: ride._id,
-          latitude,
-          longitude,
-          speed,
+          latitude: lat,
+          longitude: lng,
+          speed: speedKmh,
           heading,
-          timestamp: timestamp || new Date().toISOString()
-        });
+          timestamp: timestamp || new Date().toISOString(),
+          rideStatus: ride.status,
+        };
+        if (etaMinutes != null) {
+          locationPayload.etaMinutes = etaMinutes;
+          locationPayload.distanceToTargetKm =
+            Math.round(distanceToTargetKm * 100) / 100;
+          locationPayload.targetPhase = targetPhase;
+        }
+
+        // Diffuser la position au client en temps réel
+        io.to(`passenger_${ride.passenger}`).emit('driver-location', locationPayload);
 
         // Aussi diffuser dans la room de suivi de la course
-        io.to(`ride_${rideId}`).emit('driver-location', {
-          rideId: ride._id,
-          latitude,
-          longitude,
-          speed,
-          heading,
-          timestamp: timestamp || new Date().toISOString()
-        });
+        io.to(`ride_${rideId}`).emit('driver-location', locationPayload);
 
       } catch (error) {
         console.error('Erreur réception position chauffeur:', error);

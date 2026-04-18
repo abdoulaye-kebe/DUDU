@@ -130,6 +130,14 @@ subscriptionSchema.index({ endDate: 1 });
 subscriptionSchema.index({ vehicleType: 1 });
 
 // Méthodes statiques pour obtenir les plans disponibles
+/** Tarif journalier livreur moto (livraison) — doit rester aligné avec GET /subscriptions/plans */
+subscriptionSchema.statics.resolvePlanPrice = function(plan, vehicleType) {
+  if (vehicleType === 'moto' && plan.type === 'daily') {
+    return 500;
+  }
+  return plan.price;
+};
+
 subscriptionSchema.statics.getAvailablePlans = function() {
   return [
     // Plans pour chauffeurs voiture (tous les plans)

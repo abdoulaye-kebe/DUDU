@@ -263,7 +263,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             _buildRestrictionItem(
               '🏍️',
               'Forfait journalier uniquement',
-              '1000 FCFA/jour',
+              '500 FCFA/jour',
             ),
             _buildRestrictionItem(
               '📦',

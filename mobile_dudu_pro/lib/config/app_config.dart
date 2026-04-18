@@ -112,8 +112,11 @@ class AppConfig {
   // ABONNEMENTS
   // ============================================
   
-  /// Prix abonnement journalier (FCFA)
+  /// Prix abonnement journalier voiture (FCFA)
   static const int dailySubscriptionPrice = 1000;
+
+  /// Prix abonnement journalier livreur moto / livraison (FCFA)
+  static const int dailyMotoSubscriptionPrice = 500;
   
   /// Prix abonnement hebdomadaire (FCFA)
   static const int weeklySubscriptionPrice = 5000;

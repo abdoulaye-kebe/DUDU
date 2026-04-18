@@ -20,6 +20,8 @@ class RideTrackingScreen extends StatefulWidget {
   /// Libellés affichés pour le partage sécurité (depuis la recherche d’adresse)
   final String pickupAddressLabel;
   final String destinationAddressLabel;
+  /// Code à communiquer au destinataire (livraison colis)
+  final String? confirmationCode;
 
   const RideTrackingScreen({
     Key? key,
@@ -30,6 +32,7 @@ class RideTrackingScreen extends StatefulWidget {
     required this.driverInfo,
     this.pickupAddressLabel = '',
     this.destinationAddressLabel = '',
+    this.confirmationCode,
   }) : super(key: key);
 
   @override
@@ -40,6 +43,8 @@ Map<String, dynamic> _asStringKeyMap(dynamic v) {
   if (v is Map) return Map<String, dynamic>.from(v as Map);
   return {};
 }
+
+bool _isCourierVehicleType(String t) => t == 'moto' || t == 'delivery';
 
 double? _readLocationLat(Map<String, dynamic> loc) {
   final c = loc['coordinates'];
@@ -76,6 +81,8 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   String _rideStatus = 'going_to_pickup'; // going_to_pickup, arrived, in_progress, completed
   int _estimatedTime = 5; // minutes
   double _distance = 0; // km
+  /// Libellé dynamique (ex. « Votre chauffeur arrive dans environ 3 min »)
+  String _etaPhrase = 'En attente de la position du chauffeur…';
   
   // Timer pour simulation
   Timer? _movementTimer;
@@ -151,10 +158,19 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
       final latitude = (data['latitude'] as num?)?.toDouble();
       final longitude = (data['longitude'] as num?)?.toDouble();
       final heading = (data['heading'] as num?)?.toDouble() ?? 0.0;
+      final eta = (data['etaMinutes'] as num?)?.round();
+      final dist = (data['distanceToTargetKm'] as num?)?.toDouble();
+      final phase = data['targetPhase']?.toString();
 
       if (latitude != null && longitude != null && mounted) {
         setState(() {
-          // Animer le mouvement vers la nouvelle position
+          if (dist != null && dist >= 0) {
+            _distance = dist;
+          }
+          if (eta != null) {
+            _estimatedTime = eta;
+            _etaPhrase = _formatDriverEtaPhrase(eta, phase: phase);
+          }
           _animateVehicleToPosition(
             LatLng(latitude, longitude),
             heading: heading,
@@ -168,6 +184,9 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
       if (mounted) {
         setState(() {
           _rideStatus = 'arrived';
+          _etaPhrase = _isCourierVehicleType(widget.vehicleType)
+              ? 'Votre livreur est au point de rencontre'
+              : 'Votre chauffeur est arrivé au point de prise en charge';
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -188,6 +207,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
       if (mounted) {
         setState(() {
           _rideStatus = 'in_progress';
+          _etaPhrase = 'En route vers la destination…';
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -236,7 +256,6 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     final endLat = newPosition.latitude;
     final endLng = newPosition.longitude;
 
-    const animationDuration = 2; // 2 secondes
     const steps = 20; // 20 frames
     int currentStep = 0;
 
@@ -453,7 +472,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                widget.vehicleType == 'moto' 
+                _isCourierVehicleType(widget.vehicleType)
                   ? 'Livraison terminée !' 
                   : 'Course terminée !',
                 style: const TextStyle(fontSize: 18),
@@ -465,7 +484,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              widget.vehicleType == 'moto'
+              _isCourierVehicleType(widget.vehicleType)
                   ? 'Votre colis a été livré avec succès'
                   : 'Merci d\'avoir utilisé DuDu',
               textAlign: TextAlign.center,
@@ -483,10 +502,14 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                   label: '$_estimatedTime min',
                 ),
                 _buildSummaryChip(
-                  icon: widget.vehicleType == 'moto'
-                      ? Icons.motorcycle
-                      : Icons.directions_car,
-                  label: widget.vehicleType == 'moto' ? 'Moto' : 'Voiture',
+                  icon: widget.vehicleType == 'delivery'
+                      ? Icons.local_shipping
+                      : (_isCourierVehicleType(widget.vehicleType)
+                          ? Icons.motorcycle
+                          : Icons.directions_car),
+                  label: _isCourierVehicleType(widget.vehicleType)
+                      ? (widget.vehicleType == 'delivery' ? 'Livraison' : 'Moto')
+                      : 'Voiture',
                 ),
               ],
             ),
@@ -582,119 +605,27 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     final destLng = _readLocationLng(widget.destinationLocation) ?? pickupLng;
 
     setState(() {
-      _vehiclePosition = LatLng(pickupLat - 0.01, pickupLng + 0.01); // 1km avant
-      
-      // Ajouter marqueurs
-      _markers.add(
-        Marker(
-          markerId: const MarkerId('pickup'),
-          position: LatLng(pickupLat, pickupLng),
-          icon: _pickupIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          infoWindow: const InfoWindow(title: '📍 Point de récupération'),
-        ),
-      );
-      
-      _markers.add(
-        Marker(
-          markerId: const MarkerId('destination'),
-          position: LatLng(destLat, destLng),
-          icon: _destinationIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          infoWindow: const InfoWindow(title: '🎯 Destination'),
-        ),
-      );
-    });
-    
-    // Simuler le mouvement
-    _startMovementSimulation();
-  }
-
-  /// Simuler le déplacement du véhicule
-  void _startMovementSimulation() {
-    final pickupLat = _readLocationLat(widget.pickupLocation) ?? 14.6928;
-    final pickupLng = _readLocationLng(widget.pickupLocation) ?? -17.4467;
-    final destLat = _readLocationLat(widget.destinationLocation) ?? pickupLat;
-    final destLng = _readLocationLng(widget.destinationLocation) ?? pickupLng;
-    
-    // Phase 1 : Aller au pickup
-    _animateToLocation(
-      LatLng(pickupLat, pickupLng),
-      duration: 10, // 10 secondes pour la démo
-      onComplete: () {
-        setState(() {
-          _rideStatus = 'arrived';
-        });
-        
-        // Attendre 3 secondes
-        Future.delayed(const Duration(seconds: 3), () {
-          setState(() {
-            _rideStatus = 'in_progress';
-          });
-          
-          // Phase 2 : Aller à la destination
-          _animateToLocation(
-            LatLng(destLat, destLng),
-            duration: 15,
-            onComplete: () {
-              setState(() {
-                _rideStatus = 'completed';
-              });
-            },
-          );
-        });
-      },
-    );
-  }
-
-  /// Animer le déplacement vers une position
-  void _animateToLocation(LatLng target, {required int duration, VoidCallback? onComplete}) {
-    if (_vehiclePosition == null) return;
-    
-    final startLat = _vehiclePosition!.latitude;
-    final startLng = _vehiclePosition!.longitude;
-    final endLat = target.latitude;
-    final endLng = target.longitude;
-    
-    final totalSteps = duration * 2; // 2 updates par seconde
-    int currentStep = 0;
-    
-    _movementTimer?.cancel();
-    _movementTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      if (currentStep >= totalSteps) {
-        timer.cancel();
-        if (onComplete != null) onComplete();
-        return;
-      }
-      
-      final progress = currentStep / totalSteps;
-      final newLat = startLat + (endLat - startLat) * progress;
-      final newLng = startLng + (endLng - startLng) * progress;
-      
-      // Calculer le heading (direction)
-      final heading = _calculateHeading(
-        _vehiclePosition!.latitude,
-        _vehiclePosition!.longitude,
-        newLat,
-        newLng,
-      );
-      
-      setState(() {
-        _vehiclePosition = LatLng(newLat, newLng);
-        _vehicleHeading = heading;
-        
-        // Mettre à jour le marqueur du véhicule
-        _updateVehicleMarker();
-        
-        // Calculer distance restante
-        _distance = _calculateDistance(newLat, newLng, endLat, endLng);
-        _estimatedTime = (_distance / 30 * 60).ceil(); // 30 km/h
-      });
-      
-      // Centrer la caméra sur le véhicule
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLng(_vehiclePosition!),
-      );
-      
-      currentStep++;
+      _vehiclePosition = null;
+      _markers
+        ..clear()
+        ..add(
+          Marker(
+            markerId: const MarkerId('pickup'),
+            position: LatLng(pickupLat, pickupLng),
+            icon: _pickupIcon ??
+                BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+            infoWindow: const InfoWindow(title: '📍 Point de récupération'),
+          ),
+        )
+        ..add(
+          Marker(
+            markerId: const MarkerId('destination'),
+            position: LatLng(destLat, destLng),
+            icon: _destinationIcon ??
+                BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+            infoWindow: const InfoWindow(title: '🎯 Destination'),
+          ),
+        );
     });
   }
 
@@ -717,40 +648,33 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
         rotation: _vehicleHeading,
         anchor: const Offset(0.5, 0.5),
         icon: _vehicleIcon ?? BitmapDescriptor.defaultMarkerWithHue(
-          widget.vehicleType == 'moto' 
+          _isCourierVehicleType(widget.vehicleType)
             ? BitmapDescriptor.hueOrange 
             : BitmapDescriptor.hueYellow
         ),
         infoWindow: InfoWindow(
-          title: widget.vehicleType == 'moto' ? '🏍️ $driverName' : '🚗 $driverName',
+          title: _isCourierVehicleType(widget.vehicleType) ? '🏍️ $driverName' : '🚗 $driverName',
           snippet: plateNumber.isNotEmpty ? plateNumber : 'En route vers vous',
         ),
       ),
     );
   }
 
-  /// Calculer le heading entre deux points
-  double _calculateHeading(double lat1, double lon1, double lat2, double lon2) {
-    final dLon = lon2 - lon1;
-    final y = math.sin(dLon) * math.cos(lat2);
-    final x = math.cos(lat1) * math.sin(lat2) - 
-              math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
-    final heading = math.atan2(y, x);
-    return (heading * 180 / math.pi + 360) % 360;
-  }
-
-  /// Calculer distance entre deux points (Haversine)
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    const R = 6371; // Rayon de la Terre en km
-    final dLat = (lat2 - lat1) * math.pi / 180;
-    final dLon = (lon2 - lon1) * math.pi / 180;
-    
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-              math.cos(lat1 * math.pi / 180) * math.cos(lat2 * math.pi / 180) *
-              math.sin(dLon / 2) * math.sin(dLon / 2);
-    
-    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return R * c;
+  String _formatDriverEtaPhrase(int minutes, {String? phase}) {
+    final courier = _isCourierVehicleType(widget.vehicleType);
+    final role = courier ? 'livreur' : 'chauffeur';
+    if (minutes <= 1) {
+      if (phase == 'destination') {
+        return courier
+            ? 'Arrivée à destination dans moins d\'une minute'
+            : 'Vous arrivez à destination dans moins d\'une minute';
+      }
+      return 'Votre $role est à moins d\'une minute';
+    }
+    if (phase == 'destination') {
+      return 'Temps estimé jusqu\'à destination : environ $minutes min';
+    }
+    return 'Votre $role arrive dans environ $minutes min';
   }
 
   String _mapsLink(Map<String, dynamic> loc) {
@@ -872,7 +796,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.vehicleType == 'moto' 
+          _isCourierVehicleType(widget.vehicleType)
             ? '🏍️ Suivi de livraison' 
             : '🚗 Suivi de course'
         ),
@@ -1014,6 +938,92 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                           ),
                       ],
                     ),
+                    if (widget.confirmationCode != null &&
+                        widget.confirmationCode!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6B00).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFF6B00)),
+                        ),
+                        child: Column(
+                          children: [
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.key, color: Color(0xFFFF6B00), size: 18),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Code de confirmation',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              widget.confirmationCode!.trim(),
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFFF6B00),
+                                letterSpacing: 3,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'À communiquer au destinataire',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[700],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (_rideStatus == 'going_to_pickup' ||
+                        _rideStatus == 'in_progress') ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00A651).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.schedule,
+                              color: Color(0xFF00A651),
+                              size: 22,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _etaPhrase,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.25,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
@@ -1038,7 +1048,11 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.red,
                         ),
-                        child: const Text('Annuler la course'),
+                        child: Text(
+                          _isCourierVehicleType(widget.vehicleType)
+                              ? 'Annuler la livraison'
+                              : 'Annuler la course',
+                        ),
                       ),
                     ),
                   ],
@@ -1068,7 +1082,11 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                           radius: 30,
                           backgroundColor: const Color(0xFF00A651),
                           child: Icon(
-                            widget.vehicleType == 'moto' ? Icons.motorcycle : Icons.directions_car,
+                            widget.vehicleType == 'delivery'
+                                ? Icons.local_shipping
+                                : (_isCourierVehicleType(widget.vehicleType)
+                                    ? Icons.motorcycle
+                                    : Icons.directions_car),
                             color: Colors.white,
                             size: 32,
                           ),
@@ -1158,170 +1176,6 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                   ],
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusCard() {
-    String statusText;
-    String statusEmoji;
-    Color statusColor;
-    
-    switch (_rideStatus) {
-      case 'going_to_pickup':
-        statusEmoji = '';
-        statusText = widget.vehicleType == 'moto'
-            ? 'Le livreur arrive pour récupérer'
-            : 'Votre chauffeur arrive';
-        statusColor = Colors.blue;
-        break;
-      case 'arrived':
-        statusEmoji = '';
-        statusText = widget.vehicleType == 'moto'
-            ? 'Livreur arrivé - Récupération en cours'
-            : 'Chauffeur arrivé';
-        statusColor = Colors.orange;
-        break;
-      case 'in_progress':
-        statusEmoji = '';
-        statusText = widget.vehicleType == 'moto'
-            ? 'Livraison en cours'
-            : 'Course en cours';
-        statusColor = const Color(0xFF00A651);
-        break;
-      case 'completed':
-        statusEmoji = '';
-        statusText = widget.vehicleType == 'moto'
-            ? 'Livraison terminée !'
-            : 'Course terminée !';
-        statusColor = Colors.green;
-        break;
-      default:
-        statusEmoji = '';
-        statusText = 'En cours...';
-        statusColor = Colors.grey;
-    }
-    
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [statusColor.withOpacity(0.1), Colors.white],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(statusEmoji, style: const TextStyle(fontSize: 32)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    statusText,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                // Bouton de partage rapide
-                if (_rideStatus != 'completed')
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00A651).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: IconButton(
-                      onPressed: _openSafetyShare,
-                      icon: const Icon(Icons.shield_outlined),
-                      color: const Color(0xFF00A651),
-                      tooltip: 'Partager l\'itinéraire (sécurité)',
-                    ),
-                  ),
-              ],
-            ),
-            if (_rideStatus == 'going_to_pickup') ...[
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildInfoChipWithIcon(Icons.straighten, '${_distance.toStringAsFixed(1)} km'),
-                  _buildInfoChipWithIcon(Icons.access_time, '$_estimatedTime min'),
-                  _buildInfoChipWithIcon(Icons.navigation, '${_vehicleHeading.toInt()}°'),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoChip(String emoji, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 16)),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoChipWithIcon(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: const Color(0xFF00A651)),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
             ),
           ),
         ],

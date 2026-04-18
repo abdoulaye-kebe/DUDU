@@ -453,7 +453,10 @@ class ApiService {
         final data = jsonDecode(response.body);
         if (data['success']) {
           return (data['data']['plans'] as List)
-              .map((plan) => SubscriptionPlan.fromJson(plan))
+              .map((plan) => SubscriptionPlan.fromJson(
+                    plan as Map<String, dynamic>,
+                    vehicleType: vehicleType,
+                  ))
               .toList();
         }
         throw Exception('Erreur de récupération des plans');
@@ -886,7 +889,10 @@ class SubscriptionPlan {
     required this.isAvailable,
   });
 
-  factory SubscriptionPlan.fromJson(Map<String, dynamic> json) {
+  factory SubscriptionPlan.fromJson(
+    Map<String, dynamic> json, {
+    VehicleType vehicleType = VehicleType.car,
+  }) {
     final String rawType = json['type'] ?? 'daily';
 
     // Prix renvoyé par le backend (fallback)
@@ -899,7 +905,9 @@ class SubscriptionPlan {
     double forcedPrice;
     switch (rawType) {
       case 'daily':
-        forcedPrice = AppConfig.dailySubscriptionPrice.toDouble();
+        forcedPrice = vehicleType == VehicleType.moto
+            ? AppConfig.dailyMotoSubscriptionPrice.toDouble()
+            : AppConfig.dailySubscriptionPrice.toDouble();
         break;
       case 'weekly':
         forcedPrice = AppConfig.weeklySubscriptionPrice.toDouble();

@@ -17,16 +17,10 @@ router.get('/plans', (req, res) => {
     // Filtrer les plans selon le type de véhicule et appliquer le tarif spécial livreur moto
     const availablePlans = allPlans
       .filter(plan => plan.vehicleTypes.includes(vehicleType))
-      .map(plan => {
-        if (vehicleType === 'moto' && plan.type === 'daily') {
-          // Tarif spécial livreur moto: journalier à 500 FCFA
-          return {
-            ...plan,
-            price: 500
-          };
-        }
-        return plan;
-      });
+      .map(plan => ({
+        ...plan,
+        price: Subscription.resolvePlanPrice(plan, vehicleType)
+      }));
 
     res.json({
       success: true,
@@ -125,6 +119,8 @@ router.post('/purchase', [
       });
     }
 
+    const planPrice = Subscription.resolvePlanPrice(plan, vehicleType);
+
     // Calculer les dates (en ajoutant les jours restants de l'abonnement actuel s'il existe)
     const MS_PER_DAY = 24 * 60 * 60 * 1000;
     const startDate = new Date();
@@ -157,7 +153,7 @@ router.post('/purchase', [
       plan: {
         type: plan.type,
         name: plan.name,
-        price: plan.price,
+        price: planPrice,
         currency: plan.currency,
         duration: plan.duration,
         features: plan.features
@@ -182,7 +178,7 @@ router.post('/purchase', [
       user: req.userId,
       driver: req.driver._id,
       type: 'subscription',
-      amount: plan.price,
+      amount: planPrice,
       currency: plan.currency,
       method: paymentMethod,
       status: 'pending',

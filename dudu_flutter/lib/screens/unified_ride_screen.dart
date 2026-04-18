@@ -14,7 +14,6 @@ import '../constants/map_style.dart';
 import '../constants/senegal_map.dart';
 import '../services/map_style_service.dart';
 import '../services/directions_service.dart';
-import 'delivery_tracking_screen.dart';
 import 'ride_tracking_screen.dart';
 import 'ride_confirmation_screen.dart';
 
@@ -132,6 +131,56 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     if (_selectedRideType == 'luxe') return 'luxe';
     if (_selectedRideType == 'moto') return 'moto';
     return 'standard';
+  }
+
+  /// Type d’icône / suivi pour [RideTrackingScreen].
+  String _vehicleTypeForTracking() {
+    if (_selectedMode == 'delivery') return 'delivery';
+    switch (_backendRideType) {
+      case 'moto':
+        return 'moto';
+      case 'comfort':
+        return 'comfort';
+      case 'women_only':
+        return 'women_only';
+      case 'luxe':
+        return 'luxe';
+      default:
+        return 'car';
+    }
+  }
+
+  Map<String, dynamic> _driverInfoFromAcceptPayload(Map<String, dynamic> data) {
+    final driver = data['driver'];
+    if (driver is! Map) {
+      return {
+        'name': 'Chauffeur',
+        'fullName': 'Chauffeur',
+        'phone': '',
+        'rating': 5.0,
+        'vehicle': <String, dynamic>{},
+      };
+    }
+    final d = Map<String, dynamic>.from(driver);
+    final vehicleRaw = d['vehicle'];
+    final Map<String, dynamic> vehicleMap =
+        vehicleRaw is Map ? Map<String, dynamic>.from(vehicleRaw) : <String, dynamic>{};
+
+    final fn = d['firstName']?.toString() ?? '';
+    final ln = d['lastName']?.toString() ?? '';
+    final name =
+        (d['fullName'] ?? d['name'] ?? '$fn $ln').toString().trim();
+
+    return {
+      'name': name.isNotEmpty ? name : 'Chauffeur',
+      'fullName': name.isNotEmpty ? name : 'Chauffeur',
+      'firstName': fn,
+      'lastName': ln,
+      'phone': d['phone']?.toString() ?? '',
+      'rating': d['rating'] ?? 5.0,
+      'vehicle': vehicleMap,
+      'photo': d['photo'],
+    };
   }
 
   @override
@@ -2179,35 +2228,18 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                 });
               }
 
-              Map<String, dynamic> asMap(dynamic v) {
-                if (v is Map) return Map<String, dynamic>.from(v);
-                return {};
-              }
-
               final rideId = data['rideId']?.toString();
               if (rideId == null || _pickupLatLng == null || _destinationLatLng == null) {
                 return;
               }
 
-              final driver = asMap(data['driver']);
-              final vehicle = asMap(driver['vehicle']);
-
               if (_selectedMode == 'delivery') {
                 final confirmationCode = data['confirmationCode']?.toString() ?? '----';
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => DeliveryTrackingScreen(
-                      deliveryId: rideId,
-                      confirmationCode: confirmationCode,
-                    ),
-                  ),
-                );
-              } else {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
                     builder: (context) => RideTrackingScreen(
                       rideId: rideId,
-                      vehicleType: 'car',
+                      vehicleType: 'delivery',
                       pickupLocation: {
                         'latitude': _pickupLatLng!.latitude,
                         'longitude': _pickupLatLng!.longitude,
@@ -2218,14 +2250,28 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                       },
                       pickupAddressLabel: _pickupAddress,
                       destinationAddressLabel: _destinationAddress,
-                      driverInfo: {
-                        'name': driver['name'] ?? 'Chauffeur',
-                        'phone': driver['phone'] ?? '',
-                        'vehicle': vehicle['model'] != null
-                            ? '${vehicle['make'] ?? ''} ${vehicle['model']}'
-                            : '',
-                        'rating': driver['rating'] ?? 5.0,
+                      driverInfo: _driverInfoFromAcceptPayload(data),
+                      confirmationCode: confirmationCode,
+                    ),
+                  ),
+                );
+              } else {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => RideTrackingScreen(
+                      rideId: rideId,
+                      vehicleType: _vehicleTypeForTracking(),
+                      pickupLocation: {
+                        'latitude': _pickupLatLng!.latitude,
+                        'longitude': _pickupLatLng!.longitude,
                       },
+                      destinationLocation: {
+                        'latitude': _destinationLatLng!.latitude,
+                        'longitude': _destinationLatLng!.longitude,
+                      },
+                      pickupAddressLabel: _pickupAddress,
+                      destinationAddressLabel: _destinationAddress,
+                      driverInfo: _driverInfoFromAcceptPayload(data),
                     ),
                   ),
                 );

@@ -255,6 +255,16 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                                 ),
                               ],
                             ),
+                            if (plan['id'] == 'daily') ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                'Livreur moto / livraison : 500 FCFA / jour',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
                             if (plan['savings'] != null) ...[
                               const SizedBox(height: 8),
                               Container(

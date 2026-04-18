@@ -74,12 +74,43 @@ class SocketService {
     return null;
   }
 
+  static void _notifyDriverAccepted(Map<String, dynamic> map) {
+    final d = map['driver'];
+    if (d is! Map) return;
+    final dm = Map<String, dynamic>.from(d);
+    final name = (dm['fullName'] ?? dm['name'] ?? 'Chauffeur').toString();
+    final vehicle = dm['vehicle'];
+    String vehicleLine = '';
+    if (vehicle is Map) {
+      final vm = Map<String, dynamic>.from(vehicle);
+      final model =
+          '${vm['make'] ?? vm['brand'] ?? ''} ${vm['model'] ?? ''}'.trim();
+      final color = vm['color']?.toString() ?? '';
+      final plate =
+          vm['plateNumber']?.toString() ?? vm['plate']?.toString() ?? '';
+      vehicleLine = [color, model, plate]
+          .where((s) => s.trim().isNotEmpty)
+          .join(' • ');
+    }
+    final etaRaw = map['estimatedArrivalMinutes'] ?? map['estimatedArrival'];
+    int? etaM;
+    if (etaRaw is num) etaM = etaRaw.round();
+    NotificationService().showDriverAcceptedNotification(
+      driverLine: name,
+      vehicleLine: vehicleLine.isEmpty ? null : vehicleLine,
+      estimatedMinutes: etaM,
+    );
+  }
+
   /// Configurer les écouteurs d'événements
   void _setupEventListeners() {
     // Course acceptée par un chauffeur
     _socket!.on('ride-accepted', (data) {
       print('✅ Course acceptée par un chauffeur');
       final map = _payloadAsMap(data);
+      if (!kIsWeb && map != null) {
+        _notifyDriverAccepted(map);
+      }
       if (onRideAccepted != null && map != null) {
         onRideAccepted!(map);
       }
@@ -88,6 +119,11 @@ class SocketService {
     _socket!.on('ride-refused-by-driver', (data) {
       print('ℹ️ Refus chauffeur pour une demande: $data');
       final map = _payloadAsMap(data);
+      if (!kIsWeb && map != null) {
+        final msg = map['message']?.toString() ??
+            'Un chauffeur a décliné. Nous cherchons un autre chauffeur.';
+        NotificationService().showRideRefusedByDriverNotification(body: msg);
+      }
       if (onRideRefusedByDriver != null && map != null) {
         onRideRefusedByDriver!(map);
       }
