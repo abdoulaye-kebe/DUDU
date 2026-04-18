@@ -1666,17 +1666,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           _priceController.text = suggested.toString();
         }
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Itinéraire détaillé indisponible. Un trajet approximatif est affiché sur la carte.',
-            ),
-            backgroundColor: Colors.deepOrange,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
+      // Pas de message d’erreur visible : la ligne en pointillés sur la carte suffit comme indication discrète.
       await _fitCameraToRoutePoints([p0, p1], padding: 72);
       return;
     }

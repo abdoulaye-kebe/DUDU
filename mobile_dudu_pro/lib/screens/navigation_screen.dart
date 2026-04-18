@@ -64,6 +64,33 @@ class _NavigationScreenState extends State<NavigationScreen> {
   
   static const Color primaryGreen = Color(0xFF00A651);
 
+  /// Au-delà de ce seuil (ex. simulateur iOS hors Afrique), le GPS ne sert pas au cadrage ni à la ligne droite.
+  static const double _maxGpsToTargetKm = 120.0;
+
+  bool _gpsPlausibleForTarget(LatLng gps, LatLng target) {
+    return _calculateDistance(
+          gps.latitude,
+          gps.longitude,
+          target.latitude,
+          target.longitude,
+        ) <=
+        _maxGpsToTargetKm;
+  }
+
+  /// Point de départ affiché pour l’itinéraire (ligne + bounds) : GPS réel si proche de la cible, sinon ancrage sur le trajet course.
+  LatLng _effectiveNavStart(LatLng gps) {
+    final target = _targetLocation!;
+    if (_gpsPlausibleForTarget(gps, target)) return gps;
+    if (widget.rideStatus == 'going_to_pickup') {
+      // Légèrement au sud du pickup pour garder une ligne courte et lisible vers le point de prise en charge.
+      return LatLng(
+        widget.pickupLocation.latitude - 0.022,
+        widget.pickupLocation.longitude,
+      );
+    }
+    return widget.pickupLocation;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -143,6 +170,11 @@ class _NavigationScreenState extends State<NavigationScreen> {
       _currentPosition!.longitude,
     );
 
+    if (_targetLocation != null &&
+        !_gpsPlausibleForTarget(currentLatLng, _targetLocation!)) {
+      return;
+    }
+
     // Trouver le point le plus proche sur l'itinéraire planifié
     double minDistance = double.infinity;
     for (final point in _plannedRoute) {
@@ -195,11 +227,12 @@ class _NavigationScreenState extends State<NavigationScreen> {
       _currentPosition!.latitude,
       _currentPosition!.longitude,
     );
+    final navStart = _effectiveNavStart(currentLatLng);
 
-    // Calculer la distance et le temps estimé
+    // Calculer la distance et le temps estimé (toujours cohérent avec l’affichage carte)
     _distanceToTarget = _calculateDistance(
-      currentLatLng.latitude,
-      currentLatLng.longitude,
+      navStart.latitude,
+      navStart.longitude,
       _targetLocation!.latitude,
       _targetLocation!.longitude,
     );
@@ -208,16 +241,16 @@ class _NavigationScreenState extends State<NavigationScreen> {
     _estimatedTimeMinutes = (_distanceToTarget / 30 * 60).round();
 
     // Générer l'instruction de navigation
-    _currentInstruction = _generateNavigationInstruction(currentLatLng, _targetLocation!);
+    _currentInstruction = _generateNavigationInstruction(navStart, _targetLocation!);
 
     // Mettre à jour les marqueurs
-    _updateMarkers(currentLatLng);
+    _updateMarkers(navStart);
 
     // Tracer l'itinéraire
-    _drawRoute(currentLatLng, _targetLocation!);
+    _drawRoute(navStart, _targetLocation!);
 
     // Centrer la carte
-    _centerMap(currentLatLng, _targetLocation!);
+    _centerMap(navStart, _targetLocation!);
 
     setState(() {});
     _announceInstructionIfNeeded(_currentInstruction);
@@ -395,7 +428,15 @@ class _NavigationScreenState extends State<NavigationScreen> {
   }
 
   Future<void> _openGoogleMaps() async {
-    final url = 'https://www.google.com/maps/dir/?api=1&origin=${_currentPosition!.latitude},${_currentPosition!.longitude}&destination=${_targetLocation!.latitude},${_targetLocation!.longitude}&travelmode=driving';
+    if (_targetLocation == null) return;
+    final gps = _currentPosition != null
+        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+        : widget.pickupLocation;
+    final origin = _gpsPlausibleForTarget(gps, _targetLocation!)
+        ? gps
+        : _effectiveNavStart(gps);
+    final url =
+        'https://www.google.com/maps/dir/?api=1&origin=${origin.latitude},${origin.longitude}&destination=${_targetLocation!.latitude},${_targetLocation!.longitude}&travelmode=driving';
     
     try {
       final uri = Uri.parse(url);
@@ -425,8 +466,11 @@ class _NavigationScreenState extends State<NavigationScreen> {
           // Carte Google Maps (plein cadre)
           GoogleMap(
             initialCameraPosition: CameraPosition(
-              target: _targetLocation ?? widget.pickupLocation,
-              zoom: 14,
+              target: LatLng(
+                (widget.pickupLocation.latitude + widget.destinationLocation.latitude) / 2,
+                (widget.pickupLocation.longitude + widget.destinationLocation.longitude) / 2,
+              ),
+              zoom: 13,
             ),
             cameraTargetBounds: MapStyleService.senegalBounds,
             minMaxZoomPreference: MapStyleService.zoomPreference,
@@ -481,10 +525,11 @@ class _NavigationScreenState extends State<NavigationScreen> {
               backgroundColor: Colors.white,
               onPressed: () {
                 if (_currentPosition != null && _targetLocation != null) {
-                  _centerMap(
-                    LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                    _targetLocation!,
+                  final gps = LatLng(
+                    _currentPosition!.latitude,
+                    _currentPosition!.longitude,
                   );
+                  _centerMap(_effectiveNavStart(gps), _targetLocation!);
                 }
               },
               child: const Icon(Icons.my_location, color: primaryGreen),

@@ -23,6 +23,7 @@ const {
 } = require('../utils/passengerDriverNotify');
 const { buildDriverQueryForRideType } = require('../utils/driverRideTypeMatch');
 const { sendScheduledRideAcceptedPush } = require('../utils/scheduledRidePassengerNotify');
+const notificationService = require('../services/notificationService');
 const router = express.Router();
 
 const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started'];
@@ -872,6 +873,20 @@ router.post('/:id/complete', [
       console.log(`📢 Notification fin de course envoyée au client ${ride.passenger}`);
     }
 
+    // Push FCM (app fermée / arrière-plan) — ne bloque pas la réponse HTTP
+    try {
+      await notificationService.sendPushNotification(ride.passenger, {
+        title: '✅ Course terminée',
+        body: 'Votre course est terminée. Merci d’avoir utilisé DuDu !',
+        data: {
+          type: 'ride_completed',
+          rideId: String(ride._id),
+        },
+      });
+    } catch (pushErr) {
+      console.warn('Push fin de course (non bloquant):', pushErr?.message || pushErr);
+    }
+
     res.json({
       success: true,
       message: 'Course terminée avec succès',
@@ -1493,14 +1508,34 @@ router.post('/create', [
     
     const searchRadius = SEARCH_RADIUS[rideType] || 5000;
     
+    // minPrice : exclure uniquement si le chauffeur a fixé un minimum strictement au-dessus de l’offre.
+    // Sinon les profils sans `preferences.minPrice` étaient exclus par MongoDB.
+    // Position : accepter `location` OU `currentLocation` (remplies par PUT /drivers/location).
     const baseDriverQuery = {
       status: 'online',
       isAvailable: true,
+      verificationStatus: 'approved',
       'subscription.isActive': true,
       'subscription.endDate': { $gt: new Date() },
-      'preferences.minPrice': { $lte: totalPrice },
-      'location.latitude': { $exists: true, $ne: null },
-      'location.longitude': { $exists: true, $ne: null },
+      $and: [
+        {
+          $or: [
+            { 'preferences.minPrice': { $exists: false } },
+            { 'preferences.minPrice': { $lte: totalPrice } },
+          ],
+        },
+        {
+          $or: [
+            {
+              $and: [
+                { 'location.latitude': { $exists: true, $ne: null } },
+                { 'location.longitude': { $exists: true, $ne: null } },
+              ],
+            },
+            { 'currentLocation.coordinates.0': { $exists: true } },
+          ],
+        },
+      ],
       ...buildDriverQueryForRideType(rideType),
     };
 
@@ -1546,8 +1581,8 @@ router.post('/create', [
         console.log('🚫 Chauffeur en dehors du rayon', {
           driverId: driver._id.toString(),
           phone: driver.phone,
-          driverLat: driver.location.latitude,
-          driverLng: driver.location.longitude,
+          driverLat: dLat,
+          driverLng: dLng,
           distanceKm: distance,
         });
       }

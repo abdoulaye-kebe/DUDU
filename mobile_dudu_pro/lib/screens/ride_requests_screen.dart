@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import '../widgets/driver_counter_offer_section.dart';
 import 'active_ride_screen.dart';
 /// Écran des demandes de courses en temps réel
 /// Le chauffeur voit les demandes avec le PRIX LIBRE proposé par le client
@@ -21,7 +22,6 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
   Timer? _countdownTimer;
   /// Demandes où une contre-proposition vient d’être envoyée (attente client).
   final Set<String> _pendingCounterOfferRideIds = {};
-  static const List<int> _counterDeltas = [300, 500, 750, 1000, 1500, 2000];
 
   @override
   void initState() {
@@ -197,6 +197,8 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
       'delivery': Colors.deepOrange,
       'luxe': Colors.black,
       'moto': Colors.blueGrey,
+      // Alias / rétrocompat
+      'express': Colors.orange,
     };
 
     final rideTypeLabels = {
@@ -206,12 +208,17 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
       'delivery': 'Livraison',
       'luxe': 'Luxe',
       'moto': 'Moto',
+      'express': 'Confort',
     };
 
     final rawType = request.rideType;
     final normalizedType = rawType == 'express' ? 'comfort' : rawType;
-    final color = rideTypeColors[normalizedType] ?? Colors.grey;
-    final label = rideTypeLabels[normalizedType] ?? 'Standard';
+    final color = rideTypeColors[normalizedType] ??
+        rideTypeColors[rawType] ??
+        Colors.grey;
+    final label = rideTypeLabels[normalizedType] ??
+        rideTypeLabels[rawType] ??
+        'Course';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -473,44 +480,10 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Si le prix ne convient pas, proposez un supplément (max +2000 FCFA)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  DriverCounterOfferSection(
+                    isBusy: _pendingCounterOfferRideIds.contains(request.id),
+                    onDeltaPressed: (d) => _submitCounterOffer(request, d),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _counterDeltas.map((d) {
-                      final busy = _pendingCounterOfferRideIds.contains(request.id);
-                      return ActionChip(
-                        label: Text('+$d'),
-                        backgroundColor: busy ? Colors.grey[200] : Colors.green[50],
-                        onPressed: busy
-                            ? null
-                            : () => _submitCounterOffer(request, d),
-                      );
-                    }).toList(),
-                  ),
-                  if (_pendingCounterOfferRideIds.contains(request.id))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        'En attente de la réponse du client…',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange[800],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
                   const SizedBox(height: 12),
 
                   // Boutons ACCEPTER / REFUSER

@@ -10,6 +10,7 @@ import '../services/map_style_service.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import '../models/driver_profile.dart';
+import '../widgets/driver_counter_offer_section.dart';
 import 'ride_requests_screen.dart';
 import 'driver_profile_screen.dart';
 import 'driver_rides_screen.dart';
@@ -43,6 +44,13 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
   GoogleMapController? _mapController;
   StreamSubscription<Map<String, dynamic>>? _rideRequestSub;
   StreamSubscription<String>? _rideClosedSub;
+  StreamSubscription<Map<String, dynamic>>? _counterOfferSub;
+
+  /// Contre-propositions en attente (même logique que [RideRequestsScreen]).
+  final Set<String> _pendingCounterOfferRideIds = {};
+
+  /// Rafraîchit la position côté serveur tant que le chauffeur est en ligne (matching passagers).
+  Timer? _locationHeartbeatTimer;
 
   // Stats du jour (données réelles depuis l'API)
   int _todayRides = 0;
@@ -64,15 +72,93 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
   void initState() {
     super.initState();
     _pendingRequests = SocketService().currentRideRequests.length;
+    _counterOfferSub =
+        SocketService().counterOfferPassengerResponseStream.listen(_onDashboardCounterOfferResponse);
     _loadDriverData();
     _subscribeToRideRequests();
   }
 
   @override
   void dispose() {
+    _locationHeartbeatTimer?.cancel();
     _rideRequestSub?.cancel();
     _rideClosedSub?.cancel();
+    _counterOfferSub?.cancel();
     super.dispose();
+  }
+
+  void _stopLocationHeartbeat() {
+    _locationHeartbeatTimer?.cancel();
+    _locationHeartbeatTimer = null;
+  }
+
+  /// Envoie périodiquement la position au backend pour que les recherches passagers trouvent le chauffeur.
+  void _startLocationHeartbeatIfNeeded() {
+    _stopLocationHeartbeat();
+    if (!_isOnline) return;
+    _locationHeartbeatTimer = Timer.periodic(const Duration(seconds: 22), (_) {
+      _sendLiveLocationToBackend();
+    });
+  }
+
+  Future<void> _sendLiveLocationToBackend() async {
+    if (!mounted || !_isOnline) return;
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+        ),
+      ).timeout(const Duration(seconds: 12));
+      if (!mounted || !_isOnline) return;
+      setState(() {
+        _currentPosition = position;
+      });
+      await ApiService.updateLocation(position.latitude, position.longitude);
+    } catch (_) {}
+  }
+
+  void _onDashboardCounterOfferResponse(Map<String, dynamic> data) {
+    final rideId = data['rideId']?.toString();
+    if (rideId == null || rideId.isEmpty) return;
+
+    setState(() {
+      _pendingCounterOfferRideIds.remove(rideId);
+    });
+
+    if (!mounted) return;
+    final accepted = data['accepted'] == true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          accepted
+              ? 'Le client a accepté le nouveau prix. Vous pouvez accepter la course depuis les demandes.'
+              : 'Le client a refusé la proposition — le prix initial reste affiché.',
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  Future<void> _submitDashboardCounterOffer(String rideId, int additionalAmount) async {
+    try {
+      await ApiService.submitCounterOffer(rideId, additionalAmount);
+      if (!mounted) return;
+      setState(() {
+        _pendingCounterOfferRideIds.add(rideId);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Proposition envoyée au client. En attente de sa réponse…'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
+    }
   }
 
   void _subscribeToRideRequests() {
@@ -106,8 +192,11 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
               'delivery': 'Livraison',
               'luxe': 'Luxe',
               'moto': 'Moto',
+              'express': 'Confort',
             };
-            final rideTypeLabel = rideTypeLabels[normalizedRideType] ?? 'Standard';
+            final rideTypeLabel =
+                rideTypeLabels[normalizedRideType] ?? rideTypeLabels[rawRideType] ?? 'Course';
+            final rideId = data['id']?.toString() ?? data['rideId']?.toString() ?? '';
             final passengerName = passenger?['name']?.toString() ?? 'Client DuDu';
             final passengerPhone = data['passengerPhone']?.toString();
             String pickupText;
@@ -172,10 +261,11 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                     Icon(Icons.schedule, color: Colors.orange, size: 28),
                 ],
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   Row(
                     children: [
                       Container(
@@ -249,11 +339,21 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                       ),
                     ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Appuyez sur "VOIR LES DEMANDES" pour accepter ou refuser.',
-                    style: TextStyle(fontSize: 13),
+                  if (rideId.isNotEmpty)
+                    DriverCounterOfferSection(
+                      isBusy: _pendingCounterOfferRideIds.contains(rideId),
+                      onDeltaPressed: (d) => _submitDashboardCounterOffer(rideId, d),
+                    ),
+                  if (rideId.isNotEmpty) const SizedBox(height: 12),
+                  Text(
+                    rideId.isEmpty
+                        ? 'Appuyez sur « VOIR LES DEMANDES » pour accepter ou refuser.'
+                        : 'Supplément disponible pour tous les types (Standard, Confort, Luxe, Femme, Moto, livraisons). '
+                            'Ou ouvrez « VOIR LES DEMANDES » pour détail, appel VOIP et acceptation.',
+                    style: const TextStyle(fontSize: 13),
                   ),
                 ],
+                ),
               ),
               actions: [
                 if (passengerPhone != null && passengerPhone.isNotEmpty)
@@ -481,6 +581,9 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
           _subscriptionExpiry = null;
         }
       });
+      if (mounted) {
+        _startLocationHeartbeatIfNeeded();
+      }
     } catch (e) {
       print('Erreur chargement stats: $e');
     }
@@ -1061,6 +1164,11 @@ class _NewDriverDashboardState extends State<NewDriverDashboard> {
                         }
                       }
                       setState(() => _isOnline = value);
+                      if (value) {
+                        _startLocationHeartbeatIfNeeded();
+                      } else {
+                        _stopLocationHeartbeat();
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(

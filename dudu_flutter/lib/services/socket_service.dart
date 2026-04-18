@@ -205,14 +205,18 @@ class SocketService {
       }
     });
 
-    // Course terminée
-    _socket!.on('ride:completed', (data) {
-      print('🎉 Course terminée !');
+    void handleRideCompletedSocket(dynamic data) {
+      print('🎉 Course terminée (socket)');
       final map = _payloadAsMap(data);
       if (onRideCompleted != null && map != null) {
         onRideCompleted!(map);
       }
-    });
+    }
+
+    // Course terminée (tracking / ancien nom)
+    _socket!.on('ride:completed', handleRideCompletedSocket);
+    // Fin de course (POST /rides/:id/complete) — la notification visible (push) est envoyée par FCM côté serveur
+    _socket!.on('ride-completed', handleRideCompletedSocket);
 
     _socket!.on('scheduled-ride-reminder', (data) {
       final map = _payloadAsMap(data);
