@@ -20,11 +20,15 @@ class SocketService {
   Timer? _locationUpdateTimer;
   final _rideRequestController = StreamController<Map<String, dynamic>>.broadcast();
   final _rideClosedController = StreamController<String>.broadcast();
+  final _counterOfferPassengerResponseController =
+      StreamController<Map<String, dynamic>>.broadcast();
   final Map<String, Completer<Map<String, dynamic>>> _pendingAccepts = {};
   final List<Map<String, dynamic>> _currentRideRequests = [];
 
   Stream<Map<String, dynamic>> get rideRequestsStream => _rideRequestController.stream;
   Stream<String> get rideClosedStream => _rideClosedController.stream;
+  Stream<Map<String, dynamic>> get counterOfferPassengerResponseStream =>
+      _counterOfferPassengerResponseController.stream;
 
   /// Connecter au serveur Socket.io.
   /// [forceReconnect] : fermer une session existante puis rouvrir (nouveau token, retour session).
@@ -188,6 +192,11 @@ class SocketService {
       if (rideId != null && _pendingAccepts.containsKey(rideId)) {
         _pendingAccepts.remove(rideId)?.completeError(Exception(msg));
       }
+    });
+
+    _socket!.on('ride-counter-offer-passenger-responded', (data) {
+      if (data is! Map) return;
+      _counterOfferPassengerResponseController.add(Map<String, dynamic>.from(data));
     });
   }
 
@@ -401,6 +410,7 @@ class SocketService {
   void dispose() {
     _rideRequestController.close();
     _rideClosedController.close();
+    _counterOfferPassengerResponseController.close();
     _locationUpdateTimer?.cancel();
     _locationUpdateTimer = null;
     _pendingAccepts.clear();
@@ -412,6 +422,19 @@ class SocketService {
   String? get currentRideId => _currentRideId;
   List<Map<String, dynamic>> get currentRideRequests => _currentRideRequests;
   IO.Socket? get rawSocket => _socket;
+
+  /// Met à jour le prix affiché pour une demande en cache (ex. contre-proposition acceptée).
+  void patchRideRequestPricing(String rideId, int newTotal) {
+    final i = _currentRideRequests.indexWhere((r) =>
+        r['id']?.toString() == rideId || r['rideId']?.toString() == rideId);
+    if (i < 0) return;
+    final m = Map<String, dynamic>.from(_currentRideRequests[i]);
+    final p = Map<String, dynamic>.from(m['pricing'] is Map ? m['pricing'] as Map : <String, dynamic>{});
+    p['totalPrice'] = newTotal;
+    p['customPrice'] = newTotal;
+    m['pricing'] = p;
+    _currentRideRequests[i] = m;
+  }
 
   /// Marquer une demande de course comme traitée
   void markRideRequestAsHandled(String rideId) {

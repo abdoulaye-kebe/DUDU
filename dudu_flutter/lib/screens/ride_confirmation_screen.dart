@@ -10,7 +10,6 @@ class RideConfirmationScreen extends StatefulWidget {
   final String selectedRideType;
   final String selectedMode;
   final int initialPrice;
-  final String initialPaymentMethod;
 
   const RideConfirmationScreen({
     Key? key,
@@ -22,7 +21,6 @@ class RideConfirmationScreen extends StatefulWidget {
     required this.selectedRideType,
     required this.selectedMode,
     required this.initialPrice,
-    required this.initialPaymentMethod,
   }) : super(key: key);
 
   @override
@@ -30,19 +28,11 @@ class RideConfirmationScreen extends StatefulWidget {
 }
 
 class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
-  String _selectedPaymentMethod = 'wave';
   int _customPrice = 0;
   late final TextEditingController _priceController;
   final FocusNode _priceFocus = FocusNode();
 
-  static const Map<String, String> _paymentLogos = {
-    'orange_money': 'assets/images/payments/orange_money_logo.png',
-    'wave': 'assets/images/payments/wave_logo.png',
-    'free_money': 'assets/images/payments/free_money_logo.png',
-  };
-
   static const Color primaryGreen = Color(0xFF0d5d36);
-  static const Color lightGreen = Color(0xFF10b981);
   static const Color accentBlack = Color(0xFF1A1A1A);
 
   @override
@@ -52,11 +42,6 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
     _priceController = TextEditingController(
       text: widget.initialPrice > 0 ? '${widget.initialPrice}' : '',
     );
-    var m = widget.initialPaymentMethod.isNotEmpty
-        ? widget.initialPaymentMethod
-        : 'wave';
-    if (m == 'orange_money' || m == 'free_money') m = 'wave';
-    _selectedPaymentMethod = m;
   }
 
   @override
@@ -102,8 +87,6 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
             _buildRouteInfo(),
             const SizedBox(height: 24),
             _buildPriceInput(),
-            const SizedBox(height: 24),
-            _buildPaymentMethods(),
             const SizedBox(height: 32),
             _buildConfirmButton(),
           ],
@@ -323,7 +306,7 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Le chauffeur peut accepter ou proposer un autre prix',
+            'Le chauffeur peut accepter ou vous proposer un supplément (jusqu’à +2000 FCFA)',
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],
@@ -331,102 +314,6 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentMethods() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Mode de paiement',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: accentBlack,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _buildPaymentOption('cash', 'Espèces', enabled: true),
-            _buildPaymentOption('wave', 'Wave', enabled: true),
-            _buildPaymentOption('orange_money', 'Orange Money', enabled: false),
-            _buildPaymentOption('free_money', 'Free Money', enabled: false),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPaymentOption(String method, String label, {bool enabled = true}) {
-    final isSelected = _selectedPaymentMethod == method;
-    return Opacity(
-      opacity: enabled ? 1 : 0.55,
-      child: InkWell(
-        onTap: enabled
-            ? () {
-                setState(() {
-                  _selectedPaymentMethod = method;
-                });
-              }
-            : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected && enabled ? primaryGreen.withOpacity(0.1) : Colors.grey[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected && enabled ? primaryGreen : Colors.grey[300]!,
-              width: isSelected && enabled ? 2 : 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!enabled)
-                Icon(Icons.lock_outline, size: 18, color: Colors.grey.shade600)
-              else if (method == 'cash')
-                Icon(
-                  Icons.payments,
-                  color: isSelected ? primaryGreen : Colors.grey[600],
-                  size: 20,
-                )
-              else if (_paymentLogos[method] != null)
-                Image.asset(
-                  _paymentLogos[method]!,
-                  width: 22,
-                  height: 22,
-                  errorBuilder: (_, __, ___) => Icon(
-                    Icons.account_balance_wallet,
-                    size: 18,
-                    color: isSelected ? primaryGreen : Colors.grey[600],
-                  ),
-                )
-              else
-                Icon(
-                  Icons.account_balance_wallet,
-                  size: 18,
-                  color: isSelected ? primaryGreen : Colors.grey[600],
-                ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isSelected && enabled ? FontWeight.w600 : FontWeight.w500,
-                  color: !enabled
-                      ? Colors.grey.shade600
-                      : (isSelected ? primaryGreen : accentBlack),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -446,13 +333,12 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
   }
 
   Widget _buildConfirmButton() {
-    final isValid = _customPrice > 0 && _selectedPaymentMethod.isNotEmpty;
+    final isValid = _customPrice > 0;
     return ElevatedButton(
       onPressed: isValid
           ? () {
               Navigator.pop(context, {
                 'price': _customPrice,
-                'paymentMethod': _selectedPaymentMethod,
               });
             }
           : null,
@@ -466,7 +352,7 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
         elevation: isValid ? 4 : 0,
       ),
       child: Text(
-        isValid ? 'OK — Confirmer la course' : 'Indiquez le prix et le paiement',
+        isValid ? 'Confirmer la course' : 'Indiquez un prix',
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 16,

@@ -126,6 +126,23 @@ const rideSchema = new mongoose.Schema({
       default: null
     }
   },
+
+  /** Contre-proposition tarifaire (chauffeur → client) */
+  counterOffer: {
+    driver: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Driver',
+      default: null,
+    },
+    additionalAmount: { type: Number, default: null },
+    proposedTotalPrice: { type: Number, default: null },
+    baseTotalPrice: { type: Number, default: null },
+    status: {
+      type: String,
+      enum: ['pending', 'accepted', 'rejected'],
+    },
+    createdAt: { type: Date, default: null },
+  },
   
   // Statut de la course
   status: {

@@ -106,7 +106,7 @@ const driverSchema = new mongoose.Schema({
     year: {
       type: Number,
       required: [true, 'L\'année du véhicule est requise'],
-      min: [1990, 'L\'année doit être supérieure à 1990'],
+      min: [1960, 'Année du véhicule invalide'],
       max: [new Date().getFullYear() + 1, 'L\'année ne peut pas être dans le futur']
     },
     color: {

@@ -710,6 +710,28 @@ class ApiService {
     }
   }
 
+  /// Contre-proposition tarifaire (+300 … +2000 FCFA vs prix client).
+  static Future<Map<String, dynamic>> submitCounterOffer(
+    String rideId,
+    int additionalAmount,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/rides/$rideId/counter-offer'),
+        headers: _headers,
+        body: jsonEncode({'additionalAmount': additionalAmount}),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Impossible d\'envoyer la proposition');
+    } catch (e) {
+      throw Exception('Contre-proposition: $e');
+    }
+  }
+
   // Accepter une course
   static Future<Map<String, dynamic>> acceptRide(String rideId) async {
     try {

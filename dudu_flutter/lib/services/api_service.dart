@@ -495,6 +495,51 @@ class ApiService {
     }
   }
 
+  /// Réponse du passager à une contre-proposition chauffeur.
+  static Future<ApiResponse<bool>> respondToRideCounterOffer({
+    required String rideId,
+    required bool accept,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/rides/$rideId/counter-offer/respond'),
+        headers: await _getHeaders(),
+        body: json.encode({'accept': accept}),
+      ).timeout(timeout);
+
+      if (response.statusCode == 401) {
+        await _clearAuthStorage();
+        return ApiResponse<bool>(
+          success: false,
+          message: _authErrorMessage(response),
+          data: null,
+        );
+      }
+
+      if (response.statusCode == 200) {
+        return ApiResponse<bool>(
+          success: true,
+          message: 'OK',
+          data: true,
+        );
+      }
+      final dynamic decoded = response.body.isNotEmpty ? json.decode(response.body) : null;
+      final Map<String, dynamic> err =
+          decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+      return ApiResponse<bool>(
+        success: false,
+        message: err['message']?.toString() ?? 'Erreur',
+        data: null,
+      );
+    } catch (e) {
+      return ApiResponse<bool>(
+        success: false,
+        message: 'Erreur réseau: $e',
+        data: null,
+      );
+    }
+  }
+
   // Nouvelle méthode pour créer une course avec prix libre
   static Future<ApiResponse<dynamic>> createRide({
     required double pickupLatitude,
@@ -507,7 +552,7 @@ class ApiService {
     int? customPrice,
     double? customPricePerKm,
     required double estimatedDistance,
-    required String paymentMethod,
+    String paymentMethod = 'cash',
     bool? isUrgentDelivery,
   }) async {
     try {

@@ -62,7 +62,6 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   int _customPrice = 0;
   double _estimatedDistance = 0;
   List<PlaceSuggestion> _suggestions = [];
-  String _selectedPaymentMethod = '';
   double _motoPricePerKm = 500;
   // Véhicules simulés à proximité (pour affichage liste + markers)
   List<LatLng> _nearbyVehicles = [];
@@ -72,12 +71,6 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   /// Livraison prioritaire (un seul colis à la fois côté livreur) — sinon empilement possible (2 courses).
   bool _deliveryUrgent = false;
 
-  static const Map<String, String> _paymentLogos = {
-    'orange_money': 'assets/images/payments/orange_money_logo.png',
-    'wave': 'assets/images/payments/wave_logo.png',
-    'free_money': 'assets/images/payments/free_money_logo.png',
-  };
-  
   // Types de courses disponibles
   final List<Map<String, dynamic>> _rideTypes = [
     {
@@ -148,7 +141,15 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       _selectedMode = 'delivery';
     }
     _getCurrentLocation();
-    _selectedPaymentMethod = 'wave';
+  }
+
+  /// Affiche « X min » ou « X h Y min » si durée > 60 min.
+  static String _formatTripDurationMinutes(int totalMinutes) {
+    if (totalMinutes <= 60) return '$totalMinutes min';
+    final h = totalMinutes ~/ 60;
+    final m = totalMinutes % 60;
+    if (m <= 0) return '$h h';
+    return '$h h $m min';
   }
 
   Widget _buildNearbyVehiclesList() {
@@ -317,162 +318,6 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         18.0,
       ),
     );
-  }
-
-  Widget _buildPaymentMethodSelector() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Moyen de paiement',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: accentBlack,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildPaymentChip(
-                label: 'Espèces',
-                value: 'cash',
-                icon: Icons.payments,
-                enabled: true,
-              ),
-              _buildPaymentChip(
-                label: 'Wave',
-                value: 'wave',
-                assetPath: _paymentLogos['wave'],
-                icon: Icons.account_balance_wallet,
-                enabled: true,
-              ),
-              _buildPaymentChip(
-                label: 'Orange Money',
-                value: 'orange_money',
-                assetPath: _paymentLogos['orange_money'],
-                icon: Icons.account_balance_wallet,
-                enabled: false,
-              ),
-              _buildPaymentChip(
-                label: 'Free Money',
-                value: 'free_money',
-                assetPath: _paymentLogos['free_money'],
-                icon: Icons.account_balance_wallet,
-                enabled: false,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentChip({
-    required String label,
-    required String value,
-    required IconData icon,
-    String? assetPath,
-    bool enabled = true,
-  }) {
-    final isSelected = _selectedPaymentMethod == value;
-    final Color fg = enabled
-        ? (isSelected ? Colors.white : accentBlack)
-        : Colors.grey.shade500;
-    final Color borderColor = enabled
-        ? (isSelected ? primaryGreen : Colors.grey[300]!)
-        : Colors.grey.shade300;
-    final Color bg = !enabled
-        ? Colors.grey.shade100
-        : (isSelected ? primaryGreen : Colors.white);
-
-    return Opacity(
-      opacity: enabled ? 1 : 0.65,
-      child: InkWell(
-        onTap: enabled
-            ? () {
-                setState(() {
-                  _selectedPaymentMethod = value;
-                });
-              }
-            : null,
-        child: Container(
-          constraints: const BoxConstraints(minWidth: 100),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: borderColor,
-              width: 1.5,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (!enabled) ...[
-                Icon(Icons.lock_outline, size: 14, color: Colors.grey.shade600),
-                const SizedBox(width: 4),
-              ],
-              if (assetPath != null)
-                Image.asset(
-                  assetPath,
-                  width: 16,
-                  height: 16,
-                  errorBuilder: (_, __, ___) => Icon(
-                    icon,
-                    size: 16,
-                    color: isSelected && enabled ? Colors.white : primaryGreen,
-                  ),
-                )
-              else
-                Icon(
-                  icon,
-                  size: 16,
-                  color: isSelected && enabled ? Colors.white : primaryGreen,
-                ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: fg,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _paymentMethodSummaryLabel(String m) {
-    switch (m) {
-      case 'cash':
-        return 'Paiement en espèces';
-      case 'wave':
-        return 'Paiement Wave';
-      case 'orange_money':
-        return 'Orange Money (indisponible)';
-      case 'free_money':
-        return 'Free Money (indisponible)';
-      default:
-        return 'Paiement Wave';
-    }
   }
 
   Widget _buildModeSelector() {
@@ -1069,7 +914,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                     const Icon(Icons.access_time, color: Colors.white, size: 16),
                     const SizedBox(width: 6),
                     Text(
-                      '$etaMinutes min',
+                      _formatTripDurationMinutes(etaMinutes),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -1551,6 +1396,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     final s = SocketService();
     s.onRideAccepted = null;
     s.onRideRefusedByDriver = null;
+    s.onRideCounterOffer = null;
   }
 
   Future<void> _drawRoute() async {
@@ -1603,16 +1449,14 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
               .round();
         }
       });
-      final detail = DirectionsService.lastFailureDetail ?? 'erreur inconnue';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text(
-              'Itinéraire détaillé indisponible ($detail). '
-              'Trajet approximatif affiché — vérifiez la clé Google (API Directions).',
+              'Itinéraire détaillé indisponible. Un trajet approximatif est affiché sur la carte.',
             ),
             backgroundColor: Colors.deepOrange,
-            duration: const Duration(seconds: 5),
+            duration: Duration(seconds: 4),
           ),
         );
       }
@@ -1730,45 +1574,6 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
               ),
             ],
             const SizedBox(height: 10),
-            // Moyen de paiement
-            _buildPaymentMethodSelector(),
-
-            if (_selectedPaymentMethod.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  if (_selectedPaymentMethod != 'cash' &&
-                      _paymentLogos[_selectedPaymentMethod] != null)
-                    Image.asset(
-                      _paymentLogos[_selectedPaymentMethod]!,
-                      width: 18,
-                      height: 18,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.account_balance_wallet,
-                        size: 18,
-                        color: primaryGreen,
-                      ),
-                    )
-                  else
-                    const Icon(
-                      Icons.payments,
-                      size: 18,
-                      color: primaryGreen,
-                    ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _paymentMethodSummaryLabel(_selectedPaymentMethod),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: accentBlack,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-
-            const SizedBox(height: 8),
 
             // Liste des véhicules avec temps d'arrivée estimé
             _buildNearbyVehiclesList(),
@@ -2102,7 +1907,6 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
           selectedRideType: _selectedRideType,
           selectedMode: _selectedMode,
           initialPrice: _customPrice,
-          initialPaymentMethod: _selectedPaymentMethod,
         ),
       ),
     );
@@ -2111,7 +1915,6 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
         _customPrice = result['price'] ?? 0;
-        _selectedPaymentMethod = result['paymentMethod'] ?? 'wave';
         if (_selectedMode != 'delivery' && _selectedRideType == 'moto') {
           final distance = _estimatedDistance <= 0 ? 0 : _estimatedDistance;
           if (distance > 0) {
@@ -2211,7 +2014,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         customPrice: (isLuxeRide || (!isMotoRide && !isLuxeRide && _customPrice > 0)) ? _customPrice : null,
         customPricePerKm: isMotoRide ? _motoPricePerKm : null,
         estimatedDistance: _estimatedDistance,
-        paymentMethod: _selectedPaymentMethod,
+        paymentMethod: 'cash',
         isUrgentDelivery: _selectedMode == 'delivery' ? _deliveryUrgent : null,
       );
 
@@ -2298,6 +2101,69 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
               );
             }
           };
+          socketService.onRideCounterOffer = (data) async {
+            if (!mounted) return;
+            final rideId = data['rideId']?.toString();
+            if (rideId == null || rideId != pendingId) return;
+
+            final add = (data['additionalAmount'] as num?)?.toInt();
+            final proposed = (data['proposedTotalPrice'] as num?)?.toInt();
+            final base = (data['baseTotalPrice'] as num?)?.toInt();
+            final driverRaw = data['driver'];
+            String driverName = 'Le chauffeur';
+            if (driverRaw is Map) {
+              final fn = driverRaw['firstName']?.toString() ?? '';
+              final ln = driverRaw['lastName']?.toString() ?? '';
+              final n = ('$fn $ln').trim();
+              if (n.isNotEmpty) driverName = n;
+            }
+
+            final accept = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Nouvelle proposition de prix'),
+                content: Text(
+                  '$driverName propose un supplément de ${add ?? '—'} FCFA '
+                  'sur votre offre (${base ?? '—'} FCFA). '
+                  'Nouveau total : ${proposed ?? '—'} FCFA.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Refuser'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(backgroundColor: primaryGreen),
+                    child: const Text('Accepter'),
+                  ),
+                ],
+              ),
+            );
+
+            if (!mounted || accept == null) return;
+            final res = await ApiService.respondToRideCounterOffer(
+              rideId: rideId,
+              accept: accept,
+            );
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  res.success
+                      ? (accept
+                          ? 'Prix mis à jour. Le chauffeur peut accepter la course.'
+                          : 'Vous avez refusé la proposition.')
+                      : res.message,
+                ),
+                backgroundColor: res.success ? primaryGreen : Colors.red,
+              ),
+            );
+            if (res.success && accept && proposed != null) {
+              setState(() => _customPrice = proposed);
+            }
+          };
           socketService.onRideAccepted = (data) {
             if (!mounted) return;
             _clearPassengerRideSocketListeners();
@@ -2314,7 +2180,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
               }
 
               Map<String, dynamic> asMap(dynamic v) {
-                if (v is Map) return Map<String, dynamic>.from(v as Map);
+                if (v is Map) return Map<String, dynamic>.from(v);
                 return {};
               }
 

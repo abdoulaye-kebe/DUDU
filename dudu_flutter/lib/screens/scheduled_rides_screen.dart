@@ -14,7 +14,6 @@ import '../services/directions_service.dart';
 import '../constants/senegal_map.dart';
 import '../services/map_style_service.dart';
 import 'package:intl/intl.dart';
-import 'mobile_payment_screen.dart';
 
 class ScheduledRidesScreen extends StatefulWidget {
   const ScheduledRidesScreen({Key? key}) : super(key: key);
@@ -37,6 +36,8 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
   final Set<Polyline> _polylines = {};
 
   String _mode = 'ride';
+  /// Pour les courses (pas livraison) : standard ou confort — aligné sur l’écran course classique.
+  String _rideVehicleType = 'standard';
   String _from = '';
   String _to = '';
   DateTime? _dateTime;
@@ -319,6 +320,22 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     );
   }
 
+  /// Affiche « X–Y min » ou « X h Y min » si la durée dépasse 60 min.
+  String _formatTripDurationRange(int lowMin, int highMin) {
+    if (lowMin <= 60 && highMin <= 60) {
+      return '$lowMin–$highMin min';
+    }
+    String f(int m) {
+      final h = m ~/ 60;
+      final mi = m % 60;
+      if (h == 0) return '$mi min';
+      if (mi == 0) return '$h h';
+      return '$h h $mi min';
+    }
+
+    return '${f(lowMin)} – ${f(highMin)}';
+  }
+
   void _setMode(String mode) {
     if (_mode == mode) return;
     setState(() {
@@ -337,6 +354,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       _estimatedDistanceKm = 0;
       _estimatedDurationMin = 0;
       _markers.clear();
+      _rideVehicleType = 'standard';
     });
     _searchDebounce?.cancel();
     _searchToken++;
@@ -794,7 +812,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
             Padding(
               padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
               child: Text(
-                '≈ ${_estimatedDistanceKm.toStringAsFixed(1)} km • ${_estimatedDurationMin}–${(_estimatedDurationMin * 1.4).round()} min',
+                '≈ ${_estimatedDistanceKm.toStringAsFixed(1)} km • ${_formatTripDurationRange(_estimatedDurationMin, (_estimatedDurationMin * 1.4).round())}',
                 style: TextStyle(
                   fontSize: 13,
                   color: Colors.grey[700],
@@ -851,6 +869,40 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
               ),
             ],
           ),
+          if (_mode == 'ride') ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Type de véhicule',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: accentBlack,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildModeChip(
+                    label: 'Standard',
+                    icon: Icons.directions_car,
+                    assetPath: 'assets/images/vehicles/standard.png',
+                    isSelected: _rideVehicleType == 'standard',
+                    onTap: () => setState(() => _rideVehicleType = 'standard'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildModeChip(
+                    label: 'Confort',
+                    icon: Icons.chair,
+                    isSelected: _rideVehicleType == 'comfort',
+                    onTap: () => setState(() => _rideVehicleType = 'comfort'),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
@@ -1006,7 +1058,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                 ),
               ),
               child: const Text(
-                'Planifier ce trajet',
+                'Confirmer la course',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -1478,100 +1530,10 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     return result == true;
   }
 
-  /// Wave (paiement en ligne via API) ou espèces au chauffeur.
-  Future<String?> _pickScheduledPaymentMethod() async {
-    final amount = _price > 0 ? _price : 2500;
-
-    return showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Mode de paiement'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: primaryGreen.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Montant',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$amount FCFA',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: primaryGreen,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Le paiement mobile intégré est disponible via Wave.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00D9A5).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.payment, color: Color(0xFF00D9A5)),
-              ),
-              title: const Text('Wave'),
-              subtitle: const Text('Paiement sécurisé (API Wave)'),
-              onTap: () => Navigator.pop(context, 'wave'),
-            ),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.payments, color: Colors.black54),
-              ),
-              title: const Text('Espèces'),
-              subtitle: const Text('Payer le chauffeur en cash le jour J'),
-              onTap: () => Navigator.pop(context, 'cash'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _savePlannedRide() async {
     if (!_canSave()) return;
 
-    final paymentMethod = await _pickScheduledPaymentMethod();
-    if (paymentMethod == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Paiement requis pour planifier une course')),
-      );
-      return;
-    }
-
-    final rideType = _mode == 'delivery' ? 'delivery' : 'standard';
-    final payAmount = _price > 0 ? _price : 2500;
+    final rideType = _mode == 'delivery' ? 'delivery' : _rideVehicleType;
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1588,7 +1550,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       rideType: rideType,
       customPrice: _price,
       scheduledFor: _dateTime!,
-      paymentMethod: paymentMethod,
+      paymentMethod: 'cash',
     );
 
     if (!mounted) return;
@@ -1608,37 +1570,6 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
         Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       }
       return;
-    }
-
-    final ride = response.data!;
-    final rideId = ride.id;
-
-    if (paymentMethod == 'wave') {
-      final payResult = await Navigator.of(context).push<dynamic>(
-        MaterialPageRoute(
-          builder: (ctx) => MobilePaymentScreen(
-            rideId: rideId,
-            amount: payAmount,
-          ),
-        ),
-      );
-
-      final paid = payResult is Map &&
-          payResult['status'] == 'completed';
-
-      if (!paid) {
-        await ApiService.cancelRide(rideId, 'Paiement non finalisé');
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Paiement non complété : la réservation a été annulée.',
-            ),
-          ),
-        );
-        await _loadScheduledRides();
-        return;
-      }
     }
 
     if (!mounted) return;

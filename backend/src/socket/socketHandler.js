@@ -244,6 +244,13 @@ module.exports = (io) => {
           });
         }
 
+        if (ride.counterOffer && ride.counterOffer.status === 'pending') {
+          return socket.emit('accept-ride-rejected', {
+            rideId,
+            message: 'Le client doit d\'abord répondre à la proposition de prix.',
+          });
+        }
+
         let activeDeliveryCount = 0;
         if (ride.rideType === 'delivery') {
           const acceptCheck = await driverCanAcceptNewDelivery(socket.driverId, ride);

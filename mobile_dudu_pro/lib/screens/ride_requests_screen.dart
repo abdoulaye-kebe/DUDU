@@ -17,7 +17,11 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
   final List<RideRequest> _pendingRequests = [];
   StreamSubscription<Map<String, dynamic>>? _rideRequestSub;
   StreamSubscription<String>? _rideClosedSub;
+  StreamSubscription<Map<String, dynamic>>? _counterOfferSub;
   Timer? _countdownTimer;
+  /// Demandes où une contre-proposition vient d’être envoyée (attente client).
+  final Set<String> _pendingCounterOfferRideIds = {};
+  static const List<int> _counterDeltas = [300, 500, 750, 1000, 1500, 2000];
 
   @override
   void initState() {
@@ -32,6 +36,8 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
       _pendingRequests.add(request);
     }
     _subscribeToSocket();
+    _counterOfferSub =
+        SocketService().counterOfferPassengerResponseStream.listen(_onCounterOfferResponse);
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() {});
     });
@@ -41,6 +47,7 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
   void dispose() {
     _rideRequestSub?.cancel();
     _rideClosedSub?.cancel();
+    _counterOfferSub?.cancel();
     _countdownTimer?.cancel();
     super.dispose();
   }
@@ -66,8 +73,66 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
       if (rideId.isEmpty) return;
       setState(() {
         _pendingRequests.removeWhere((r) => r.id == rideId);
+        _pendingCounterOfferRideIds.remove(rideId);
       });
     });
+  }
+
+  void _onCounterOfferResponse(Map<String, dynamic> data) {
+    final rideId = data['rideId']?.toString();
+    if (rideId == null || rideId.isEmpty) return;
+
+    final accepted = data['accepted'] == true;
+    final idx = _pendingRequests.indexWhere((r) => r.id == rideId);
+    if (idx < 0) return;
+
+    final pricing = data['pricing'];
+    if (accepted && pricing is Map) {
+      final total = (pricing['totalPrice'] as num?)?.round();
+      if (total != null) {
+        final prev = _pendingRequests[idx];
+        _pendingRequests[idx] = prev.copyWith(customPrice: total);
+        SocketService().patchRideRequestPricing(rideId, total);
+      }
+    }
+
+    setState(() {
+      _pendingCounterOfferRideIds.remove(rideId);
+    });
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          accepted
+              ? 'Le client a accepté le nouveau prix (${data['pricing']?['totalPrice'] ?? ''} FCFA). Vous pouvez accepter la course.'
+              : 'Le client a refusé la proposition — le prix initial reste affiché.',
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  Future<void> _submitCounterOffer(RideRequest request, int additionalAmount) async {
+    try {
+      await ApiService.submitCounterOffer(request.id, additionalAmount);
+      if (!mounted) return;
+      setState(() {
+        _pendingCounterOfferRideIds.add(request.id);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Proposition envoyée au client. En attente de sa réponse…'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
+    }
   }
 
   @override
@@ -408,6 +473,46 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
                   ),
                   const SizedBox(height: 8),
 
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Si le prix ne convient pas, proposez un supplément (max +2000 FCFA)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _counterDeltas.map((d) {
+                      final busy = _pendingCounterOfferRideIds.contains(request.id);
+                      return ActionChip(
+                        label: Text('+$d'),
+                        backgroundColor: busy ? Colors.grey[200] : Colors.green[50],
+                        onPressed: busy
+                            ? null
+                            : () => _submitCounterOffer(request, d),
+                      );
+                    }).toList(),
+                  ),
+                  if (_pendingCounterOfferRideIds.contains(request.id))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'En attente de la réponse du client…',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange[800],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+
                   // Boutons ACCEPTER / REFUSER
                   Row(
                     children: [
@@ -436,7 +541,9 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
                       Expanded(
                         flex: 2,
                         child: ElevatedButton(
-                          onPressed: () => _acceptRide(request.id),
+                          onPressed: _pendingCounterOfferRideIds.contains(request.id)
+                              ? null
+                              : () => _acceptRide(request.id),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0d5d36),
                             foregroundColor: Colors.white,
@@ -634,6 +741,26 @@ class RideRequest {
     final expiry = requestedAt.add(Duration(seconds: expiresInSeconds));
     final remaining = expiry.difference(DateTime.now());
     return remaining.isNegative ? 0 : remaining.inSeconds;
+  }
+
+  RideRequest copyWith({int? customPrice}) {
+    return RideRequest(
+      id: id,
+      passengerName: passengerName,
+      passengerPhone: passengerPhone,
+      pickup: pickup,
+      destination: destination,
+      distance: distance,
+      customPrice: customPrice ?? this.customPrice,
+      customPricePerKm: customPricePerKm,
+      rideType: rideType,
+      estimatedDuration: estimatedDuration,
+      requestedAt: requestedAt,
+      expiresInSeconds: expiresInSeconds,
+      scheduledFor: scheduledFor,
+      scheduledTimeText: scheduledTimeText,
+      isUrgentDelivery: isUrgentDelivery,
+    );
   }
 
   factory RideRequest.fromSocketData(Map<String, dynamic> data) {

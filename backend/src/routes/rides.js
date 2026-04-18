@@ -21,6 +21,9 @@ const router = express.Router();
 
 const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started'];
 
+/** Suppléments autorisés pour contre-proposition chauffeur (FCFA, vs prix client). */
+const COUNTER_OFFER_AMOUNTS = [300, 500, 750, 1000, 1500, 2000];
+
 // Fonction pour calculer la distance entre deux points (formule de Haversine)
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371; // Rayon de la Terre en km
@@ -305,6 +308,189 @@ router.post('/request', [
   }
 });
 
+// @route   POST /api/v1/rides/:id/counter-offer
+// @desc    Contre-proposition tarifaire (chauffeur, avant acceptation)
+// @access  Private (chauffeur)
+router.post('/:id/counter-offer', [
+  auth,
+  requireDriver,
+  requireActiveSubscription,
+  requireOnline,
+  requireAvailable,
+  body('additionalAmount').custom((value) => {
+    const n = Number(value);
+    return Number.isFinite(n) && COUNTER_OFFER_AMOUNTS.includes(Math.round(n));
+  }).withMessage('Supplément invalide (300 à 2000 FCFA, valeurs fixes).'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: errors.array()[0]?.msg || 'Données invalides',
+      });
+    }
+
+    const additionalAmount = Math.round(Number(req.body.additionalAmount));
+    const ride = await Ride.findById(req.params.id);
+    if (!ride) {
+      return res.status(404).json({ success: false, message: 'Course non trouvée' });
+    }
+
+    if (ride.status !== 'requested' && ride.status !== 'searching') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cette course ne peut plus recevoir de proposition',
+      });
+    }
+
+    if (ride.driver) {
+      return res.status(400).json({
+        success: false,
+        message: 'La course est déjà assignée',
+      });
+    }
+
+    if (ride.counterOffer && ride.counterOffer.status === 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Une proposition est déjà en attente de réponse du client',
+      });
+    }
+
+    const driver = await Driver.findById(req.driver._id);
+    const distance = driver.calculateDistance(
+      ride.pickup.coordinates.latitude,
+      ride.pickup.coordinates.longitude
+    );
+    if (distance > 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vous êtes trop loin du point de prise en charge',
+      });
+    }
+
+    const baseTotal = ride.pricing.totalPrice;
+    const proposedTotalPrice = baseTotal + additionalAmount;
+
+    ride.counterOffer = {
+      driver: driver._id,
+      additionalAmount,
+      proposedTotalPrice,
+      baseTotalPrice: baseTotal,
+      status: 'pending',
+      createdAt: new Date(),
+    };
+    await ride.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`passenger_${ride.passenger}`).emit('ride-counter-offer', {
+        rideId: ride._id,
+        additionalAmount,
+        proposedTotalPrice,
+        baseTotalPrice: baseTotal,
+        driver: {
+          id: driver._id,
+          firstName: driver.firstName,
+          lastName: driver.lastName,
+        },
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Proposition envoyée au client',
+      data: {
+        counterOffer: ride.counterOffer,
+        pricing: ride.pricing,
+      },
+    });
+  } catch (error) {
+    console.error('counter-offer:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur',
+    });
+  }
+});
+
+// @route   POST /api/v1/rides/:id/counter-offer/respond
+// @desc    Réponse passager à la contre-proposition
+// @access  Private (passager)
+router.post('/:id/counter-offer/respond', [auth], async (req, res) => {
+  try {
+    if (req.userId && req.userId.toString() === 'admin') {
+      return res.status(403).json({ success: false, message: 'Action non autorisée' });
+    }
+
+    const accept =
+      req.body.accept === true ||
+      req.body.accept === 'true' ||
+      req.body.accept === 1 ||
+      req.body.accept === '1';
+
+    const ride = await Ride.findById(req.params.id);
+    if (!ride) {
+      return res.status(404).json({ success: false, message: 'Course non trouvée' });
+    }
+
+    if (ride.passenger.toString() !== req.userId.toString()) {
+      return res.status(403).json({ success: false, message: 'Accès non autorisé' });
+    }
+
+    if (!ride.counterOffer || ride.counterOffer.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucune proposition en attente',
+      });
+    }
+
+    const driverId = ride.counterOffer.driver.toString();
+    const io = req.app.get('io');
+
+    if (accept) {
+      ride.pricing.totalPrice = ride.counterOffer.proposedTotalPrice;
+      if (ride.pricing.customPrice != null) {
+        ride.pricing.customPrice = ride.counterOffer.proposedTotalPrice;
+      }
+      ride.counterOffer.status = 'accepted';
+      await ride.save();
+
+      if (io) {
+        io.to(`driver_${driverId}`).emit('ride-counter-offer-passenger-responded', {
+          rideId: ride._id,
+          accepted: true,
+          pricing: ride.pricing,
+          counterOffer: ride.counterOffer,
+        });
+      }
+    } else {
+      ride.set('counterOffer', undefined);
+      await ride.save();
+
+      if (io) {
+        io.to(`driver_${driverId}`).emit('ride-counter-offer-passenger-responded', {
+          rideId: ride._id,
+          accepted: false,
+        });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: accept ? 'Nouveau prix accepté' : 'Proposition refusée',
+      data: { ride: { id: ride._id, pricing: ride.pricing, counterOffer: ride.counterOffer } },
+    });
+  } catch (error) {
+    console.error('counter-offer respond:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur interne du serveur',
+    });
+  }
+});
+
 // @route   POST /api/v1/rides/:id/accept
 // @desc    Accepter une course (chauffeur)
 // @access  Private (chauffeur en ligne)
@@ -328,6 +514,13 @@ router.post('/:id/accept', [
       return res.status(400).json({
         success: false,
         message: 'Cette course ne peut plus être acceptée'
+      });
+    }
+
+    if (ride.counterOffer && ride.counterOffer.status === 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Le client doit d\'abord répondre à la proposition de prix.',
       });
     }
 
@@ -387,7 +580,7 @@ router.post('/:id/accept', [
     const io = req.app.get('io');
     if (io) {
       // Notifier le passager que sa course a été acceptée
-      io.to(`user_${ride.passenger}`).emit('ride-accepted', {
+      io.to(`passenger_${ride.passenger}`).emit('ride-accepted', {
         rideId: ride._id,
         driver: {
           id: driver._id,
@@ -1055,8 +1248,13 @@ router.get('/:id', auth, async (req, res) => {
     // Vérifier les permissions
     const isPassenger = ride.passenger._id.toString() === req.userId.toString();
     const isDriver = ride.driver && ride.driver._id.toString() === req.userId.toString();
+    const isCounterOfferDriver =
+      !ride.driver &&
+      ride.counterOffer &&
+      ride.counterOffer.driver &&
+      ride.counterOffer.driver.toString() === req.userId.toString();
 
-    if (!isPassenger && !isDriver) {
+    if (!isPassenger && !isDriver && !isCounterOfferDriver) {
       return res.status(403).json({
         success: false,
         message: 'Accès non autorisé'
@@ -1105,7 +1303,8 @@ router.get('/:id', auth, async (req, res) => {
           completedAt: ride.completedAt,
           cancelledAt: ride.cancelledAt,
           rating: ride.rating,
-          cancellation: ride.cancellation
+          cancellation: ride.cancellation,
+          counterOffer: ride.counterOffer || null,
         }
       }
     });
