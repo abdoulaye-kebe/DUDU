@@ -14,6 +14,7 @@ const {
   buildDriverPayloadForPassenger,
   estimateArrivalMinutesToPickup,
 } = require('../utils/passengerDriverNotify');
+const { buildDriverQueryForRideType } = require('../utils/driverRideTypeMatch');
 
 module.exports = (io) => {
   // Middleware d'authentification Socket.io
@@ -153,11 +154,16 @@ module.exports = (io) => {
 
         await ride.save();
 
-        // Trouver les chauffeurs disponibles à proximité
+        const typeQuery = buildDriverQueryForRideType(rideType);
+
+        // Trouver les chauffeurs disponibles à proximité, compatibles avec le type de course
         const availableDrivers = await Driver.find({
           status: 'online',
           isAvailable: true,
+          verificationStatus: 'approved',
           'subscription.isActive': true,
+          'subscription.endDate': { $gt: new Date() },
+          ...typeQuery,
           'currentLocation.coordinates': { $exists: true },
           currentLocation: {
             $near: {

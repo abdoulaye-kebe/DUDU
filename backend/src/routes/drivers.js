@@ -475,6 +475,23 @@ router.get('/profile', auth, async (req, res) => {
 
     const driverType = driver.vehicle && driver.vehicle.category === 'moto' ? 'courier' : 'driver';
 
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const rollingWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const [todayRidesCount, weeklyRidesCount] = await Promise.all([
+      Ride.countDocuments({
+        driver: driver._id,
+        status: 'completed',
+        completedAt: { $gte: startOfToday },
+      }),
+      Ride.countDocuments({
+        driver: driver._id,
+        status: 'completed',
+        completedAt: { $gte: rollingWeekAgo },
+      }),
+    ]);
+
     // Retourner le profil complet
     res.json({
       success: true,
@@ -504,10 +521,10 @@ router.get('/profile', auth, async (req, res) => {
             cancelledRides: driver.stats?.cancelledRides || 0,
             averageRating: driver.rating || 0,
             totalEarnings: driver.earnings?.total || 0,
-            todayRides: driver.stats?.todayRides || 0,
+            todayRides: todayRidesCount,
             todayEarnings: driver.earnings?.today || 0,
-            weeklyRides: driver.stats?.weeklyRides || 0,
-            weeklyEarnings: driver.earnings?.weekly || 0,
+            weeklyRides: weeklyRidesCount,
+            weeklyEarnings: driver.earnings?.thisWeek || 0,
           },
           createdAt: driver.createdAt,
           driverType

@@ -21,6 +21,7 @@ const {
   buildDriverPayloadForPassenger,
   estimateArrivalMinutesToPickup,
 } = require('../utils/passengerDriverNotify');
+const { buildDriverQueryForRideType } = require('../utils/driverRideTypeMatch');
 const router = express.Router();
 
 const ACTIVE_RIDE_STATUSES = ['accepted', 'arriving', 'arrived', 'started'];
@@ -53,7 +54,7 @@ router.post('/request', [
   body('destination.coordinates.latitude').isFloat().withMessage('Latitude invalide'),
   body('destination.coordinates.longitude').isFloat().withMessage('Longitude invalide'),
   body('pricing.totalPrice').isFloat({ min: 0 }).withMessage('Le prix doit être positif'),
-  body('rideType').optional().isIn(['standard', 'comfort', 'women_only', 'delivery'])
+  body('rideType').optional().isIn(['standard', 'comfort', 'women_only', 'delivery', 'luxe'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -122,21 +123,13 @@ router.post('/request', [
 
     await ride.save();
 
-    // Rechercher des chauffeurs disponibles dans un rayon de 2km
+    // Chauffeurs disponibles, type de course compatible avec le véhicule / options
     const driverQuery = {
       status: 'online',
       isAvailable: true,
       verificationStatus: 'approved',
-      [`rideTypes.${rideType}`]: true,
+      ...buildDriverQueryForRideType(rideType),
     };
-
-    if (rideType === 'delivery') {
-      driverQuery['vehicle.category'] = 'moto';
-    }
-
-    if (rideType === 'women_only') {
-      driverQuery.gender = 'female';
-    }
 
     let allDrivers = await Driver.find(driverQuery);
     
@@ -167,15 +160,8 @@ router.post('/request', [
     if (availableDrivers.length === 0) {
       const fallbackQuery = {
         verificationStatus: 'approved',
-        [`rideTypes.${rideType}`]: true,
+        ...buildDriverQueryForRideType(rideType),
       };
-      if (rideType === 'delivery') {
-        fallbackQuery['vehicle.category'] = 'moto';
-      }
-
-      if (rideType === 'women_only') {
-        fallbackQuery.gender = 'female';
-      }
 
       availableDrivers = await Driver.find(fallbackQuery).limit(10);
       console.log(`🔍 Fallback: ${availableDrivers.length} chauffeurs approuvés trouvés`);
@@ -1493,40 +1479,17 @@ router.post('/create', [
     
     const searchRadius = SEARCH_RADIUS[rideType] || 5000;
     
-    // Critères de base pour tous les chauffeurs
     const baseDriverQuery = {
       status: 'online',
       isAvailable: true,
       'subscription.isActive': true,
       'subscription.endDate': { $gt: new Date() },
-      'preferences.minPrice': { $lte: totalPrice }, // Prix proposé >= prix min du chauffeur
+      'preferences.minPrice': { $lte: totalPrice },
       'location.latitude': { $exists: true, $ne: null },
-      'location.longitude': { $exists: true, $ne: null }
+      'location.longitude': { $exists: true, $ne: null },
+      ...buildDriverQueryForRideType(rideType),
     };
 
-    // Filtrer selon le type de course demandé
-    if (rideType === 'comfort') {
-      baseDriverQuery['rideTypes.comfort'] = true;
-    } else if (rideType === 'standard') {
-      baseDriverQuery['rideTypes.standard'] = true;
-    } else if (rideType === 'women_only') {
-      baseDriverQuery['rideTypes.women_only'] = true;
-      baseDriverQuery.gender = 'female';
-    } else if (rideType === 'luxe') {
-      baseDriverQuery['rideTypes.luxe'] = true;
-    }
-    
-    // Pour les livraisons, ne chercher que les motos
-    if (rideType === 'delivery') {
-      baseDriverQuery['vehicle.category'] = 'moto';
-      baseDriverQuery['rideTypes.delivery'] = true;
-    }
-
-    if (rideType === 'moto') {
-      baseDriverQuery['vehicle.category'] = 'moto';
-      baseDriverQuery['rideTypes.moto'] = true;
-    }
-    
     // Rechercher des chauffeurs disponibles
     console.log('🔍 Recherche de chauffeurs pour course PRIX LIBRE', {
       rideId,
@@ -1591,12 +1554,11 @@ router.post('/create', [
       console.log('📦 Livreurs éligibles (urgent / empilement):', availableDrivers.length);
     }
 
-    // Fallback de TEST: si aucun chauffeur trouvé, inclure automatiquement un chauffeur de test
-    // Pour les tests actuels, on utilise le chauffeur Mame Seck (+221781000734)
-    if (availableDrivers.length === 0) {
+    // Fallback de TEST (courses standard uniquement — ne pas contourner confort / luxe / femmes / livraison)
+    if (availableDrivers.length === 0 && rideType === 'standard') {
       const testDriver = await Driver.findOne({ phone: '+221781000734' });
       if (testDriver) {
-        console.log('🧪 Fallback: ajout du chauffeur de test 781000734 comme disponible pour cette course');
+        console.log('🧪 Fallback: chauffeur de test 781000734 (standard)');
         availableDrivers = [testDriver];
       } else {
         console.log('❌ Fallback: chauffeur de test 781000734 introuvable en base');
@@ -1627,11 +1589,9 @@ router.post('/create', [
     // - Quand une course est acceptée, elle disparaît pour tous les autres
     // ============================================================
     
-    // Séparer les chauffeurs par niveau de service
-    const comfortDrivers = availableDrivers.filter(d => d.rideTypes && d.rideTypes.comfort === true);
-    const standardDrivers = availableDrivers.filter(d => !d.rideTypes || d.rideTypes.comfort !== true);
-    
-    console.log(`📊 Répartition: ${comfortDrivers.length} Confort, ${standardDrivers.length} Standard`);
+    const comfortDrivers = availableDrivers.filter(
+      (d) => d.rideTypes && d.rideTypes.comfort === true
+    );
 
     // Notifier les chauffeurs via Socket.IO
     const io = req.app.get('io');
@@ -1651,14 +1611,11 @@ router.post('/create', [
       };
 
       if (rideType === 'comfort') {
-        // Course CONFORT: notifier UNIQUEMENT les chauffeurs Confort
-        console.log('🎯 Course CONFORT: notification aux chauffeurs Confort uniquement');
-        const targets = comfortDrivers.length > 0 ? comfortDrivers : availableDrivers;
-        targets.forEach(emitToDriver);
-        console.log(`📣 ${targets.length} chauffeur(s) Confort notifié(s)`);
+        console.log('🎯 Course CONFORT: uniquement chauffeurs avec rideTypes.comfort');
+        comfortDrivers.forEach(emitToDriver);
+        console.log(`📣 ${comfortDrivers.length} chauffeur(s) Confort notifié(s)`);
       } else {
-        // Course STANDARD: notifier TOUS les chauffeurs (Standard + Express) en même temps
-        console.log('📢 Course STANDARD: notification à tous les chauffeurs (Standard + Express)');
+        console.log(`📢 Course ${rideType}: notification aux chauffeurs filtrés`);
         availableDrivers.forEach(emitToDriver);
         console.log(`📣 ${availableDrivers.length} chauffeur(s) notifié(s)`);
       }

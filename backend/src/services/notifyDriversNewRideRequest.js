@@ -1,19 +1,26 @@
 const Driver = require('../models/Driver');
 const { getDriverNotifyMaxDistanceM } = require('../config/driverMatch.config');
 const { buildNewRideRequestPayload } = require('../utils/buildNewRideRequestPayload');
+const { buildDriverQueryForRideType } = require('../utils/driverRideTypeMatch');
 
 /**
- * Même recherche géo que socketHandler (request-ride) : chauffeurs en ligne à proximité du pickup.
+ * Chauffeurs en ligne, abonnement actif, vérif approuvée, type de course compatible, à proximité du pickup.
  */
 async function findNearbyAvailableDrivers(
   pickupLng,
   pickupLat,
-  maxDistanceMeters = getDriverNotifyMaxDistanceM()
+  maxDistanceMeters = getDriverNotifyMaxDistanceM(),
+  rideType = 'standard'
 ) {
+  const typeQuery = buildDriverQueryForRideType(rideType);
+
   return Driver.find({
     status: 'online',
     isAvailable: true,
+    verificationStatus: 'approved',
     'subscription.isActive': true,
+    'subscription.endDate': { $gt: new Date() },
+    ...typeQuery,
     'currentLocation.coordinates': { $exists: true },
     currentLocation: {
       $near: {
@@ -55,7 +62,8 @@ async function notifyDriversNewRideRequest(io, ride, passengerUser, options = {}
       ? Number(options.maxDistanceMeters)
       : getDriverNotifyMaxDistanceM();
 
-  const availableDrivers = await findNearbyAvailableDrivers(lng, lat, maxM);
+  const rideType = ride.rideType || 'standard';
+  const availableDrivers = await findNearbyAvailableDrivers(lng, lat, maxM, rideType);
   if (!availableDrivers.length) {
     return { notified: 0, driverIds: [] };
   }
