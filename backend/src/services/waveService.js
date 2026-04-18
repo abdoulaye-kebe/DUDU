@@ -238,6 +238,8 @@ class WaveService {
   _normalizeWebhookSecret(secret) {
     if (secret == null) return '';
     let s = String(secret).trim();
+    // BOM / retours chariot (copier-coller depuis PDF, Windows, éditeurs)
+    s = s.replace(/^\uFEFF/, '').replace(/\r/g, '').trim();
     if (
       (s.startsWith('"') && s.endsWith('"')) ||
       (s.startsWith("'") && s.endsWith("'"))
