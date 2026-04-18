@@ -7,6 +7,7 @@ import '../services/tracking_service.dart';
 import '../services/notification_service.dart';
 import '../services/directions_service.dart';
 import '../services/socket_service.dart';
+import '../services/api_service.dart';
 
 class RideTrackingScreen extends StatefulWidget {
   final Ride ride;
@@ -811,6 +812,8 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
 
   Future<void> _completeRide() async {
     try {
+      // Indispensable : finaliser côté API (avant seulement socket / UI locale).
+      await ApiService.completeRide(widget.ride.id);
       SocketService().completeRide(widget.ride.id);
       if (mounted) {
         setState(() {
@@ -820,9 +823,12 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
       await _trackingService.completeRide(widget.ride.id);
       _handleRideCompleted();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur: $e'),
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
           backgroundColor: Colors.red,
         ),
       );
