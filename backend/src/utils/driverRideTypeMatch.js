@@ -27,13 +27,22 @@ function buildDriverQueryForRideType(rideType) {
     };
   }
   if (rt === 'comfort') {
-    return { 'rideTypes.comfort': true };
+    return {
+      'vehicle.category': 'car',
+      'rideTypes.comfort': true,
+    };
   }
   if (rt === 'luxe') {
-    return { 'rideTypes.luxe': true };
+    return {
+      'vehicle.category': 'car',
+      'rideTypes.luxe': true,
+    };
   }
-  // standard (défaut) : chauffeurs avec course standard activée
-  return { 'rideTypes.standard': true };
+  // standard (défaut) : voiture uniquement — les motos (livreurs / taxi moto) ont leurs propres rideType
+  return {
+    'vehicle.category': 'car',
+    'rideTypes.standard': true,
+  };
 }
 
 module.exports = {
