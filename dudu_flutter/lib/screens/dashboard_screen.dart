@@ -379,10 +379,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
       Position position = await Geolocator.getCurrentPosition();
 
-      bool isInSenegal = position.latitude >= 12.0 &&
-          position.latitude <= 17.0 &&
-          position.longitude >= -18.0 &&
-          position.longitude <= -11.0;
+      final bool isInSenegal =
+          SenegalMap.containsCoordinates(position.latitude, position.longitude);
 
       if (!isInSenegal) {
         _useDakarAsDefault();

@@ -12,6 +12,7 @@ import '../services/socket_service.dart';
 import '../services/search_history_service.dart';
 import '../constants/map_style.dart';
 import '../constants/senegal_map.dart';
+import '../config/app_config.dart';
 import '../services/map_style_service.dart';
 import '../services/directions_service.dart';
 import '../models/ride.dart';
@@ -425,11 +426,10 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       }
 
       Position position = await Geolocator.getCurrentPosition();
-      
-      // Vérifier si la position est au Sénégal (latitude: 12-17, longitude: -18 à -11)
-      bool isInSenegal = position.latitude >= 12.0 && position.latitude <= 17.0 &&
-                         position.longitude >= -18.0 && position.longitude <= -11.0;
-      
+
+      final bool isInSenegal =
+          SenegalMap.containsCoordinates(position.latitude, position.longitude);
+
       if (!isInSenegal) {
         // Si position hors Sénégal (émulateur aux USA), utiliser Dakar
         print('⚠️ Position détectée hors Sénégal: ${position.latitude}, ${position.longitude}');
@@ -461,10 +461,9 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   }
 
   void _useDakarAsDefault() {
-    // Position par défaut: Place de l'Indépendance, Dakar
     final dakarPosition = Position(
-      latitude: 14.6928,
-      longitude: -17.4467,
+      latitude: AppConfig.defaultLatitude,
+      longitude: AppConfig.defaultLongitude,
       timestamp: DateTime.now(),
       accuracy: 0,
       altitude: 0,
@@ -474,20 +473,17 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
       altitudeAccuracy: 0,
       headingAccuracy: 0,
     );
-    
+
     setState(() {
       _currentPosition = dakarPosition;
       _pickupAddress = 'Dakar, Sénégal';
-      _pickupLatLng = const LatLng(14.6928, -17.4467);
+      _pickupLatLng = SenegalMap.dakar;
       _isLoading = false;
       _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
     });
 
     _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(
-        const LatLng(14.6928, -17.4467),
-        18.0,
-      ),
+      CameraUpdate.newLatLngZoom(SenegalMap.dakar, 18.0),
     );
   }
 
@@ -964,13 +960,13 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                 : SenegalMap.dakar,
             zoom: 18.0,
           ),
+          // Un seul style JSON (évite double application avec setMapStyle qui dégrade l’affichage sur certains appareils).
           style: kDuDuMapStyle,
           // Bornes Sénégal seules peuvent provoquer carte « vide » si la caméra est contrainte avec l’itinéraire
           cameraTargetBounds: CameraTargetBounds.unbounded,
           minMaxZoomPreference: MapStyleService.zoomPreference,
-          onMapCreated: (controller) async {
+          onMapCreated: (controller) {
             _mapController = controller;
-            await MapStyleService.apply(controller);
           },
           markers: _markers,
           polylines: _polylines,
@@ -1114,12 +1110,14 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   }
 
   void _showAddressSearch(bool isPickup) {
+    // Contexte de l’écran (sous la modale) : obligatoire après fermeture du sheet pour SnackBar / inherited widgets.
+    final hostContext = context;
     showModalBottomSheet(
-      context: context,
+      context: hostContext,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, modalSetState) => DraggableScrollableSheet(
+      builder: (_) => StatefulBuilder(
+        builder: (modalCtx, modalSetState) => DraggableScrollableSheet(
           initialChildSize: 0.9,
           minChildSize: 0.5,
           maxChildSize: 0.95,
@@ -1146,7 +1144,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                   child: Row(
                     children: [
                       IconButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.pop(modalCtx),
                         icon: const Icon(Icons.close),
                       ),
                       const Expanded(
@@ -1169,10 +1167,11 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                     padding: const EdgeInsets.all(16),
                     child: ElevatedButton.icon(
                       onPressed: () async {
-                        Navigator.pop(context);
-                        
-                        // Afficher un indicateur de chargement
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        Navigator.pop(modalCtx);
+                        if (!hostContext.mounted) return;
+                        final messenger = ScaffoldMessenger.of(hostContext);
+
+                        messenger.showSnackBar(
                           const SnackBar(
                             content: Row(
                               children: [
@@ -1188,14 +1187,14 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                             duration: Duration(seconds: 2),
                           ),
                         );
-                        
+
                         try {
-                          // Toujours essayer d'obtenir la position GPS actuelle
-                          Position position = await Geolocator.getCurrentPosition(
+                          final position = await Geolocator.getCurrentPosition(
                             desiredAccuracy: LocationAccuracy.high,
                             timeLimit: const Duration(seconds: 10),
                           );
-                          
+
+                          if (!hostContext.mounted) return;
                           print('📍 Position GPS obtenue: ${position.latitude}, ${position.longitude}');
                           
                           // Obtenir l'adresse
@@ -1203,6 +1202,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                             position.latitude,
                             position.longitude,
                           );
+
+                          if (!mounted) return;
                           
                           setState(() {
                             _currentPosition = position;
@@ -1222,9 +1223,10 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                           if (_destinationLatLng != null) {
                             _drawRoute();
                           }
-                          
-                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                          ScaffoldMessenger.of(context).showSnackBar(
+
+                          if (!hostContext.mounted) return;
+                          messenger.hideCurrentSnackBar();
+                          messenger.showSnackBar(
                             SnackBar(
                               content: Text('Position définie: $address'),
                               backgroundColor: primaryGreen,
@@ -1238,6 +1240,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                               _currentPosition!.latitude,
                               _currentPosition!.longitude,
                             );
+                            if (!mounted) return;
                             setState(() {
                               _pickupAddress = address;
                               _pickupLatLng = LatLng(
@@ -1246,12 +1249,16 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                               );
                               _addMarker(_pickupLatLng!, 'Départ', primaryGreen);
                             });
+                            if (hostContext.mounted) {
+                              messenger.hideCurrentSnackBar();
+                            }
                             if (_destinationLatLng != null) {
                               _drawRoute();
                             }
                           } else {
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            if (!hostContext.mounted) return;
+                            messenger.hideCurrentSnackBar();
+                            messenger.showSnackBar(
                               const SnackBar(
                                 content: Text('Impossible d\'obtenir votre position. Vérifiez que le GPS est activé.'),
                                 backgroundColor: Colors.red,
@@ -1376,7 +1383,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                                         title: Text(place['name']!),
                                         subtitle: Text(place['address']!),
                                         onTap: () {
-                                          Navigator.pop(context);
+                                          Navigator.pop(modalCtx);
                                           final lat = double.parse(place['lat']!);
                                           final lng = double.parse(place['lng']!);
                                           setState(() {
@@ -1415,7 +1422,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                               title: Text(suggestion.mainText),
                               subtitle: Text(suggestion.secondaryText),
                               onTap: () async {
-                                Navigator.pop(context);
+                                Navigator.pop(modalCtx);
                                 print('🔍 Suggestion sélectionnée: ${suggestion.description}');
                                 print('📍 localLat: ${suggestion.localLat}, localLng: ${suggestion.localLng}');
                                 print('🆔 placeId: ${suggestion.placeId}, isLocal: ${suggestion.isLocal}');
@@ -1441,6 +1448,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                                   }
                                 }
 
+                                if (!mounted) return;
                                 if (lat != null && lng != null) {
                                   setState(() {
                                     if (isPickup) {

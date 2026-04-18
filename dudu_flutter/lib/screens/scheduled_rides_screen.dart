@@ -12,6 +12,7 @@ import '../services/secure_auth_service.dart';
 import '../services/socket_service.dart';
 import '../services/directions_service.dart';
 import '../constants/senegal_map.dart';
+import '../config/app_config.dart';
 import '../services/map_style_service.dart';
 import 'package:intl/intl.dart';
 
@@ -435,16 +436,14 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
 
       final position = await Geolocator.getCurrentPosition();
 
-      bool isInSenegal = position.latitude >= 12.0 &&
-          position.latitude <= 17.0 &&
-          position.longitude >= -18.0 &&
-          position.longitude <= -11.0;
+      final bool isInSenegal =
+          SenegalMap.containsCoordinates(position.latitude, position.longitude);
 
       Position finalPosition = position;
       if (!isInSenegal) {
         finalPosition = Position(
-          latitude: 14.6928,
-          longitude: -17.4467,
+          latitude: AppConfig.defaultLatitude,
+          longitude: AppConfig.defaultLongitude,
           timestamp: DateTime.now(),
           accuracy: 0,
           altitude: 0,

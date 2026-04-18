@@ -27,5 +27,10 @@ abstract final class SenegalMap {
   /// Cadre la caméra sur le pays (padding des bords en pixels logiques).
   static CameraUpdate fitCountry(double paddingPx) =>
       CameraUpdate.newLatLngBounds(countryBounds, paddingPx);
+
+  /// Point dans le rectangle pays (évite l’ancienne règle `longitude <= -11` qui excluait l’est du Sénégal).
+  static bool containsCoordinates(double latitude, double longitude) {
+    return countryBounds.contains(LatLng(latitude, longitude));
+  }
 }
 
