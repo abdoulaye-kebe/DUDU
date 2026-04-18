@@ -286,15 +286,21 @@ class WaveService {
         const timestamp = timestampPart.split('=').slice(1).join('=');
         const signatures = v1Parts.map((p) => p.split('=').slice(1).join('='));
 
-        const tsNum = parseInt(timestamp, 10);
-        if (!Number.isFinite(tsNum)) return false;
+        const tsNumRaw = parseInt(timestamp, 10);
+        if (!Number.isFinite(tsNumRaw)) return false;
+        // Wave envoie en général des secondes Unix ; certains flux peuvent envoyer des ms (> 1e12).
+        let tsSecForAge = tsNumRaw;
+        if (tsNumRaw > 9999999999) {
+          tsSecForAge = Math.floor(tsNumRaw / 1000);
+        }
         const maxSkew = parseInt(process.env.WAVE_WEBHOOK_MAX_SKEW_SEC || '600', 10);
-        const ageSec = Math.abs(Math.floor(Date.now() / 1000) - tsNum);
+        const ageSec = Math.abs(Math.floor(Date.now() / 1000) - tsSecForAge);
         if (ageSec > maxSkew) {
           console.warn('⚠️ Webhook Wave : timestamp hors fenêtre (replay ?)', ageSec, 's');
           return false;
         }
 
+        // Signature : octets exacts de la chaîne t=… (inchangée), comme spécifié par Wave
         const tsBuf = Buffer.from(timestamp, 'utf8');
         const payloadBuf = Buffer.concat([tsBuf, rawBuf]);
         const keyBuf = Buffer.from(secret, 'utf8');

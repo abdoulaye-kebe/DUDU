@@ -143,6 +143,8 @@ const paymentSchema = new mongoose.Schema({
   },
   
   // Métadonnées (paiements mobile / abonnements)
+  // Important : ne pas écrire `type: String` — en Mongoose, la clé « type » est réservée et peut
+  // faire interpréter tout le bloc `metadata` comme un String (erreur validation).
   metadata: {
     ipAddress: String,
     userAgent: String,
@@ -152,7 +154,7 @@ const paymentSchema = new mongoose.Schema({
       longitude: Number,
       address: String
     },
-    type: String,
+    type: { type: String },
     subscriptionId: String,
     planType: String,
   },
