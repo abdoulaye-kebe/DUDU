@@ -6,6 +6,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 
+/// Canal Android dédié aux demandes de course (son + vibration forts).
+/// Changer l’id si les réglages canal ne s’appliquent plus (canal figé après 1ʳᵉ création).
+const String _rideRequestAndroidChannelId = 'dudu_ride_request_alert_v4';
+
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
@@ -37,6 +41,28 @@ class NotificationService {
         settings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
       );
+
+      if (Platform.isAndroid) {
+        final androidImpl = _localNotifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+        await androidImpl?.createNotificationChannel(
+          AndroidNotificationChannel(
+            _rideRequestAndroidChannelId,
+            'Demandes de course — alerte',
+            description:
+                'Sonnerie et vibration pour ne pas manquer une demande',
+            importance: Importance.max,
+            playSound: true,
+            enableVibration: true,
+            vibrationPattern: Int64List.fromList([
+              0, 500, 200, 500, 200, 500, 200, 800,
+            ]),
+            audioAttributesUsage: AudioAttributesUsage.alarm,
+          ),
+        );
+        await androidImpl?.requestNotificationsPermission();
+      }
 
       // Configuration Firebase Messaging
       await _setupFirebaseMessaging();
@@ -184,25 +210,34 @@ class NotificationService {
     required double price,
   }) async {
     final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'dudu_ride_requests',
-      'Demandes de course',
-      channelDescription: 'Son fort et vibration pour les nouvelles demandes',
+      _rideRequestAndroidChannelId,
+      'Demandes de course — alerte',
+      channelDescription:
+          'Sonnerie type alarme et vibration pour les nouvelles demandes',
       importance: Importance.max,
       priority: Priority.max,
       icon: '@mipmap/ic_launcher',
       enableVibration: true,
       playSound: true,
       showWhen: true,
+      onlyAlertOnce: false,
+      ticker: 'Nouvelle demande de course DuDu',
       vibrationPattern: Int64List.fromList([
-        0, 450, 180, 450, 180, 450, 180, 800,
+        0, 500, 200, 500, 200, 500, 200, 800, 200, 600,
       ]),
       category: AndroidNotificationCategory.call,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      visibility: NotificationVisibility.public,
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      presentBanner: true,
+      presentList: true,
+      sound: '',
+      interruptionLevel: InterruptionLevel.active,
     );
 
     final NotificationDetails details = NotificationDetails(

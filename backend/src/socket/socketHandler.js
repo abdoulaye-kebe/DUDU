@@ -19,6 +19,7 @@ const {
   sendScheduledRideAcceptedPush,
   sendScheduledPickupPhasePush,
 } = require('../utils/scheduledRidePassengerNotify');
+const notificationService = require('../services/notificationService');
 
 module.exports = (io) => {
   // Middleware d'authentification Socket.io
@@ -682,12 +683,28 @@ module.exports = (io) => {
 
         // Notifier l'autre partie
         if (isPassenger) {
-          const driverRoom = `driver_${ride.driver.toString()}`;
-          io.to(driverRoom).emit('ride-cancelled', {
-            rideId: ride._id,
-            cancelledBy: 'passenger',
-            reason
-          });
+          if (ride.driver) {
+            const driverRoom = `driver_${ride.driver.toString()}`;
+            io.to(driverRoom).emit('ride-cancelled', {
+              rideId: ride._id,
+              cancelledBy: 'passenger',
+              reason,
+            });
+            try {
+              await notificationService.sendPushToDriver(ride.driver, {
+                title: 'Course annulée par le client',
+                body: `Le client a annulé la course.${reason ? ` Motif : ${reason}` : ''}`,
+                data: {
+                  type: 'ride_cancelled_by_passenger',
+                  rideId: String(ride._id),
+                  cancelledBy: 'passenger',
+                  reason: String(reason || ''),
+                },
+              });
+            } catch (pushErr) {
+              console.error('Push annulation chauffeur (socket):', pushErr);
+            }
+          }
         } else {
           io.to(`passenger_${ride.passenger}`).emit('ride-cancelled', {
             rideId: ride._id,

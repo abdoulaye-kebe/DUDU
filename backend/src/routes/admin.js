@@ -7,6 +7,7 @@ const Ride = require('../models/Ride');
 const Payment = require('../models/Payment');
 const Subscription = require('../models/Subscription');
 const { auth, requireAdmin } = require('../middleware/auth');
+const notificationService = require('../services/notificationService');
 const router = express.Router();
 
 const normalizePhoneNumber = (phone) => {
@@ -710,6 +711,30 @@ router.put('/rides/:id/cancel', [
         reason: reasonText,
       });
       io.emit('ride-no-longer-available', { rideId: ride._id });
+      if (ride.driver) {
+        io.to(`driver_${ride.driver}`).emit('ride-cancelled', {
+          rideId: ride._id,
+          cancelledBy: 'system',
+          reason: reasonText,
+        });
+      }
+    }
+
+    if (ride.driver) {
+      try {
+        await notificationService.sendPushToDriver(ride.driver, {
+          title: 'Course annulée',
+          body: 'Une course qui vous était assignée a été annulée par le support.',
+          data: {
+            type: 'ride_cancelled_by_system',
+            rideId: String(ride._id),
+            cancelledBy: 'system',
+            reason: String(reasonText),
+          },
+        });
+      } catch (pushErr) {
+        console.error('Push annulation chauffeur (admin):', pushErr);
+      }
     }
 
     res.json({

@@ -995,6 +995,30 @@ router.post('/:id/cancel', [
         cancelledBy,
         reason,
       });
+      if (ride.driver && cancelledBy === 'passenger') {
+        io.to(`driver_${ride.driver}`).emit('ride-cancelled', {
+          rideId: ride._id,
+          cancelledBy: 'passenger',
+          reason,
+        });
+      }
+    }
+
+    if (ride.driver && cancelledBy === 'passenger') {
+      try {
+        await notificationService.sendPushToDriver(ride.driver, {
+          title: 'Course annulée par le client',
+          body: `Le client a annulé la course.${reason ? ` Motif : ${reason}` : ''}`,
+          data: {
+            type: 'ride_cancelled_by_passenger',
+            rideId: String(ride._id),
+            cancelledBy: 'passenger',
+            reason: String(reason || ''),
+          },
+        });
+      } catch (pushErr) {
+        console.error('Push annulation chauffeur (HTTP):', pushErr);
+      }
     }
 
     res.json({

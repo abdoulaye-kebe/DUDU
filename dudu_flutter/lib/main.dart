@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -22,6 +23,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await dotenv.load(fileName: 'assets/config/app.env');
+  } catch (e, st) {
+    debugPrint('⚠️ Config env introuvable ou invalide ($e)');
+    debugPrint('$st');
+  }
 
   // Sur iOS, enregistrer le handler FCM *avant* Firebase.initializeApp, sinon erreur
   // [firebase_core/not-initialized] fréquente (voir doc FlutterFire / firebase_messaging).

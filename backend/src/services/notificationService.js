@@ -1,5 +1,16 @@
 const admin = require('firebase-admin');
 const User = require('../models/User');
+const Driver = require('../models/Driver');
+
+function normalizeFcmData(data) {
+  if (!data || typeof data !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (v === undefined || v === null) continue;
+    out[k] = typeof v === 'string' ? v : String(v);
+  }
+  return out;
+}
 
 let _firebaseInitialized = false;
 
@@ -23,6 +34,52 @@ class NotificationService {
   /**
    * Envoyer une notification push à un utilisateur
    */
+  /**
+   * Push vers un chauffeur : token sur [User] lié ou sur le document [Driver].
+   */
+  async sendPushToDriver(driverId, notification) {
+    try {
+      ensureFirebaseInitialized();
+      const driver = await Driver.findById(driverId).populate('user', 'fcmToken');
+      if (!driver) {
+        return null;
+      }
+
+      let token = null;
+      if (driver.user && driver.user.fcmToken) {
+        token = driver.user.fcmToken;
+      } else if (driver.fcmToken) {
+        token = driver.fcmToken;
+      }
+      if (!token) {
+        console.log('Chauffeur sans token FCM');
+        return null;
+      }
+
+      const messageNotification = {
+        title: notification.title,
+        body: notification.body,
+      };
+
+      if (typeof notification.image === 'string' && notification.image.trim().length > 0) {
+        messageNotification.imageUrl = notification.image;
+      }
+
+      const message = {
+        notification: messageNotification,
+        data: normalizeFcmData(notification.data || {}),
+        token,
+      };
+
+      const response = await admin.messaging().send(message);
+      console.log('✅ Notification chauffeur envoyée:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Erreur notification chauffeur:', error);
+      return null;
+    }
+  }
+
   async sendPushNotification(userId, notification) {
     try {
       ensureFirebaseInitialized();
@@ -44,7 +101,7 @@ class NotificationService {
 
       const message = {
         notification: messageNotification,
-        data: notification.data || {},
+        data: normalizeFcmData(notification.data || {}),
         token: user.fcmToken,
       };
 
@@ -75,7 +132,7 @@ class NotificationService {
 
       const message = {
         notification: messageNotification,
-        data: notification.data || {},
+        data: normalizeFcmData(notification.data || {}),
         topic,
       };
 

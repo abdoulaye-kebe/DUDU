@@ -1,6 +1,14 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart'
+    show
+        debugPrint,
+        defaultTargetPlatform,
+        TargetPlatform,
+        kIsWeb,
+        ValueNotifier;
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import '../config/webrtc_ice_config.dart';
 import '../main.dart';
 
 class CallService {
@@ -15,7 +23,11 @@ class CallService {
   bool _isCaller = false;
   String? _currentRideId;
   Timer? _callTimer;
+  Timer? _statsTimer;
   Duration _callDuration = Duration.zero;
+
+  final ValueNotifier<String> mediaHealth =
+      ValueNotifier<String>('Connexion…');
 
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
@@ -55,11 +67,27 @@ class CallService {
     socket.on('call-end', _onCallEnd);
   }
 
+  Future<void> _configureNativeAudioForVoip() async {
+    if (kIsWeb) return;
+    try {
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        await Helper.setAppleAudioIOMode(
+          AppleAudioIOMode.localAndRemote,
+          preferSpeakerOutput: true,
+        );
+        await Helper.ensureAudioSession();
+        await Helper.setSpeakerphoneOn(true);
+      }
+    } catch (e, st) {
+      debugPrint('⚠️ Config audio appel: $e\n$st');
+    }
+  }
+
   Future<void> _createPeerConnection() async {
+    await _configureNativeAudioForVoip();
+
     final config = <String, dynamic>{
-      'iceServers': [
-        {'urls': 'stun:stun.l.google.com:19302'},
-      ],
+      'iceServers': buildWebRtcIceServers(),
     };
 
     _peerConnection = await createPeerConnection(config);
@@ -93,6 +121,71 @@ class CallService {
         });
       }
     };
+
+    _peerConnection!.onIceConnectionState = (RTCIceConnectionState state) {
+      debugPrint('📶 ICE: $state');
+      if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+        _showCallError('Connexion réseau de l’appel impossible.');
+      }
+    };
+
+    _peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
+      debugPrint('🔗 PeerConnection: $state');
+    };
+
+    _startAudioStatsPolling();
+  }
+
+  static int _statInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v.toString()) ?? 0;
+  }
+
+  static ({int inBytes, int outBytes}) _audioRtpBytes(List<StatsReport> reports) {
+    var inB = 0;
+    var outB = 0;
+    for (final r in reports) {
+      final v = r.values;
+      final kind = (v['kind'] ?? v['mediaType'])?.toString() ?? '';
+      if (kind != 'audio') continue;
+      if (r.type == 'inbound-rtp') {
+        inB += _statInt(v['bytesReceived']);
+      } else if (r.type == 'outbound-rtp') {
+        outB += _statInt(v['bytesSent']);
+      }
+    }
+    return (inBytes: inB, outBytes: outB);
+  }
+
+  void _startAudioStatsPolling() {
+    _statsTimer?.cancel();
+    _statsTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      final pc = _peerConnection;
+      if (pc == null) return;
+      try {
+        final reports = await pc.getStats();
+        final s = _audioRtpBytes(reports);
+        debugPrint(
+          '🎙️ RTP audio — envoyé: ${s.outBytes} o, reçu: ${s.inBytes} o',
+        );
+        if (s.inBytes > 0 && s.outBytes > 0) {
+          mediaHealth.value =
+              'Voix OK — échange actif (↑ ${s.outBytes} o / ↓ ${s.inBytes} o)';
+        } else if (s.outBytes > 0) {
+          mediaHealth.value =
+              'Micro actif — en attente de l’audio distant (↓ 0 o)';
+        } else if (s.inBytes > 0) {
+          mediaHealth.value =
+              'Réception OK — vérifiez le micro (↑ 0 o)';
+        } else {
+          mediaHealth.value = 'Négociation / média…';
+        }
+      } catch (e, st) {
+        debugPrint('⚠️ getStats: $e\n$st');
+      }
+    });
   }
 
   Future<void> startCall(String rideId, dynamic socket) async {
@@ -172,7 +265,10 @@ class CallService {
   void _disposeCall() {
     _callTimer?.cancel();
     _callTimer = null;
+    _statsTimer?.cancel();
+    _statsTimer = null;
     _callDuration = Duration.zero;
+    mediaHealth.value = 'Connexion…';
 
     _peerConnection?.close();
     _peerConnection = null;
@@ -230,6 +326,17 @@ class CallService {
                       final minutes = _callDuration.inMinutes.remainder(60).toString().padLeft(2, '0');
                       final seconds = _callDuration.inSeconds.remainder(60).toString().padLeft(2, '0');
                       return Text('$minutes:$seconds');
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder<String>(
+                    valueListenable: mediaHealth,
+                    builder: (context, status, _) {
+                      return Text(
+                        status,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      );
                     },
                   ),
                 ],
