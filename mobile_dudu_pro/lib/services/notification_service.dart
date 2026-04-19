@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 
 /// Canal Android dédié aux demandes de course (son + vibration forts).
 /// Changer l’id si les réglages canal ne s’appliquent plus (canal figé après 1ʳᵉ création).
-const String _rideRequestAndroidChannelId = 'dudu_ride_request_alert_v4';
+const String _rideRequestAndroidChannelId = 'dudu_ride_request_alert_v5';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -58,7 +58,7 @@ class NotificationService {
             vibrationPattern: Int64List.fromList([
               0, 500, 200, 500, 200, 500, 200, 800,
             ]),
-            audioAttributesUsage: AudioAttributesUsage.alarm,
+            audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
           ),
         );
         await androidImpl?.requestNotificationsPermission();
@@ -226,7 +226,7 @@ class NotificationService {
         0, 500, 200, 500, 200, 500, 200, 800, 200, 600,
       ]),
       category: AndroidNotificationCategory.call,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
+      audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
       visibility: NotificationVisibility.public,
     );
 
@@ -236,7 +236,6 @@ class NotificationService {
       presentSound: true,
       presentBanner: true,
       presentList: true,
-      sound: '',
       interruptionLevel: InterruptionLevel.active,
     );
 

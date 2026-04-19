@@ -1,4 +1,6 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 
@@ -19,15 +21,23 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _nationalIdController = TextEditingController();
-  final _licenseNumberController = TextEditingController();
   final _vehicleMakeController = TextEditingController();
   final _vehicleModelController = TextEditingController();
   final _vehicleYearController = TextEditingController();
   final _vehicleColorController = TextEditingController();
   final _vehiclePlateController = TextEditingController();
-  final _insuranceController = TextEditingController();
-  final _technicalInspectionController = TextEditingController();
+
+  /// Chemins locaux des fichiers (multipart) — clés alignées sur le backend.
+  final Map<String, String?> _docPaths = {
+    'nationalIdFront': null,
+    'nationalIdBack': null,
+    'licenseFront': null,
+    'licenseBack': null,
+    'greyCardFront': null,
+    'greyCardBack': null,
+    'insuranceFile': null,
+    'technicalInspectionFile': null,
+  };
 
   DateTime? _dateOfBirth;
   DateTime? _licenseExpiry;
@@ -50,15 +60,14 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
       _emailController.clear();
       _passwordController.clear();
       _confirmPasswordController.clear();
-      _nationalIdController.clear();
-      _licenseNumberController.clear();
+      for (final k in _docPaths.keys.toList()) {
+        _docPaths[k] = null;
+      }
       _vehicleMakeController.clear();
       _vehicleModelController.clear();
       _vehicleYearController.clear();
       _vehicleColorController.clear();
       _vehiclePlateController.clear();
-      _insuranceController.clear();
-      _technicalInspectionController.clear();
 
       _dateOfBirth = null;
       _licenseExpiry = null;
@@ -79,16 +88,111 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _nationalIdController.dispose();
-    _licenseNumberController.dispose();
     _vehicleMakeController.dispose();
     _vehicleModelController.dispose();
     _vehicleYearController.dispose();
     _vehicleColorController.dispose();
     _vehiclePlateController.dispose();
-    _insuranceController.dispose();
-    _technicalInspectionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickScan(String fieldKey) async {
+    final r = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+    );
+    if (r != null && r.files.isNotEmpty) {
+      final path = r.files.single.path;
+      if (path != null) {
+        setState(() => _docPaths[fieldKey] = path);
+      }
+    }
+  }
+
+  Future<void> _pickInsuranceOrWord() async {
+    final r = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx'],
+      allowMultiple: false,
+    );
+    if (r != null && r.files.isNotEmpty) {
+      final path = r.files.single.path;
+      if (path != null) {
+        setState(() => _docPaths['insuranceFile'] = path);
+      }
+    }
+  }
+
+  Future<void> _pickTechnicalOptional() async {
+    final r = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
+      allowMultiple: false,
+    );
+    if (r != null && r.files.isNotEmpty) {
+      final path = r.files.single.path;
+      if (path != null) {
+        setState(() => _docPaths['technicalInspectionFile'] = path);
+      }
+    }
+  }
+
+  Widget _buildDocTile({
+    required String label,
+    required String fieldKey,
+    required VoidCallback onTap,
+  }) {
+    final path = _docPaths[fieldKey];
+    final name = path != null ? p.basename(path) : 'Toucher pour choisir un fichier';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                const Icon(Icons.upload_file, color: Color(0xFF0d5d36)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: path != null ? Colors.black87 : Colors.grey[600],
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                if (path != null)
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => setState(() => _docPaths[fieldKey] = null),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _selectDate(BuildContext context, {required String field}) async {
@@ -142,15 +246,31 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
       setState(() => _errorMessage = 'Vous devez accepter les conditions d\'utilisation.');
       return;
     }
-    if (_dateOfBirth == null ||
-        _licenseExpiry == null ||
-        _insuranceExpiry == null ||
-        _technicalInspectionExpiry == null) {
+    if (_dateOfBirth == null || _licenseExpiry == null) {
       setState(() {
         _errorMessage =
-            'Veuillez renseigner toutes les dates obligatoires (naissance, permis, assurance, contrôle technique).';
+            'Veuillez renseigner la date de naissance et la date d’expiration du permis.';
       });
       return;
+    }
+
+    const requiredFiles = [
+      'nationalIdFront',
+      'nationalIdBack',
+      'licenseFront',
+      'licenseBack',
+      'greyCardFront',
+      'greyCardBack',
+      'insuranceFile',
+    ];
+    for (final k in requiredFiles) {
+      if (_docPaths[k] == null || _docPaths[k]!.isEmpty) {
+        setState(() {
+          _errorMessage =
+              'Veuillez joindre tous les documents (CNI recto/verso, permis recto/verso, carte grise recto/verso, assurance PDF ou Word).';
+        });
+        return;
+      }
     }
 
     setState(() {
@@ -167,22 +287,19 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
       'password': _passwordController.text.trim(),
       'dateOfBirth': isoDay(_dateOfBirth!),
       'gender': _gender,
-      'nationalId': _nationalIdController.text.trim(),
       'address': {
         'city': 'Dakar',
         'region': 'Dakar',
         'country': 'Sénégal',
       },
       'driverLicense': {
-        'number': _licenseNumberController.text.trim(),
         'expiryDate': isoDay(_licenseExpiry!),
         'category': _isMotoCourier ? 'A' : 'B',
       },
-      'documents': {
-        'insurance': _insuranceController.text.trim(),
-        'insuranceExpiryDate': isoDay(_insuranceExpiry!),
-        'technicalInspection': _technicalInspectionController.text.trim(),
-        'technicalInspectionExpiryDate': isoDay(_technicalInspectionExpiry!),
+      'documents': <String, dynamic>{
+        if (_insuranceExpiry != null) 'insuranceExpiryDate': isoDay(_insuranceExpiry!),
+        if (_technicalInspectionExpiry != null)
+          'technicalInspectionExpiryDate': isoDay(_technicalInspectionExpiry!),
       },
       'vehicle': {
         'make': _vehicleMakeController.text.trim(),
@@ -206,7 +323,10 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
     }
 
     try {
-      final response = await ApiService.applyAsDriver(payload);
+      final response = await ApiService.applyAsDriver(
+        data: payload,
+        filesByFieldName: Map<String, String?>.from(_docPaths),
+      );
       if (!mounted) return;
 
       if (response['success'] == true) {
@@ -549,11 +669,6 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                     onChanged: (value) => setState(() => _gender = value ?? 'male'),
                   ),
                 ),
-                _buildTextField(
-                  _nationalIdController,
-                  label: 'Numéro CNI',
-                  icon: Icons.badge_outlined,
-                ),
                 const SizedBox(height: 24),
 
                 // Sécurité
@@ -600,48 +715,107 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                     color: Color(0xFF0d5d36),
                   ),
                 ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  _licenseNumberController,
-                  label: 'Numéro de permis',
-                  icon: Icons.credit_card,
+                const SizedBox(height: 8),
+                const Text(
+                  'Scannez le permis (recto et verso) — pas besoin de saisir le numéro.',
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
                 ),
+                const SizedBox(height: 12),
                 _buildDateField(
                   label: 'Date d\'expiration du permis',
                   icon: Icons.event,
                   selectedDate: _licenseExpiry,
                   field: 'licenseExpiry',
                 ),
+                _buildDocTile(
+                  label: 'Permis — recto (photo)',
+                  fieldKey: 'licenseFront',
+                  onTap: () => _pickScan('licenseFront'),
+                ),
+                _buildDocTile(
+                  label: 'Permis — verso (photo)',
+                  fieldKey: 'licenseBack',
+                  onTap: () => _pickScan('licenseBack'),
+                ),
                 const SizedBox(height: 24),
 
                 // Documents
                 const Text(
-                  'Documents',
+                  'Pièces d’identité & véhicule',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF0d5d36),
                   ),
                 ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  _insuranceController,
-                  label: 'Assurance',
-                  icon: Icons.verified_user_outlined,
+                const SizedBox(height: 8),
+                const Text(
+                  'CNI et carte grise : photos recto / verso uniquement.',
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+                const SizedBox(height: 12),
+                _buildDocTile(
+                  label: 'Carte d’identité — recto',
+                  fieldKey: 'nationalIdFront',
+                  onTap: () => _pickScan('nationalIdFront'),
+                ),
+                _buildDocTile(
+                  label: 'Carte d’identité — verso',
+                  fieldKey: 'nationalIdBack',
+                  onTap: () => _pickScan('nationalIdBack'),
+                ),
+                _buildDocTile(
+                  label: 'Carte grise — recto',
+                  fieldKey: 'greyCardFront',
+                  onTap: () => _pickScan('greyCardFront'),
+                ),
+                _buildDocTile(
+                  label: 'Carte grise — verso',
+                  fieldKey: 'greyCardBack',
+                  onTap: () => _pickScan('greyCardBack'),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Assurance',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0d5d36),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Attestation : fichier PDF ou Word (.doc, .docx).',
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+                const SizedBox(height: 8),
+                _buildDocTile(
+                  label: 'Attestation d’assurance (PDF ou Word)',
+                  fieldKey: 'insuranceFile',
+                  onTap: _pickInsuranceOrWord,
                 ),
                 _buildDateField(
-                  label: 'Date de validité de l\'assurance',
+                  label: 'Date de fin de validité assurance (optionnel)',
                   icon: Icons.event,
                   selectedDate: _insuranceExpiry,
                   field: 'insuranceExpiry',
                 ),
-                _buildTextField(
-                  _technicalInspectionController,
-                  label: 'Contrôle technique',
-                  icon: Icons.build_circle_outlined,
+                const SizedBox(height: 12),
+                const Text(
+                  'Contrôle technique (optionnel)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0d5d36),
+                  ),
+                ),
+                _buildDocTile(
+                  label: 'Contrôle technique — scan ou PDF (optionnel)',
+                  fieldKey: 'technicalInspectionFile',
+                  onTap: _pickTechnicalOptional,
                 ),
                 _buildDateField(
-                  label: 'Date d\'expiration du contrôle technique',
+                  label: 'Date d’expiration CT (optionnel)',
                   icon: Icons.event,
                   selectedDate: _technicalInspectionExpiry,
                   field: 'technicalInspectionExpiry',

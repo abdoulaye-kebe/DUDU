@@ -36,6 +36,7 @@ class AppConfig {
 
   /// À appeler depuis [main] après [dotenv.load], si le fichier `.env` est présent.
   static void loadFromDotenv() {
+    if (!dotenv.isInitialized) return;
     final v = dotenv.maybeGet('DUDU_API_ORIGIN')?.trim();
     if (v != null && v.isNotEmpty) {
       _dotenvOrigin = v.endsWith('/') ? v.substring(0, v.length - 1) : v;

@@ -2366,8 +2366,16 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
                   ),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(ctx, true),
-                    style: ElevatedButton.styleFrom(backgroundColor: primaryGreen),
-                    child: const Text('Accepter'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryGreen.withOpacity(0.22),
+                      foregroundColor: primaryGreen,
+                      elevation: 0,
+                      side: BorderSide(color: primaryGreen.withOpacity(0.85)),
+                    ),
+                    child: const Text(
+                      'Accepter',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ],
               ),

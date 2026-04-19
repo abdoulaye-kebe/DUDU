@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_BASE_URL } from '../config';
 import { 
   Car, 
   FileText, 
@@ -17,6 +18,18 @@ import {
   MessageSquare,
   Trash2
 } from 'lucide-react';
+
+function staticFileOrigin() {
+  return API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+}
+
+function documentHref(path) {
+  if (!path || typeof path !== 'string') return null;
+  const p = path.trim();
+  if (!p || p === 'SCAN_CT_OPTIONNEL') return null;
+  if (/^https?:\/\//i.test(p)) return p;
+  return `${staticFileOrigin()}${p.startsWith('/') ? p : `/${p}`}`;
+}
 
 function DriverApplicationCard({ driver, onApprove, onReject, onDeleteRecord, delay = 0 }) {
   const [showValidationForm, setShowValidationForm] = useState(false);
@@ -158,6 +171,39 @@ function DriverApplicationCard({ driver, onApprove, onReject, onDeleteRecord, de
               </span>
             </div>
           </div>
+          {(() => {
+            const d = driver.documents || {};
+            const rows = [
+              ['CNI recto', documentHref(d.nationalIdScanFront)],
+              ['CNI verso', documentHref(d.nationalIdScanBack)],
+              ['Permis recto', documentHref(d.driverLicensePhoto)],
+              ['Permis verso', documentHref(d.driverLicenseScanVerso)],
+              ['Carte grise recto', documentHref(d.vehicleRegistration)],
+              ['Carte grise verso', documentHref(d.vehicleRegistrationVerso)],
+              ['Assurance', documentHref(d.insuranceDocument || d.insurance)],
+              ['Contrôle technique', documentHref(d.technicalInspection)],
+            ].filter(([, url]) => url);
+            const vPhotos = Array.isArray(driver.vehicle?.photos) ? driver.vehicle.photos : [];
+            vPhotos.forEach((u, i) => {
+              const h = documentHref(u);
+              if (h) rows.push([`Photo véhicule ${vPhotos.length > 1 ? i + 1 : ''}`.trim(), h]);
+            });
+            if (rows.length === 0) return null;
+            return (
+              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e9ecef' }}>
+                <div style={{ fontWeight: 600, marginBottom: '8px', color: '#333' }}>Fichiers candidature</div>
+                <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '13px', lineHeight: 1.6 }}>
+                  {rows.map(([label, url]) => (
+                    <li key={label + url}>
+                      <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#00A651', fontWeight: 500 }}>
+                        {label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Preferences */}

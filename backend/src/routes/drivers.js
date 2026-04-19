@@ -1,4 +1,8 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+const multer = require('multer');
 const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -7,6 +11,51 @@ const User = require('../models/User');
 const Ride = require('../models/Ride');
 const { auth, requireDriver, requireActiveSubscription, requireLocation, requireOnline, requireAvailable } = require('../middleware/auth');
 const router = express.Router();
+
+const DRIVER_APPLY_UPLOAD_SUBDIR = 'uploads/driver-apply';
+const DRIVER_APPLY_DIR = path.join(process.cwd(), 'public', DRIVER_APPLY_UPLOAD_SUBDIR);
+
+function ensureDriverApplyUploadDir() {
+  try {
+    fs.mkdirSync(DRIVER_APPLY_DIR, { recursive: true });
+  } catch (e) {
+    console.error('ensureDriverApplyUploadDir:', e);
+  }
+}
+
+const driverApplyStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    ensureDriverApplyUploadDir();
+    cb(null, DRIVER_APPLY_DIR);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    cb(null, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`);
+  },
+});
+
+const uploadDriverApply = multer({
+  storage: driverApplyStorage,
+  limits: { fileSize: 12 * 1024 * 1024 },
+});
+
+const uploadDriverApplyFields = uploadDriverApply.fields([
+  { name: 'nationalIdFront', maxCount: 1 },
+  { name: 'nationalIdBack', maxCount: 1 },
+  { name: 'licenseFront', maxCount: 1 },
+  { name: 'licenseBack', maxCount: 1 },
+  { name: 'greyCardFront', maxCount: 1 },
+  { name: 'greyCardBack', maxCount: 1 },
+  { name: 'insuranceFile', maxCount: 1 },
+  { name: 'technicalInspectionFile', maxCount: 1 },
+  { name: 'vehiclePhoto', maxCount: 1 },
+]);
+
+function relUploadUrl(files, field) {
+  const arr = files && files[field];
+  if (!arr || !arr[0]) return null;
+  return `/${DRIVER_APPLY_UPLOAD_SUBDIR}/${arr[0].filename}`;
+}
 
 const normalizePhoneNumber = (phone) => {
   if (!phone) return null;
@@ -181,36 +230,43 @@ router.post('/login', async (req, res) => {
 });
 
 // @route   POST /api/v1/drivers/apply
-// @desc    Soumettre une candidature chauffeur
+// @desc    Soumettre une candidature chauffeur (multipart : scans CNI / permis / carte grise recto-verso, assurance PDF ou Word)
 // @access  Public
-router.post('/apply', [
-  body('firstName').trim().isLength({ min: 2 }).withMessage('Le prénom est requis'),
-  body('lastName').trim().isLength({ min: 2 }).withMessage('Le nom de famille est requis'),
-  body('phone').trim().isLength({ min: 9 }).withMessage('Téléphone requis'),
-  body('email').optional().isEmail().withMessage('Email invalide'),
-  body('password').isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
-  body('dateOfBirth').isISO8601().withMessage('Date de naissance invalide'),
-  body('gender').isIn(['male', 'female', 'other']).withMessage('Genre invalide'),
-  body('nationalId').notEmpty().withMessage('La CNI est requise'),
-  body('driverLicense.number').notEmpty().withMessage('Le numéro de permis est requis'),
-  body('driverLicense.expiryDate').isISO8601().withMessage('La date d\'expiration du permis est requise'),
-  body('vehicle.make').notEmpty().withMessage('La marque du véhicule est requise'),
-  body('vehicle.model').notEmpty().withMessage('Le modèle du véhicule est requis'),
-  body('vehicle.year').isInt({ min: 1990, max: new Date().getFullYear() + 1 }).withMessage('Année du véhicule invalide'),
-  body('vehicle.color').notEmpty().withMessage('La couleur du véhicule est requise'),
-  body('vehicle.plateNumber').notEmpty().withMessage('Le numéro de plaque est requis'),
-  body('documents.insurance').notEmpty().withMessage("L'assurance est requise"),
-  body('documents.insuranceExpiryDate').isISO8601().withMessage("La date de validité de l'assurance est invalide"),
-  body('documents.technicalInspection').notEmpty().withMessage('Le contrôle technique est requis'),
-  body('documents.technicalInspectionExpiryDate').isISO8601().withMessage("La date d'expiration du contrôle technique est invalide"),
-], async (req, res) => {
+// @body    Champ texte "data" = JSON (firstName, lastName, phone, password, …) + fichiers nationalIdFront, nationalIdBack, licenseFront, licenseBack, greyCardFront, greyCardBack, insuranceFile [, technicalInspectionFile, vehiclePhoto]
+router.post('/apply', uploadDriverApplyFields, async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    let body;
+    try {
+      const raw = req.body.data;
+      if (!raw || typeof raw !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'Envoi multipart requis : champ "data" (JSON) + fichiers scans.',
+        });
+      }
+      body = JSON.parse(raw);
+    } catch (e) {
       return res.status(400).json({
         success: false,
-        message: 'Données invalides',
-        errors: errors.array()
+        message: 'Le champ "data" doit être un JSON valide.',
+      });
+    }
+
+    const files = req.files || {};
+    const requiredScanFields = [
+      'nationalIdFront',
+      'nationalIdBack',
+      'licenseFront',
+      'licenseBack',
+      'greyCardFront',
+      'greyCardBack',
+      'insuranceFile',
+    ];
+    const missing = requiredScanFields.filter((f) => !relUploadUrl(files, f));
+    if (missing.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Fichiers manquants : ${missing.join(', ')}`,
       });
     }
 
@@ -222,26 +278,48 @@ router.post('/apply', [
       password,
       dateOfBirth,
       gender,
-      nationalId,
       address = {},
       driverLicense,
       vehicle,
       rideTypes = {},
       preferences = {},
       documents = {},
-    } = req.body;
+    } = body;
+
+    if (!firstName || String(firstName).trim().length < 2
+      || !lastName || String(lastName).trim().length < 2
+      || !phone || String(phone).trim().length < 9
+      || !password || String(password).length < 6
+      || !dateOfBirth || !gender
+      || !driverLicense?.expiryDate
+      || !vehicle?.make || !vehicle?.model || !vehicle?.plateNumber || !vehicle?.color) {
+      return res.status(400).json({
+        success: false,
+        message: 'Informations personnelles ou véhicule incomplètes.',
+      });
+    }
+
+    const yearNum = parseInt(vehicle.year, 10);
+    const yMax = new Date().getFullYear() + 1;
+    if (!Number.isFinite(yearNum) || yearNum < 1990 || yearNum > yMax) {
+      return res.status(400).json({
+        success: false,
+        message: 'Année du véhicule invalide.',
+      });
+    }
+
+    const scanToken = () => crypto.randomBytes(8).toString('hex');
+    const nationalId = `SCAN-CNI-${scanToken()}`;
+    const licenseNumber = `SCAN-PERMIS-${scanToken()}`;
 
     const normalizedVehicleCategory = vehicle?.category || 'car';
     let normalizedVehicleType = vehicle?.type;
     if (normalizedVehicleCategory === 'moto') {
-      // Certains clients envoient 'motorbike', mais le type interne attendu est 'moto_delivery'
       if (!normalizedVehicleType || normalizedVehicleType === 'motorbike') {
         normalizedVehicleType = 'moto_delivery';
       }
-    } else {
-      if (!normalizedVehicleType) {
-        normalizedVehicleType = 'sedan';
-      }
+    } else if (!normalizedVehicleType) {
+      normalizedVehicleType = 'sedan';
     }
 
     const normalizedPhone = normalizePhoneNumber(phone);
@@ -253,57 +331,73 @@ router.post('/apply', [
       $or: [
         { phone: normalizedPhone },
         normalizedEmail ? { email: normalizedEmail } : null,
-        nationalId ? { nationalId } : null
-      ].filter(Boolean)
+      ].filter(Boolean),
     });
 
     if (duplicate) {
       return res.status(400).json({
         success: false,
-        message: 'Un compte chauffeur existe déjà avec ces informations.'
+        message: 'Un compte chauffeur existe déjà avec ce téléphone ou cet email.',
       });
     }
 
+    const insuranceUrl = relUploadUrl(files, 'insuranceFile');
+    const techUrl = relUploadUrl(files, 'technicalInspectionFile');
+    const vehiclePhotoUrl = relUploadUrl(files, 'vehiclePhoto');
+
+    const insuranceExpiry = documents.insuranceExpiryDate
+      ? new Date(documents.insuranceExpiryDate)
+      : new Date(Date.now() + 365 * 864e5);
+    const techExpiry = documents.technicalInspectionExpiryDate
+      ? new Date(documents.technicalInspectionExpiryDate)
+      : new Date(Date.now() + 730 * 864e5);
+
     const driverData = {
-      firstName,
-      lastName,
+      firstName: String(firstName).trim(),
+      lastName: String(lastName).trim(),
       phone: normalizedPhone,
       password,
-      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+      dateOfBirth: new Date(dateOfBirth),
       gender,
       nationalId,
       address: {
         street: address.street,
-        city: address.city,
-        region: address.region,
+        city: address.city || 'Dakar',
+        region: address.region || 'Dakar',
         country: address.country || 'Sénégal',
-        postalCode: address.postalCode
+        postalCode: address.postalCode,
       },
       driverLicense: {
-        number: driverLicense.number,
+        number: licenseNumber,
         expiryDate: new Date(driverLicense.expiryDate),
         issueDate: driverLicense.issueDate ? new Date(driverLicense.issueDate) : undefined,
-        category: driverLicense.category || 'B'
+        category: driverLicense.category || (normalizedVehicleCategory === 'moto' ? 'A' : 'B'),
       },
       vehicle: {
         make: vehicle.make,
         model: vehicle.model,
-        year: parseInt(vehicle.year, 10),
+        year: yearNum,
         color: vehicle.color,
-        plateNumber: vehicle.plateNumber?.toUpperCase(),
+        plateNumber: String(vehicle.plateNumber).toUpperCase(),
         category: normalizedVehicleCategory,
         type: normalizedVehicleType,
         capacity: vehicle.capacity || (normalizedVehicleCategory === 'moto' ? 1 : 4),
         hasAirConditioning: vehicle.hasAirConditioning || false,
-        features: vehicle.features || []
+        features: vehicle.features || [],
+        photos: vehiclePhotoUrl ? [vehiclePhotoUrl] : (vehicle.photos && Array.isArray(vehicle.photos) ? vehicle.photos : []),
       },
       documents: {
-        insurance: documents.insurance,
-        insuranceExpiryDate: new Date(documents.insuranceExpiryDate),
-        technicalInspection: documents.technicalInspection,
-        technicalInspectionExpiryDate: new Date(documents.technicalInspectionExpiryDate),
-        driverLicensePhoto: documents.driverLicensePhoto,
-        vehicleRegistration: documents.vehicleRegistration,
+        nationalIdScanFront: relUploadUrl(files, 'nationalIdFront'),
+        nationalIdScanBack: relUploadUrl(files, 'nationalIdBack'),
+        driverLicensePhoto: relUploadUrl(files, 'licenseFront'),
+        driverLicenseScanVerso: relUploadUrl(files, 'licenseBack'),
+        vehicleRegistration: relUploadUrl(files, 'greyCardFront'),
+        vehicleRegistrationVerso: relUploadUrl(files, 'greyCardBack'),
+        insurance: insuranceUrl,
+        insuranceDocument: insuranceUrl,
+        insuranceExpiryDate: insuranceExpiry,
+        technicalInspection: techUrl || 'SCAN_CT_OPTIONNEL',
+        technicalInspectionExpiryDate: techExpiry,
         criminalRecord: documents.criminalRecord,
       },
       rideTypes: {
@@ -312,18 +406,18 @@ router.post('/apply', [
         luxe: rideTypes.luxe ?? false,
         delivery: normalizedVehicleCategory === 'moto',
         moto: normalizedVehicleCategory === 'moto',
-        women_only: rideTypes.women_only ?? rideTypes.womenOnly ?? false
+        women_only: rideTypes.women_only ?? rideTypes.womenOnly ?? false,
       },
       preferences: {
-        maxDistance: preferences.maxDistance ?? 10,
-        minPrice: preferences.minPrice ?? 1000,
+        maxDistance: preferences.maxDistance ?? (normalizedVehicleCategory === 'moto' ? 20 : 10),
+        minPrice: preferences.minPrice ?? (normalizedVehicleCategory === 'moto' ? 500 : 1000),
         acceptExpressRides: preferences.acceptExpressRides ?? true,
-        acceptLuggage: preferences.acceptLuggage ?? false
+        acceptLuggage: preferences.acceptLuggage ?? false,
       },
       status: 'pending',
       isAvailable: false,
       isVerified: false,
-      verificationStatus: 'pending'
+      verificationStatus: 'pending',
     };
 
     if (normalizedEmail) {
@@ -331,19 +425,17 @@ router.post('/apply', [
     }
 
     const driver = new Driver(driverData);
-
     await driver.save();
 
-    // Générer un token JWT pour permettre l'accès immédiat
     const token = jwt.sign(
-      { 
-        id: driver._id, 
+      {
+        id: driver._id,
         phone: driver.phone,
         role: 'driver',
-        isVerified: driver.isVerified
+        isVerified: driver.isVerified,
       },
       process.env.JWT_SECRET || 'dudu-secret-key-2024',
-      { expiresIn: '30d' }
+      { expiresIn: '30d' },
     );
 
     res.status(201).json({
@@ -357,8 +449,8 @@ router.post('/apply', [
         phone: driver.phone,
         email: driver.email,
         isVerified: driver.isVerified,
-        verificationStatus: driver.verificationStatus
-      }
+        verificationStatus: driver.verificationStatus,
+      },
     });
   } catch (error) {
     console.error('Erreur lors de la candidature chauffeur:', error);
@@ -368,19 +460,19 @@ router.post('/apply', [
       if (keyValue && Object.prototype.hasOwnProperty.call(keyValue, 'email') && keyValue.email == null) {
         return res.status(400).json({
           success: false,
-          message: 'Impossible de créer un compte sans email (index email unique mal configuré en base). Contactez l\'administrateur pour corriger l\'index.'
+          message: 'Impossible de créer un compte sans email (index email unique mal configuré en base). Contactez l\'administrateur pour corriger l\'index.',
         });
       }
 
       return res.status(400).json({
         success: false,
-        message: 'Un compte existe déjà avec ces informations.'
+        message: 'Un compte existe déjà avec ces informations.',
       });
     }
 
     res.status(500).json({
       success: false,
-      message: 'Erreur interne du serveur'
+      message: 'Erreur interne du serveur',
     });
   }
 });

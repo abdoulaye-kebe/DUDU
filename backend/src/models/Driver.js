@@ -365,12 +365,17 @@ const driverSchema = new mongoose.Schema({
   
   // Documents et vérifications (tous optionnels pour permettre création progressive)
   documents: {
+    nationalIdScanFront: String,
+    nationalIdScanBack: String,
     driverLicensePhoto: String,
+    driverLicenseScanVerso: String,
     vehicleRegistration: String,
+    vehicleRegistrationVerso: String,
     insurance: {
       type: String,
       required: false,
     },
+    insuranceDocument: String,
     insuranceExpiryDate: {
       type: Date,
       required: false,

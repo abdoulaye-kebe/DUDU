@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart'
     show kIsWeb, kDebugMode, debugPrint, defaultTargetPlatform, TargetPlatform;
 import '../models/driver_profile.dart';
@@ -214,21 +215,35 @@ class ApiService {
     }
   }
 
-  // Candidature chauffeur
-  static Future<Map<String, dynamic>> applyAsDriver(Map<String, dynamic> payload) async {
+  /// Candidature chauffeur : `data` (JSON) + fichiers (scans, assurance PDF/Word).
+  static Future<Map<String, dynamic>> applyAsDriver({
+    required Map<String, dynamic> data,
+    required Map<String, String?> filesByFieldName,
+  }) async {
     try {
       if (kDebugMode) {
-        print('📤 applyAsDriver payload: ${jsonEncode(payload)}');
+        debugPrint('📤 applyAsDriver (multipart) data keys: ${data.keys.toList()}');
       }
-      final response = await http.post(
-        Uri.parse('$baseUrl/drivers/apply'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
+      final uri = Uri.parse('$baseUrl/drivers/apply');
+      final request = http.MultipartRequest('POST', uri);
+      request.fields['data'] = jsonEncode(data);
+
+      for (final e in filesByFieldName.entries) {
+        final p = e.value;
+        if (p == null || p.isEmpty) continue;
+        final f = File(p);
+        if (!await f.exists()) continue;
+        request.files.add(await http.MultipartFile.fromPath(e.key, p));
+      }
+
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 120),
       );
+      final response = await http.Response.fromStream(streamed);
 
       if (kDebugMode) {
-        print('📥 applyAsDriver status: ${response.statusCode}');
-        print('📥 applyAsDriver body: ${response.body}');
+        debugPrint('📥 applyAsDriver status: ${response.statusCode}');
+        debugPrint('📥 applyAsDriver body: ${response.body}');
       }
 
       dynamic decoded;
@@ -239,11 +254,9 @@ class ApiService {
       }
 
       if (decoded is Map<String, dynamic>) {
-        // Normal: backend returns {success, message, ...}
         return decoded;
       }
 
-      // Fallback: non-json or unexpected format
       return {
         'success': false,
         'message': response.statusCode >= 400

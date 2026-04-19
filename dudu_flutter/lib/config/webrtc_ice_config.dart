@@ -6,6 +6,10 @@ List<Map<String, dynamic>> buildWebRtcIceServers() {
     {'urls': 'stun:stun.l.google.com:19302'},
   ];
 
+  if (!dotenv.isInitialized) {
+    return servers;
+  }
+
   final turnUrl = dotenv.maybeGet('WEBRTC_TURN_URL')?.trim();
   if (turnUrl == null || turnUrl.isEmpty) {
     return servers;

@@ -24,10 +24,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await dotenv.load(fileName: 'assets/config/app.env');
+    await dotenv.load(fileName: 'assets/config/app.env', isOptional: true);
     AppConfig.loadFromDotenv();
   } catch (e, st) {
-    debugPrint('⚠️ Config env introuvable ou invalide ($e)');
+    debugPrint('⚠️ Config env invalide ($e)');
     debugPrint('$st');
   }
 

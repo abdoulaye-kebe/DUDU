@@ -71,11 +71,11 @@ class CallService {
     if (kIsWeb) return;
     try {
       if (defaultTargetPlatform == TargetPlatform.iOS) {
+        await Helper.ensureAudioSession();
         await Helper.setAppleAudioIOMode(
           AppleAudioIOMode.localAndRemote,
           preferSpeakerOutput: true,
         );
-        await Helper.ensureAudioSession();
         await Helper.setSpeakerphoneOn(true);
       }
     } catch (e, st) {
@@ -170,18 +170,21 @@ class CallService {
         debugPrint(
           '🎙️ RTP audio — envoyé: ${s.outBytes} o, reçu: ${s.inBytes} o',
         );
-        if (s.inBytes > 0 && s.outBytes > 0) {
-          mediaHealth.value =
-              'Voix OK — échange actif (↑ ${s.outBytes} o / ↓ ${s.inBytes} o)';
-        } else if (s.outBytes > 0) {
-          mediaHealth.value =
-              'Micro actif — en attente de l’audio distant (↓ 0 o)';
-        } else if (s.inBytes > 0) {
-          mediaHealth.value =
-              'Réception OK — vérifiez le micro (↑ 0 o)';
-        } else {
-          mediaHealth.value = 'Négociation / média…';
-        }
+        scheduleMicrotask(() {
+          if (_peerConnection == null) return;
+          if (s.inBytes > 0 && s.outBytes > 0) {
+            mediaHealth.value =
+                'Voix OK — échange actif (↑ ${s.outBytes} o / ↓ ${s.inBytes} o)';
+          } else if (s.outBytes > 0) {
+            mediaHealth.value =
+                'Micro actif — en attente de l’audio distant (↓ 0 o)';
+          } else if (s.inBytes > 0) {
+            mediaHealth.value =
+                'Réception OK — vérifiez le micro (↑ 0 o)';
+          } else {
+            mediaHealth.value = 'Négociation / média…';
+          }
+        });
       } catch (e, st) {
         debugPrint('⚠️ getStats: $e\n$st');
       }
