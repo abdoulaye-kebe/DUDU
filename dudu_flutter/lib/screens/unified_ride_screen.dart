@@ -64,6 +64,8 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   LatLng? _pickupLatLng;
   LatLng? _destinationLatLng;
   int _customPrice = 0;
+  /// Moyen choisi sur l’écran de confirmation (cash, wave, orange_money).
+  String _ridePaymentMethod = 'cash';
   double _estimatedDistance = 0;
   List<PlaceSuggestion> _suggestions = [];
   double _motoPricePerKm = 500;
@@ -2144,6 +2146,12 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
         _customPrice = result['price'] ?? 0;
+        final rawPm = result['paymentMethod'];
+        if (rawPm == 'wave' || rawPm == 'orange_money' || rawPm == 'cash') {
+          _ridePaymentMethod = rawPm as String;
+        } else {
+          _ridePaymentMethod = 'cash';
+        }
         if (_selectedMode != 'delivery' && _selectedRideType == 'moto') {
           final distance = _estimatedDistance <= 0 ? 0 : _estimatedDistance;
           if (distance > 0) {
@@ -2245,7 +2253,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
         customPrice: (isLuxeRide || (!isMotoRide && !isLuxeRide && _customPrice > 0)) ? _customPrice : null,
         customPricePerKm: isMotoRide ? _motoPricePerKm : null,
         estimatedDistance: _estimatedDistance,
-        paymentMethod: 'cash',
+        paymentMethod: _ridePaymentMethod,
         isUrgentDelivery: _selectedMode == 'delivery' ? _deliveryUrgent : null,
       );
 

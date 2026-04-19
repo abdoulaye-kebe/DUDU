@@ -1406,7 +1406,13 @@ router.post('/create', [
       estimatedDistance,
       isUrgentDelivery,
       isUrgent,
+      paymentMethod: rawPaymentMethod,
     } = req.body;
+
+    const allowedPaymentMethods = ['orange_money', 'wave', 'free_money', 'cash'];
+    const resolvedPaymentMethod = allowedPaymentMethods.includes(rawPaymentMethod)
+      ? rawPaymentMethod
+      : 'cash';
 
     const deliveryIsUrgent =
       rideType === 'delivery' &&
@@ -1506,7 +1512,7 @@ router.post('/create', [
       passengers: 1,
       status: 'requested',
       payment: {
-        method: 'cash',
+        method: resolvedPaymentMethod,
         status: 'pending'
       },
       ...(rideType === 'delivery'

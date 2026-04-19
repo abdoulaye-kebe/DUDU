@@ -29,11 +29,16 @@ class RideConfirmationScreen extends StatefulWidget {
 
 class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
   int _customPrice = 0;
+  /// `cash` | `wave` | `orange_money` — aligné sur l’API et [PaymentMethodScreen].
+  String _paymentMethod = 'cash';
   late final TextEditingController _priceController;
   final FocusNode _priceFocus = FocusNode();
 
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color accentBlack = Color(0xFF1A1A1A);
+
+  static const String _waveLogo = 'assets/images/payments/wave_logo.png';
+  static const String _omLogo = 'assets/images/payments/orange_money_logo.png';
 
   @override
   void initState() {
@@ -87,6 +92,8 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
             _buildRouteInfo(),
             const SizedBox(height: 24),
             _buildPriceInput(),
+            const SizedBox(height: 24),
+            _buildPaymentMethods(),
             const SizedBox(height: 32),
             _buildConfirmButton(),
           ],
@@ -318,6 +325,210 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
     );
   }
 
+  Widget _buildPaymentMethods() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: primaryGreen.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.account_balance_wallet_outlined, color: primaryGreen, size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Moyen de paiement',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: accentBlack,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _paymentTileWithAsset(
+          method: 'wave',
+          title: 'Wave',
+          subtitle: 'Paiement mobile Wave',
+          assetPath: _waveLogo,
+          accent: const Color(0xFF21C1E6),
+          fees: 'Frais ~1,5 %',
+        ),
+        const SizedBox(height: 10),
+        _paymentTileWithAsset(
+          method: 'orange_money',
+          title: 'Orange Money',
+          subtitle: 'Paiement Orange Money',
+          assetPath: _omLogo,
+          accent: Colors.orange.shade700,
+          fees: 'Selon opérateur',
+        ),
+        const SizedBox(height: 10),
+        _paymentTileCash(),
+      ],
+    );
+  }
+
+  Widget _paymentLeadingImage(String assetPath, {IconData? fallback}) {
+    return Container(
+      width: 52,
+      height: 52,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Image.asset(
+        assetPath,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Icon(fallback ?? Icons.image_not_supported_outlined, color: Colors.grey),
+      ),
+    );
+  }
+
+  Widget _paymentTileWithAsset({
+    required String method,
+    required String title,
+    required String subtitle,
+    required String assetPath,
+    required Color accent,
+    required String fees,
+  }) {
+    final selected = _paymentMethod == method;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _paymentMethod = method),
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected ? accent.withOpacity(0.08) : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? accent : Colors.grey.shade300,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              _paymentLeadingImage(assetPath),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: selected ? accent : accentBlack,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      fees,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accent.withOpacity(0.95)),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                selected ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: selected ? accent : Colors.grey.shade400,
+                size: 26,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _paymentTileCash() {
+    const method = 'cash';
+    const accent = Color(0xFF2E7D32);
+    final selected = _paymentMethod == method;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _paymentMethod = method),
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected ? accent.withOpacity(0.08) : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? accent : Colors.grey.shade300,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: const Icon(Icons.payments_rounded, color: accent, size: 30),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Espèces',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: selected ? accent : accentBlack,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Payer en espèces au chauffeur',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Sans frais',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accent.withOpacity(0.95)),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                selected ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: selected ? accent : Colors.grey.shade400,
+                size: 26,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _applyPriceOk() {
     final parsed = int.tryParse(_priceController.text.replaceAll(' ', '')) ?? 0;
     setState(() => _customPrice = parsed);
@@ -339,6 +550,7 @@ class _RideConfirmationScreenState extends State<RideConfirmationScreen> {
           ? () {
               Navigator.pop(context, {
                 'price': _customPrice,
+                'paymentMethod': _paymentMethod,
               });
             }
           : null,
