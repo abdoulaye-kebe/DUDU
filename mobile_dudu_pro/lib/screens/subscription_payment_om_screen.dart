@@ -21,6 +21,7 @@ class SubscriptionPaymentOMScreen extends StatefulWidget {
 class _SubscriptionPaymentOMScreenState extends State<SubscriptionPaymentOMScreen> {
   static const Color primaryGreen = Color(0xFF0d5d36);
   static const Color lightGreen = Color(0xFF10b981);
+  static const String _omLogo = 'assets/images/payments/orange_money_logo.png';
   
   final TextEditingController _phoneController = TextEditingController();
   final ApiService _apiService = ApiService();
@@ -177,6 +178,27 @@ class _SubscriptionPaymentOMScreenState extends State<SubscriptionPaymentOMScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: primaryGreen.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Image.asset(
+                _omLogo,
+                width: 72,
+                height: 72,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.account_balance_wallet,
+                  size: 56,
+                  color: primaryGreen,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(

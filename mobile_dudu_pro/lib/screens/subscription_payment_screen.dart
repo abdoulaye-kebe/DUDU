@@ -18,6 +18,7 @@ class SubscriptionPaymentScreen extends StatefulWidget {
 
 class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
   static const Color primaryGreen = Color(0xFF0d5d36);
+  static const String _waveLogo = 'assets/images/payments/wave_logo.png';
   
   final TextEditingController _phoneController = TextEditingController();
   bool _isLoading = false;
@@ -63,15 +64,25 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icône Wave
+          // Logo Wave
           Center(
             child: Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.blue.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.water_drop, size: 60, color: Colors.blue),
+              child: Image.asset(
+                _waveLogo,
+                width: 72,
+                height: 72,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.water_drop,
+                  size: 60,
+                  color: Colors.blue,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -325,7 +336,17 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
           color: Colors.blue.withOpacity(0.1),
           child: Column(
             children: [
-              const Icon(Icons.water_drop, size: 48, color: Colors.blue),
+              Image.asset(
+                _waveLogo,
+                width: 48,
+                height: 48,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.water_drop,
+                  size: 48,
+                  color: Colors.blue,
+                ),
+              ),
               const SizedBox(height: 12),
               const Text(
                 'Paiement en cours...',

@@ -1738,7 +1738,7 @@ router.post('/schedule', [
   body('rideType').isIn(['standard', 'comfort', 'women_only', 'delivery']).withMessage('Type de course invalide'),
   body('customPrice').isInt({ min: 500 }).withMessage('Le prix minimum est 500 FCFA'),
   body('scheduledFor').notEmpty().withMessage('Date de programmation requise'),
-  body('paymentMethod').optional().isIn(['wave', 'cash']).withMessage('Méthode de paiement invalide')
+  body('paymentMethod').optional().isIn(['orange_money', 'wave', 'free_money', 'cash']).withMessage('Méthode de paiement invalide')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -1759,7 +1759,8 @@ router.post('/schedule', [
       paymentMethod: rawPaymentMethod
     } = req.body;
 
-    const paymentMethod = ['wave', 'cash'].includes(rawPaymentMethod)
+    const allowedPaymentMethods = ['orange_money', 'wave', 'free_money', 'cash'];
+    const paymentMethod = allowedPaymentMethods.includes(rawPaymentMethod)
       ? rawPaymentMethod
       : 'cash';
 

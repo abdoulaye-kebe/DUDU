@@ -77,6 +77,7 @@ class _UnifiedRideScreenState extends State<UnifiedRideScreen> {
   /// Livraison prioritaire (un seul colis à la fois côté livreur) — sinon empilement possible (2 courses).
   bool _deliveryUrgent = false;
 
+
   // Types de courses disponibles
   final List<Map<String, dynamic>> _rideTypes = [
     {

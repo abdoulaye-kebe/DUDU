@@ -19,6 +19,8 @@ class MobilePaymentScreen extends StatefulWidget {
 }
 
 class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
+  static const String _waveLogo = 'assets/images/payments/wave_logo.png';
+
   final TextEditingController _phoneController = TextEditingController();
   bool _isLoading = false;
   String? _paymentId;
@@ -37,7 +39,16 @@ class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
 
   Color get _methodColor => Colors.blue;
 
-  IconData get _methodIcon => Icons.water_drop;
+  Widget _waveBrand(double size) {
+    return Image.asset(
+      _waveLogo,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) =>
+          Icon(Icons.water_drop, size: size, color: _methodColor),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +82,7 @@ class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
                 color: _methodColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(_methodIcon, size: 60, color: _methodColor),
+              child: _waveBrand(60),
             ),
           ),
           const SizedBox(height: 24),
@@ -261,7 +272,7 @@ class _MobilePaymentScreenState extends State<MobilePaymentScreen> {
           color: _methodColor.withOpacity(0.1),
           child: Column(
             children: [
-              Icon(_methodIcon, size: 48, color: _methodColor),
+              _waveBrand(48),
               const SizedBox(height: 12),
               Text(
                 _getStatusMessage(),

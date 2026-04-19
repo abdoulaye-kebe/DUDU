@@ -24,6 +24,8 @@ class Ride {
   final DateTime? completedAt;
   final DateTime? cancelledAt;
   final RideRating? rating;
+  /// Extrait de `payment.method` (API) pour l’affichage (Wave, OM, etc.).
+  final String? paymentMethod;
 
   Ride({
     required this.id,
@@ -49,6 +51,7 @@ class Ride {
     this.completedAt,
     this.cancelledAt,
     this.rating,
+    this.paymentMethod,
   });
 
   factory Ride.fromJson(Map<String, dynamic> json) {
@@ -61,6 +64,14 @@ class Ride {
     }
     final pickupRaw = json['pickup'];
     final destinationRaw = json['destination'];
+    String? paymentMethodFromJson() {
+      final p = json['payment'];
+      if (p is Map<String, dynamic>) {
+        return p['method']?.toString();
+      }
+      return json['paymentMethod']?.toString();
+    }
+
     return Ride(
       id: json['id']?.toString() ?? '',
       rideId: json['rideId']?.toString() ?? '',
@@ -90,6 +101,7 @@ class Ride {
       completedAt: json['completedAt'] != null ? DateTime.parse(json['completedAt']) : null,
       cancelledAt: json['cancelledAt'] != null ? DateTime.parse(json['cancelledAt']) : null,
       rating: json['rating'] != null ? RideRating.fromJson(json['rating']) : null,
+      paymentMethod: paymentMethodFromJson(),
     );
   }
 
@@ -118,6 +130,7 @@ class Ride {
       'completedAt': completedAt?.toIso8601String(),
       'cancelledAt': cancelledAt?.toIso8601String(),
       'rating': rating?.toJson(),
+      'paymentMethod': paymentMethod,
     };
   }
 }

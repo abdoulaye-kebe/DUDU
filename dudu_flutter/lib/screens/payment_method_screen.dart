@@ -161,7 +161,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   method: 'free_money',
                   title: 'Free Money',
                   subtitle: 'Indisponible pour le moment',
-                  imagePath: 'assets/images/payments/free_money_logo..png',
+                  imagePath: 'assets/images/payments/free_money_logo.png',
                   color: Colors.teal,
                   fees: '—',
                   enabled: false,

@@ -7,7 +7,6 @@ import 'dart:math' as math;
 import '../services/places_service.dart' as places;
 import '../services/api_service.dart';
 import '../models/ride.dart';
-import '../services/notification_service.dart';
 import '../services/secure_auth_service.dart';
 import '../services/socket_service.dart';
 import '../services/directions_service.dart';
@@ -43,6 +42,8 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
   String _to = '';
   DateTime? _dateTime;
   int _price = 0;
+  /// Aligné sur la confirmation de course (Wave, OM, espèces).
+  String _plannedPaymentMethod = 'cash';
 
   final TextEditingController _fromController = TextEditingController();
   final TextEditingController _toController = TextEditingController();
@@ -774,11 +775,68 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildPlanForm(),
-          _buildUpcomingList(),
+          AnimatedBuilder(
+            animation: _tabController,
+            builder: (context, _) {
+              if (_tabController.index == 1) {
+                return const SizedBox.shrink();
+              }
+              return Material(
+                color: primaryGreen.withOpacity(0.08),
+                child: InkWell(
+                  onTap: () {
+                    _tabController.animateTo(1);
+                    _loadScheduledRides();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Row(
+                      children: [
+                        Icon(Icons.event_available, color: primaryGreen, size: 26),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Mes trajets planifiés',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  color: accentBlack,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Voir les trajets déjà réservés',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: primaryGreen),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildPlanForm(),
+                _buildUpcomingList(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1066,6 +1124,17 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
               });
             },
           ),
+          const SizedBox(height: 16),
+          const Text(
+            'Moyen de paiement',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: accentBlack,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildPlannedPaymentSelector(),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
@@ -1251,10 +1320,163 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
                   ),
                 ),
               ),
+              if (_scheduledPaymentLabel(ride.paymentMethod) != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _scheduledPaymentLabel(ride.paymentMethod)!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+
+  String? _scheduledPaymentLabel(String? method) {
+    switch (method) {
+      case 'wave':
+        return 'Paiement : Wave';
+      case 'orange_money':
+        return 'Paiement : Orange Money';
+      case 'free_money':
+        return 'Paiement : Free Money';
+      case 'cash':
+        return 'Paiement : espèces';
+      default:
+        return null;
+    }
+  }
+
+  Widget _buildPlannedPaymentSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _plannedPaymentTile(
+          method: 'wave',
+          title: 'Wave',
+          assetPath: 'assets/images/payments/wave_logo.png',
+          accent: const Color(0xFF21C1E6),
+        ),
+        const SizedBox(height: 8),
+        _plannedPaymentTile(
+          method: 'orange_money',
+          title: 'Orange Money',
+          assetPath: 'assets/images/payments/orange_money_logo.png',
+          accent: Colors.orange.shade700,
+        ),
+        const SizedBox(height: 8),
+        _plannedPaymentTileCash(),
+      ],
+    );
+  }
+
+  Widget _plannedPaymentTile({
+    required String method,
+    required String title,
+    required String assetPath,
+    required Color accent,
+  }) {
+    final selected = _plannedPaymentMethod == method;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _plannedPaymentMethod = method),
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? accent.withOpacity(0.08) : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? accent : Colors.grey.shade300,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Image.asset(
+                assetPath,
+                width: 36,
+                height: 36,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) =>
+                    Icon(Icons.payment, color: accent, size: 32),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              if (selected)
+                Icon(Icons.check_circle, color: accent, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _plannedPaymentTileCash() {
+    const method = 'cash';
+    final selected = _plannedPaymentMethod == method;
+    const accent = primaryGreen;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _plannedPaymentMethod = method),
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? accent.withOpacity(0.08) : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? accent : Colors.grey.shade300,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.payments_rounded, color: accent, size: 32),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Espèces',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              if (selected)
+                Icon(Icons.check_circle, color: accent, size: 22),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1571,7 +1793,7 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
       rideType: rideType,
       customPrice: _price,
       scheduledFor: _dateTime!,
-      paymentMethod: 'cash',
+      paymentMethod: _plannedPaymentMethod,
     );
 
     if (!mounted) return;
@@ -1598,14 +1820,6 @@ class _ScheduledRidesScreenState extends State<ScheduledRidesScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Trajet planifié avec succès')),
     );
-
-    final now = DateTime.now();
-    final diff = _dateTime!.difference(now);
-    if (diff.inMinutes > 65 && diff.inHours <= 3) {
-      NotificationService().showScheduledRideReminder1h(
-        scheduledAt: _dateTime!,
-      );
-    }
 
     await _loadScheduledRides();
     _tabController.animateTo(1);

@@ -178,7 +178,15 @@ router.get('/scheduled-rides', auth, async (req, res) => {
           status: ride.status,
           rideType: ride.rideType,
           scheduledFor: ride.scheduledFor,
-          requestedAt: ride.requestedAt
+          requestedAt: ride.requestedAt,
+          payment: ride.payment
+            ? {
+                method: ride.payment.method,
+                status: ride.payment.status,
+                transactionId: ride.payment.transactionId,
+                paidAt: ride.payment.paidAt
+              }
+            : null
         }))
       }
     });

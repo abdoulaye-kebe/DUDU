@@ -24,7 +24,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   bool _isLoading = true;
   String? _error;
   static const Map<String, String> _paymentLogos = {
-    'wave': 'assets/images/payments/wave.png',
+    'wave': 'assets/images/payments/wave_logo.png',
+    'orange_money': 'assets/images/payments/orange_money_logo.png',
+    'free_money': 'assets/images/payments/free_money_logo.png',
   };
 
   @override
@@ -1066,22 +1068,46 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   Widget _buildPaymentOption(String value, String label, {bool enabled = true}) {
     final logoPath = _paymentLogos[value];
+    final Widget leading = logoPath != null
+        ? Container(
+            width: 44,
+            height: 44,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Image.asset(
+              logoPath,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Icon(
+                Icons.account_balance_wallet,
+                color: enabled ? null : Colors.grey,
+              ),
+            ),
+          )
+        : Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF2E7D32).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              value == 'cash' ? Icons.payments_rounded : Icons.account_balance_wallet,
+              size: 26,
+              color: enabled ? const Color(0xFF2E7D32) : Colors.grey,
+            ),
+          );
+
     return Opacity(
       opacity: enabled ? 1 : 0.55,
       child: ListTile(
         enabled: enabled,
-        leading: logoPath != null
-            ? Image.asset(
-                logoPath,
-                width: 28,
-                height: 28,
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.account_balance_wallet),
-              )
-            : Icon(
-                value == 'cash' ? Icons.payments : Icons.account_balance_wallet,
-                color: enabled ? null : Colors.grey,
-              ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        leading: leading,
         title: Text(label),
         subtitle: enabled
             ? null

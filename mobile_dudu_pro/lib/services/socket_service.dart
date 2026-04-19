@@ -198,6 +198,26 @@ class SocketService {
       if (data is! Map) return;
       _counterOfferPassengerResponseController.add(Map<String, dynamic>.from(data));
     });
+
+    _socket!.on('scheduled-ride-reminder', (data) {
+      if (data is! Map) return;
+      final map = Map<String, dynamic>.from(data);
+      final tier = map['tier']?.toString() ?? '';
+      final minutesUntil = map['timeUntil'];
+      final m = minutesUntil is num ? minutesUntil.round() : 0;
+      final label = switch (tier) {
+        '120m' => 'dans environ 2 heures',
+        '60m' => 'dans environ 1 heure',
+        '30m' => 'dans environ 30 minutes',
+        _ => 'bientôt',
+      };
+      NotificationService().showSystemNotification(
+        title: 'Rappel course planifiée',
+        body:
+            'Votre course DuDu a lieu $label${m > 0 ? ' (~$m min).' : '.'}',
+        payload: 'scheduled_ride_reminder',
+      );
+    });
   }
 
   /// Émettre la position du chauffeur en temps réel

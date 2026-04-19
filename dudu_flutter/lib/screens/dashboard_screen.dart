@@ -1,15 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../constants/senegal_map.dart';
-import '../models/ride.dart';
 import '../providers/auth_provider.dart';
-import '../services/api_service.dart';
 import '../services/map_style_service.dart';
 import '../services/search_history_service.dart';
 import '../services/places_service.dart';
@@ -38,8 +35,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   Position? _currentPosition;
   final Set<Marker> _vehicleMarkers = {};
   List<SearchHistoryItem> _searchHistory = [];
-  List<Ride> _scheduledPreview = [];
-  bool _loadingScheduled = false;
 
   // Couleurs DuDu
   static const Color primaryGreen = Color(0xFF0d5d36);
@@ -296,21 +291,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     _setupAnimations();
     _getCurrentLocation();
     _loadSearchHistory();
-    _loadScheduledPreview();
-  }
-
-  Future<void> _loadScheduledPreview() async {
-    setState(() => _loadingScheduled = true);
-    final res = await ApiService.getScheduledRides();
-    if (!mounted) return;
-    setState(() {
-      _loadingScheduled = false;
-      if (res.success && res.data != null) {
-        _scheduledPreview = res.data!;
-      } else {
-        _scheduledPreview = [];
-      }
-    });
   }
 
   Future<void> _loadSearchHistory() async {
@@ -870,128 +850,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildScheduledRidesPreview() {
-    if (_loadingScheduled) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 4, bottom: 8),
-        child: Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-
-    final df = DateFormat('dd/MM/yyyy • HH:mm');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.event_available, size: 20, color: primaryGreen),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Trajets planifiés à venir',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: accentBlack,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ScheduledRidesScreen(),
-                  ),
-                ).then((_) {
-                  if (mounted) _loadScheduledPreview();
-                });
-              },
-              child: Text(
-                _scheduledPreview.isEmpty ? 'Planifier' : 'Voir tout',
-                style: TextStyle(
-                  color: primaryGreen,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (_scheduledPreview.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              'Réservez un trajet à l’avance depuis l’onglet « Trajets planifiés ».',
-              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-            ),
-          )
-        else
-          ..._scheduledPreview.take(3).map((ride) {
-            final when = ride.scheduledFor ?? ride.requestedAt;
-            final line =
-                '${ride.pickup.address} → ${ride.destination.address}';
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Material(
-                color: primaryGreen.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ScheduledRidesScreen(),
-                      ),
-                    ).then((_) {
-                      if (mounted) _loadScheduledPreview();
-                    });
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          df.format(when.toLocal()),
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: primaryGreen,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          line,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-      ],
-    );
-  }
-
   Widget _buildActionCard({
     required IconData icon,
     required String title,
@@ -1084,12 +942,14 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 child: _buildActionCard(
                   icon: Icons.directions_car,
                   title: 'Trajets',
-                  subtitle: 'Allons-y',
+                  subtitle: 'Commander une course',
                   color: primaryGreen,
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const UnifiedRideScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const UnifiedRideScreen(),
+                      ),
                     );
                   },
                 ),
@@ -1097,7 +957,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               const SizedBox(width: 12),
               Expanded(
                 child: _buildActionCard(
-                  icon: Icons.calendar_today,
+                  icon: Icons.event_available,
                   title: 'Trajets planifiés',
                   subtitle: 'Réserver à l’avance',
                   color: Colors.grey[800]!,
@@ -1113,8 +973,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          _buildScheduledRidesPreview(),
           const SizedBox(height: 20),
           // Bouton Devenir chauffeur
           InkWell(
