@@ -53,6 +53,11 @@
 	<!-- ITMS-90683 : API caméra liée par des SDK (carte, vérif, etc.) -->
 	<key>NSCameraUsageDescription</key>
 	<string>DuDu Pro peut utiliser la caméra pour la vérification du compte, le profil ou une fonctionnalité qui l'exige.</string>
+	<!-- ITMS-90683 : photothèque (file_picker / pièces d’identité, permis, carte grise) -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>DuDu Pro accède à vos photos pour joindre les documents d’inscription (CNI, permis, carte grise, assurance) et les pièces demandées pour votre activité de transport.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>DuDu Pro peut enregistrer des images dans votre photothèque lorsque vous enregistrez ou partagez un document.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>DuDu Pro utilise le microphone pour les appels audio avec le client pendant une course.</string>
 	<!-- Google Maps API Key -->
