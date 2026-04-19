@@ -1,10 +1,17 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 
 /// Service de paiement mobile Wave
 class MobilePaymentService {
+  static String? _stringOf(dynamic v) {
+    if (v == null) return null;
+    if (v is String) return v;
+    return v.toString();
+  }
+
   static Future<Map<String, String>> _headers() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -31,23 +38,43 @@ class MobilePaymentService {
         }),
       );
 
-      final data = jsonDecode(response.body);
+      final raw = response.body;
+      if (kDebugMode) {
+        debugPrint('Wave initiate HTTP ${response.statusCode}: $raw');
+      }
+      final data = jsonDecode(raw) as Map<String, dynamic>? ?? {};
 
       if (response.statusCode == 200 && data['success'] == true) {
+        final inner = data['data'];
+        if (inner is! Map<String, dynamic>) {
+          throw Exception(
+            'Réponse API invalide : champ « data » manquant ou incorrect.',
+          );
+        }
+        // Backend DUDU : checkoutUrl (camelCase). Secours si jamais réponse brute Wave exposée.
+        final String? url = _stringOf(inner['checkoutUrl']) ??
+            _stringOf(inner['checkout_url']) ??
+            _stringOf(inner['wave_launch_url']);
+        if (url == null || url.isEmpty) {
+          throw Exception(
+            'Réponse API sans URL de paiement (checkoutUrl). Corps: ${raw.length > 400 ? '${raw.substring(0, 400)}…' : raw}',
+          );
+        }
         return {
           'success': true,
-          'paymentId': data['data']['paymentId'],
-          'sessionId': data['data']['sessionId'],
-          'checkoutUrl': data['data']['checkoutUrl'],
-          'amount': data['data']['amount'],
-          'currency': data['data']['currency'],
-          'expiresAt': data['data']['expiresAt'],
+          'paymentId': inner['paymentId']?.toString(),
+          'sessionId': inner['sessionId']?.toString(),
+          'checkoutUrl': url,
+          'amount': inner['amount'],
+          'currency': inner['currency']?.toString(),
+          'expiresAt': inner['expiresAt'],
         };
       } else {
         throw Exception(data['message'] ?? 'Erreur lors de l\'initiation du paiement');
       }
     } catch (e) {
-      print('Erreur initiation paiement Wave: $e');
+      debugPrint('Erreur initiation paiement Wave: $e');
+      if (e is Exception) rethrow;
       throw Exception('Erreur de connexion au serveur');
     }
   }

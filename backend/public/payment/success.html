@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Paiement Wave — DuDu</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: linear-gradient(160deg, #0b1220 0%, #0d5d36 45%, #0b1220 100%);
+      color: rgba(255,255,255,0.95);
+    }
+    .card {
+      max-width: 420px;
+      width: 100%;
+      padding: 28px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      text-align: center;
+    }
+    h1 { font-size: 1.35rem; margin-bottom: 12px; font-weight: 700; }
+    p { font-size: 0.95rem; line-height: 1.5; color: rgba(255,255,255,0.82); }
+    .ok { font-size: 2.5rem; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="ok" aria-hidden="true">✓</div>
+    <h1>Paiement enregistré</h1>
+    <p>Si vous avez payé avec Wave, vous pouvez fermer cette page et retourner à l’application DuDu. Le statut est mis à jour automatiquement.</p>
+  </div>
+</body>
+</html>
