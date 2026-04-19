@@ -115,12 +115,13 @@ app.get('/track/:rideKey', (req, res) => {
 // servies par ce serveur Node (ou reproduire les mêmes fichiers sur S3 / CloudFront).
 const paymentSuccess = path.join(__dirname, '..', 'public', 'payment', 'success.html');
 const paymentError = path.join(__dirname, '..', 'public', 'payment', 'error.html');
-app.get(['/payment/success', '/payment/success.html'], (req, res) => {
-  res.sendFile(paymentSuccess);
-});
-app.get(['/payment/error', '/payment/error.html'], (req, res) => {
-  res.sendFile(paymentError);
-});
+const sendPaymentSuccess = (req, res) => res.sendFile(paymentSuccess);
+const sendPaymentError = (req, res) => res.sendFile(paymentError);
+// GET : navigateur / Wave après redirection. HEAD : curl -I / health-checks.
+app.get(['/payment/success', '/payment/success.html'], sendPaymentSuccess);
+app.head(['/payment/success', '/payment/success.html'], sendPaymentSuccess);
+app.get(['/payment/error', '/payment/error.html'], sendPaymentError);
+app.head(['/payment/error', '/payment/error.html'], sendPaymentError);
 
 // Middleware pour parser le JSON
 app.use(express.json({ limit: '10mb' }));
